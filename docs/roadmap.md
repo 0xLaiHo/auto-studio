@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-24  
 > 当前执行 Gate：Q0 音乐内容可行性 Spike  
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 实验装置与真实 DeepSeek/MIDI pilot 已完成，正式 A/B 正在执行，真人/DAW Gate 仍待完成；M3 production 尚未开工，当前产品仍不能真实生成音乐。
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 已完成，Mode B 11/12 达到机器装置 Gate；真人/DAW Gate 仍为 `LIVE-PENDING`。M3 production 尚未开工，当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -46,7 +46,7 @@
 | M0 Workspace Baseline | Rust workspace、Core、Project、API、基础 TUI | `PASS` |
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
-| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `IN PROGRESS`：装置/pilot PASS，正式 A/B 运行中，真人/DAW `LIVE-PENDING` |
+| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `PASS（machine 11/12）` / `LIVE-PENDING（human/DAW）` |
 | M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `NOT IMPLEMENTED（等待 Q0 GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
@@ -86,8 +86,8 @@ Q0 不建设 production Audio Engine。完成定义是：
 
 ### 4.3 Q0-B：运行与决策
 
-- [ ] Mode B 跑全部 12 个 Brief；
-- [ ] Mode A 跑 4 个代表 Brief；
+- [x] Mode B 跑全部 12 个 Brief；11/12 valid + compiled；
+- [x] Mode A 跑 4 个代表 Brief；4/4 valid + compiled；
 - [ ] Mode C 跑全部 6 个 L4 Brief，最多两轮 Creator 反馈；
 - [ ] 记录 Keep、Actual continued editing、Time to useful、Edit distance、Structural errors、内容评分与成本；
 - [ ] 主模型未过 L4 门槛时，用第二个不同强模型复核；
@@ -269,7 +269,7 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 ### Gate Q0：内容可行性
 
-- `IN PROGRESS`：实验装置与真实 pilot 已通过；正式 A/B 正在运行，Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
+- `PASS（machine）/ LIVE-PENDING（human）`：Mode B 11/12 达到装置门槛；Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
 - 通过条件：实验装置有效，L4 达到冻结 Keep/Actual continued editing 门槛；负面主模型结果由第二个不同强模型复核。
 
 ### Gate A：产品基线

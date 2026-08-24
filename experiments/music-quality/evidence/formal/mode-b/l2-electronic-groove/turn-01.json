@@ -1,0 +1,40 @@
+{
+  "provider": "deepseek",
+  "protocol": "openai-chat-completions",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "request": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": "You are the composition engine for a controlled professional-music experiment. Write original, editable MIDI-level musical decisions, not prose and not audio.\n\nRules:\n\n1. Return exactly one JSON object and no Markdown fences.\n2. Do not imitate or quote a named living artist or identifiable copyrighted melody.\n3. Treat MIDI pitch 60 as middle C. Keep every note within its declared track register.\n4. A region's beat is relative to its Section. In 4/4, an 8-bar Section has beats 0 through less than 32. Every note must end within its Section.\n5. Section IDs and Track IDs are unique lowercase identifiers. Sections are ordered, non-overlapping and use one-based start_bar.\n6. tempo_map and key_map start at bar 1 and are strictly increasing.\n7. Use velocity and CC1 or CC11 deliberately on sustained parts. Avoid decorative CC noise.\n8. Make roles independent: melody, harmony, bass, pulse, percussion and texture should not all double the same rhythm or pitch class.\n9. Prefer playable phrases, voice leading, rests and development over maximum note count.\n10. The JSON must conform to the supplied ExperimentalMusicSpec schema or stage schema.\n11. The complete spec must contain at most 768 notes and 256 CC events across all tracks. Use sparse, intentional phrases, repeated musical ideas and rests instead of spelling every subdivision on every track.\n",
+        "role": "system"
+      },
+      {
+        "content": "Design the musical skeleton before writing notes. Output exactly this JSON shape:\n\n{\"title\":\"...\",\"tempo_map\":[...],\"key_map\":[...],\"sections\":[...],\"track_plan\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"...\",\"register\":{\"low\":0,\"high\":127},\"instrument_hint\":\"...\",\"section_jobs\":[{\"section_id\":\"...\",\"intent\":\"...\",\"density\":\"sparse|medium|dense\"}]}],\"motif_strategy\":\"...\",\"harmony_strategy\":\"...\",\"groove_strategy\":\"...\"}\n\nUse the same field shapes for tempo_map, key_map, sections and register as ExperimentalMusicSpec. Do not include notes yet. Output only JSON.\n\n\nFROZEN BRIEF:\n{\n  \"id\": \"l2-electronic-groove\",\n  \"level\": \"L2\",\n  \"title\": \"Broken-grid electronic groove\",\n  \"purpose\": \"A loopable groove for a product-film montage that feels engineered but not mechanical.\",\n  \"duration_seconds\": 24,\n  \"section_plan\": [\n    \"establish: 4 bars\",\n    \"variation: 4 bars\"\n  ],\n  \"style\": [\n    \"left-field electronic\",\n    \"syncopated\",\n    \"clean\"\n  ],\n  \"mood\": [\n    \"focused\",\n    \"kinetic\",\n    \"controlled\"\n  ],\n  \"must_include\": [\n    \"kick and bass do not mask every downbeat\",\n    \"one syncopated signature accent\",\n    \"variation changes density\"\n  ],\n  \"must_avoid\": [\n    \"four-on-the-floor throughout\",\n    \"random fills\",\n    \"continuous maximum density\"\n  ],\n  \"instrument_roles\": [\n    \"kick and percussion\",\n    \"sub bass\",\n    \"chord stab\",\n    \"short motif\"\n  ],\n  \"delivery\": [\n    \"8 bars\",\n    \"4 to 5 tracks\",\n    \"drum notes remain in a practical GM range\"\n  ],\n  \"score_focus\": [\n    \"groove\",\n    \"low-end relationship\",\n    \"variation\"\n  ],\n  \"mode_a\": true\n}",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-pro",
+    "reasoning_effort": "high",
+    "response_format": {
+      "type": "json_object"
+    },
+    "stream": false,
+    "temperature": 0.7,
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "response_id": "d231534e-d4f9-42d2-92da-357cb93cedf9",
+  "content": "{\"title\":\"Broken-grid electronic groove\",\"tempo_map\":[{\"bar\":1,\"bpm\":80}],\"key_map\":[{\"bar\":1,\"key\":\"A minor\"}],\"sections\":[{\"id\":\"est\",\"start_bar\":1,\"num_bars\":4},{\"id\":\"var\",\"start_bar\":5,\"num_bars\":4}],\"track_plan\":[{\"id\":\"drums\",\"name\":\"Kick and Percussion\",\"role\":\"drums\",\"register\":{\"low\":35,\"high\":82},\"instrument_hint\":\"Electronic Drum Kit\",\"section_jobs\":[{\"section_id\":\"est\",\"intent\":\"Syncopated kick, sparse percussion accents, leave space on some downbeats\",\"density\":\"sparse\"},{\"section_id\":\"var\",\"intent\":\"Adds a signature offbeat accent and a few extra percussion hits, retains gaps\",\"density\":\"medium\"}]},{\"id\":\"bass\",\"name\":\"Sub Bass\",\"role\":\"bass\",\"register\":{\"low\":28,\"high\":43},\"instrument_hint\":\"Sub Bass\",\"section_jobs\":[{\"section_id\":\"est\",\"intent\":\"Short low-note phrases locking with but not masking every downbeat; rests on beat 4 often\",\"density\":\"sparse\"},{\"section_id\":\"var\",\"intent\":\"Slightly more movement with an additional octave-up note and rhythmic variation\",\"density\":\"medium\"}]},{\"id\":\"chords\",\"name\":\"Chord Stab\",\"role\":\"harmony\",\"register\":{\"low\":48,\"high\":76},\"instrument_hint\":\"PWM Chord Stab\",\"section_jobs\":[{\"section_id\":\"est\",\"intent\":\"Staccato chords on offbeats with clean two-note or three-note voicings, regular but not continuous\",\"density\":\"medium\"},{\"section_id\":\"var\",\"intent\":\"Chords become sparser, leaving more room for motif and accent; occasional sustained stab\",\"density\":\"sparse\"}]},{\"id\":\"motif\",\"name\":\"Short Motif\",\"role\":\"melody\",\"register\":{\"low\":60,\"high\":84},\"instrument_hint\":\"FM Pluck\",\"section_jobs\":[{\"section_id\":\"est\",\"intent\":\"Three-note syncopated motif appears twice with slight variation, avoids downbeats\",\"density\":\"sparse\"},{\"section_id\":\"var\",\"intent\":\"Motif repeats a step higher and adds one extra note; becomes the main focus\",\"density\":\"medium\"}]}],\"motif_strategy\":\"Three-note motif built on A minor pentatonic, syncopated to land just after beat 2 and before beat 4; varied by transposition and one added note in the second section.\",\"harmony_strategy\":\"A minor with v-i and iv-i movement; chord stabs voiced with open fifths and minor thirds to stay clean, sparser in variation to open space.\",\"groove_strategy\":\"Broken grid: kick on 1, 1.75, and 2.5 in places but never four-on-the-floor; syncopated offbeats and rests keep it kinetic, while variation adds a signature accent on the 'and' of 3.\"}",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 847,
+    "prompt_cache_hit_tokens": 512,
+    "prompt_cache_miss_tokens": 335,
+    "completion_tokens": 2893,
+    "total_tokens": 3740
+  },
+  "latency_ms": 45177
+}

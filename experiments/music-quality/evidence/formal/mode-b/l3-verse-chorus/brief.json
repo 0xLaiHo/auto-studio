@@ -1,0 +1,53 @@
+{
+  "id": "l3-verse-chorus",
+  "level": "L3",
+  "title": "Night-train verse and chorus",
+  "purpose": "A complete instrumental song skeleton about choosing to leave a familiar city.",
+  "duration_seconds": 72,
+  "section_plan": [
+    "intro: 4 bars",
+    "verse: 8 bars",
+    "pre-chorus: 4 bars",
+    "chorus: 8 bars",
+    "turnaround: 4 bars",
+    "final chorus: 8 bars"
+  ],
+  "style": [
+    "alternative pop",
+    "organic electronic",
+    "song-forward"
+  ],
+  "mood": [
+    "restless",
+    "bittersweet",
+    "decisive"
+  ],
+  "must_include": [
+    "chorus melody is derived from verse material",
+    "pre-chorus increases harmonic tension",
+    "final chorus changes arrangement"
+  ],
+  "must_avoid": [
+    "copy-pasted sections without development",
+    "cinematic trailer gestures",
+    "melody in every track"
+  ],
+  "instrument_roles": [
+    "drums",
+    "bass",
+    "piano or guitar harmony",
+    "lead melody",
+    "supporting texture"
+  ],
+  "delivery": [
+    "36 bars",
+    "5 to 7 tracks",
+    "contrasting but connected sections"
+  ],
+  "score_focus": [
+    "song structure",
+    "melodic development",
+    "transitions"
+  ],
+  "mode_a": false
+}

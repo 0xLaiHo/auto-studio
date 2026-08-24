@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-24  
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 独立实验已实现真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec 与 Type-1 SMF MIDI，但不属于 production runtime，正式评价仍在进行；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 独立实验已完成真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec、Type-1 SMF MIDI 与 11/12 机器 Gate，但不属于 production runtime，真人/DAW Gate 尚未完成；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 

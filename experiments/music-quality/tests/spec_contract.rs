@@ -53,6 +53,22 @@ fn rejects_time_signature_numerator_above_schema_limit() {
     );
 }
 
+#[test]
+fn rejects_a_spec_above_the_global_note_and_cc_budgets() {
+    let mut value: serde_json::Value = serde_json::from_str(valid_spec()).expect("fixture JSON");
+    let note = value["tracks"][0]["regions"][0]["notes"][0].clone();
+    let cc = value["tracks"][0]["regions"][0]["cc"][0].clone();
+    value["tracks"][0]["regions"][0]["notes"] = serde_json::Value::Array(vec![note; 769]);
+    value["tracks"][0]["regions"][0]["cc"] = serde_json::Value::Array(vec![cc; 257]);
+
+    let error = ExperimentalMusicSpec::parse_and_validate(&value.to_string())
+        .expect_err("global event budgets");
+
+    let message = error.to_string();
+    assert!(message.contains("total notes 770 exceeds 768"));
+    assert!(message.contains("total CC events 257 exceeds 256"));
+}
+
 fn valid_spec() -> &'static str {
     r#"{
       "title": "Contract fixture",

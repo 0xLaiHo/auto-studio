@@ -1,0 +1,53 @@
+{
+  "id": "l3-video-cue",
+  "level": "L3",
+  "title": "Prototype becomes real",
+  "purpose": "A 60 to 90 second cue for a short film sequence: failed prototype, quiet insight, successful test, unresolved final look.",
+  "duration_seconds": 78,
+  "section_plan": [
+    "failure: 8 bars",
+    "insight: 8 bars",
+    "build: 8 bars",
+    "success: 8 bars",
+    "question: 4 bars"
+  ],
+  "style": [
+    "hybrid chamber electronic",
+    "motivic",
+    "editor-friendly"
+  ],
+  "mood": [
+    "frustrated",
+    "curious",
+    "uplifting",
+    "slightly unresolved"
+  ],
+  "must_include": [
+    "one motif survives all sections",
+    "clear edit points",
+    "success is earned rather than instantly maximal"
+  ],
+  "must_avoid": [
+    "generic riser every transition",
+    "full ensemble from bar one",
+    "fully resolved final cadence"
+  ],
+  "instrument_roles": [
+    "piano motif",
+    "strings",
+    "bass pulse",
+    "electronic texture",
+    "light percussion"
+  ],
+  "delivery": [
+    "36 bars",
+    "5 to 7 tracks",
+    "section markers match picture beats"
+  ],
+  "score_focus": [
+    "narrative arc",
+    "transitions",
+    "motif continuity"
+  ],
+  "mode_a": true
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "q0-formal-summary-v1",
+  "expected_mode_a": 4,
+  "expected_mode_b": 12,
+  "observed_candidates": 16,
+  "completed_candidates": 15,
+  "invalid_candidates": [
+    "c-da6cc47b79ec"
+  ],
+  "mode_b_valid_and_compiled": 11,
+  "mode_b_device_gate_passed": true,
+  "total_usage": {
+    "prompt_tokens": 296176,
+    "prompt_cache_hit_tokens": 17152,
+    "prompt_cache_miss_tokens": 279024,
+    "completion_tokens": 778137,
+    "total_tokens": 1074313
+  },
+  "total_latency_ms": 8575922,
+  "off_peak_cost_usd": 1.725244444,
+  "peak_cost_usd": 3.450488888
+}

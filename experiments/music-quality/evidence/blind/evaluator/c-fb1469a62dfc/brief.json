@@ -1,0 +1,57 @@
+{
+  "id": "l4-electronic-microcity",
+  "level": "L4",
+  "title": "Micro-city at 3 AM",
+  "purpose": "A detailed electronic arrangement that can become a 90 second creator-led track, balancing groove and atmospheric storytelling.",
+  "duration_seconds": 90,
+  "section_plan": [
+    "empty streets: 8 bars",
+    "machines wake: 8 bars",
+    "human signal: 8 bars",
+    "convergence: 12 bars",
+    "dawn hint: 8 bars"
+  ],
+  "style": [
+    "IDM-informed downtempo",
+    "organic modulation",
+    "spatial rhythm"
+  ],
+  "mood": [
+    "observant",
+    "intricate",
+    "warm beneath cold surfaces"
+  ],
+  "must_include": [
+    "groove has foreground and background layers",
+    "human signal is a memorable motif",
+    "convergence develops prior material",
+    "automation-ready CC movement"
+  ],
+  "must_avoid": [
+    "random glitch density",
+    "unchanged eight-bar loop",
+    "sub bass and kick constantly coincide"
+  ],
+  "instrument_roles": [
+    "kick and low percussion",
+    "sub bass",
+    "micro percussion",
+    "harmonic bed",
+    "human motif",
+    "counter texture",
+    "transition layer",
+    "dawn color"
+  ],
+  "delivery": [
+    "44 bars",
+    "8 to 10 tracks",
+    "meaningful density and register changes"
+  ],
+  "score_focus": [
+    "groove hierarchy",
+    "sound-role imagination",
+    "long-form development",
+    "editability"
+  ],
+  "mode_a": false
+}

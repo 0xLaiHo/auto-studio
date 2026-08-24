@@ -1,0 +1,58 @@
+{
+  "id": "l4-song-neon",
+  "level": "L4",
+  "title": "Neon rain pop arrangement",
+  "purpose": "A production-ready MIDI arrangement starting point for a vocalist singing about waiting outside a closed station.",
+  "duration_seconds": 82,
+  "section_plan": [
+    "intro: 4 bars",
+    "verse: 8 bars",
+    "pre: 4 bars",
+    "chorus: 8 bars",
+    "verse 2: 8 bars",
+    "chorus 2: 8 bars",
+    "outro: 4 bars"
+  ],
+  "style": [
+    "nocturnal synth pop",
+    "warm analog color",
+    "modern restraint"
+  ],
+  "mood": [
+    "lonely",
+    "luminous",
+    "patient"
+  ],
+  "must_include": [
+    "6 to 8 differentiated roles",
+    "room for vocal in verse",
+    "chorus widens register",
+    "second verse is not a duplicate"
+  ],
+  "must_avoid": [
+    "lead melody competing with imagined vocal throughout",
+    "all tracks entering together",
+    "constant cymbal wash"
+  ],
+  "instrument_roles": [
+    "drums",
+    "bass",
+    "main chords",
+    "counter motif",
+    "pad",
+    "transition texture",
+    "optional instrumental hook"
+  ],
+  "delivery": [
+    "44 bars",
+    "6 to 8 tracks",
+    "CC dynamics on sustained roles"
+  ],
+  "score_focus": [
+    "orchestration",
+    "density arc",
+    "vocal space",
+    "song development"
+  ],
+  "mode_a": true
+}

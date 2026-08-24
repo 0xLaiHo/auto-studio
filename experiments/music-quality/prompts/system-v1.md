@@ -12,3 +12,4 @@ Rules:
 8. Make roles independent: melody, harmony, bass, pulse, percussion and texture should not all double the same rhythm or pitch class.
 9. Prefer playable phrases, voice leading, rests and development over maximum note count.
 10. The JSON must conform to the supplied ExperimentalMusicSpec schema or stage schema.
+11. The complete spec must contain at most 768 notes and 256 CC events across all tracks. Use sparse, intentional phrases, repeated musical ideas and rests instead of spelling every subdivision on every track.

@@ -1,0 +1,48 @@
+{
+  "id": "l2-electronic-groove",
+  "level": "L2",
+  "title": "Broken-grid electronic groove",
+  "purpose": "A loopable groove for a product-film montage that feels engineered but not mechanical.",
+  "duration_seconds": 24,
+  "section_plan": [
+    "establish: 4 bars",
+    "variation: 4 bars"
+  ],
+  "style": [
+    "left-field electronic",
+    "syncopated",
+    "clean"
+  ],
+  "mood": [
+    "focused",
+    "kinetic",
+    "controlled"
+  ],
+  "must_include": [
+    "kick and bass do not mask every downbeat",
+    "one syncopated signature accent",
+    "variation changes density"
+  ],
+  "must_avoid": [
+    "four-on-the-floor throughout",
+    "random fills",
+    "continuous maximum density"
+  ],
+  "instrument_roles": [
+    "kick and percussion",
+    "sub bass",
+    "chord stab",
+    "short motif"
+  ],
+  "delivery": [
+    "8 bars",
+    "4 to 5 tracks",
+    "drum notes remain in a practical GM range"
+  ],
+  "score_focus": [
+    "groove",
+    "low-end relationship",
+    "variation"
+  ],
+  "mode_a": true
+}

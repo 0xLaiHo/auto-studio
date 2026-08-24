@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-24  
 > 当前阶段：Q0 音乐内容可行性；M3 等待 Q0 `GO`  
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；Q0 实验装置与真实 DeepSeek/MIDI 纵切已实现，正式运行和真人 Gate 尚未完成；Durable Harness、本地 production Tool loop、Music Project、Sampler、Audio Engine、Factory Pack、VST3、内容质量、DAW 与分发 Gate 尚未通过。
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；Q0 机器 Gate 已达到 11/12，真人/DAW Gate 仍为 `LIVE-PENDING`；Durable Harness、本地 production Tool loop、Music Project、Sampler、Audio Engine、Factory Pack、VST3、内容质量、DAW 与分发 Gate 尚未通过。
 
 ## 权威顺序
 
@@ -26,6 +26,8 @@
 [Q0 音乐内容可行性 Spike](planning/2026-08-24-music-quality-spike-design.md)
 
 [Q0 可运行实验与复现命令](../experiments/music-quality/README.md)
+
+[Q0 结果与未完成真人 Gate](research/music-quality-q0-results-2026-08-24.md)
 
 随后 M3 要证明：
 

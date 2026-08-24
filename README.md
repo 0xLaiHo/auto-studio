@@ -13,7 +13,7 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS（contract）`：OpenAI、Anthropic、DeepSeek、Kimi 等 LLM 协议与一次 typed Planning Turn；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验与匿名评审包；
-- `IN PROGRESS / LIVE-PENDING`：Q0 正式 A/B 运行已启动，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与第二模型负面复核仍需真人/外部条件；
+- `PASS（Q0 machine gate）/ LIVE-PENDING（human gate）`：正式 A/B 已完成，Mode B 11/12 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍需真人/外部条件；
 - `NOT IMPLEMENTED（production）`：Inference Transcript/Continuity Vault、Approval Grant/Run Budget、通用 LLM Tool loop、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
@@ -141,6 +141,7 @@ bash scripts/test-deepseek-live.sh
 - [ADR-0012](docs/adr/0012-durable-agent-harness-state.md)
 - [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md)
 - [Q0 可运行实验](experiments/music-quality/README.md)
+- [Q0 结果报告](docs/research/music-quality-q0-results-2026-08-24.md)
 - [Agent Harness 架构图](docs/design/agent-harness-architecture.html)
 - [Agent Run 生命周期图](docs/design/agent-run-lifecycle.html)
 - [Tool Runtime 与 MCP 架构图](docs/design/tool-runtime-mcp-architecture.html)

@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`IN PROGRESS`；实验装置与真实 pilot 已完成，正式 A/B 正在执行，真人/DAW Gate 为 `LIVE-PENDING`  
+> 状态：`LIVE-PENDING`；实验装置、真实 pilot 与正式 A/B 机器 Gate 已完成，真人/DAW Gate 尚未完成
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -195,9 +195,13 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [x] 完成本地音色使用许可、版本和 hash 记录；GeneralUser GS 只批准本地评价，不批准产品再分发；
 - [x] 创建独立 experiment workspace、严格 schema/parser、Type-1 SMF compiler、逐轮恢复、证据哈希和测试；
 - [x] 完成不计入结果的真实 Mode A/Mode B DeepSeek pilot；
+- [x] 保存 protocol v1 装置失败：10 个 Mode B 已完成样本中 3 个无效，主要因 32,768 output-token 截断；证据冻结于 commit `78eb675` 和 `evidence/formal-v1-invalid/`，不得混入正式结论；
+- [x] 冻结 protocol v2：完整 spec 上限 65,536 output tokens，并增加全局 768 notes / 256 CC 资源预算；
+- [x] protocol v2 L4 pilot 通过：679 notes、33 CC、113,342 tokens、841,105 ms，严格校验与 MIDI 编译成功；
 - [x] 实现按锁定清单校验 Candidate、Provider identity、artifact hash、usage/cost 的 formal verifier；
 - [x] 实现 evaluator-safe 匿名包、独立 private mapping 与评价表；
-- [ ] 运行 A/B/C、盲评和 continued-editing session；
+- [x] 运行正式 Mode A 4/4 与 Mode B 12/12；Mode B 11/12 valid + compiled，达到装置门槛；
+- [ ] 运行真实 Creator feedback Mode C、盲评和 continued-editing session；
 - [ ] 输出 `GO/REVISE/NO-GO/INVALID` 报告；
 - [ ] 只有 `GO` 才把 M3 从目标设计转为 production 实施。
 
@@ -206,6 +210,8 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - `protocol.lock.json`：冻结 corpus、schema、prompt、模型、Thinking、超时、价格、环境、随机种子与投资阈值；
 - Mode A pilot：1 个真实调用，11,011 tokens，142,780 ms，严格校验并编译成功；
 - Mode B pilot：3 个真实调用，51,275 tokens，521,949 ms，逐轮 artifact 可恢复，最终严格校验并编译成功；
+- protocol v1 正式装置在 L3/L4 暴露输出截断，按 Gate 判定为 apparatus invalid；原始结果保留，不做人为修 JSON；
+- protocol v2 L4 pilot：3 个真实调用，113,342 tokens，841,105 ms，679 notes / 33 CC，最终严格校验并编译成功；正式 v2 A/B 使用全新目录；
 - Provider evidence 不持久化 API Key 或 private reasoning；请求固定 `Accept-Encoding: identity`，单次超时 600 秒；
 - Bitwig 进程和 48 kHz PipeWire 初始化已实测，MIDI GUI import 尚未取得可验证证据；
 - pilot 明确排除于正式评分，不能用于填充 11/12、Keep 或 continued-editing 门槛。

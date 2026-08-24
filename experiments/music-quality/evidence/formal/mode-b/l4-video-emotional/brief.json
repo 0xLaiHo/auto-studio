@@ -1,0 +1,53 @@
+{
+  "id": "l4-video-emotional",
+  "level": "L4",
+  "title": "Unsent voice message",
+  "purpose": "A 80 second dramatic cue under sparse dialogue: recording a message, almost sending it, deleting it, then taking one practical action.",
+  "duration_seconds": 80,
+  "section_plan": [
+    "record: 8 bars",
+    "hesitate: 8 bars",
+    "delete: 4 bars",
+    "act: 12 bars",
+    "afterthought: 4 bars"
+  ],
+  "style": [
+    "modern chamber",
+    "minimal piano",
+    "subtle electronics"
+  ],
+  "mood": [
+    "intimate",
+    "uncertain",
+    "grounded"
+  ],
+  "must_include": [
+    "silence or sparse bars around delete moment",
+    "motif changes meaning",
+    "final action is forward motion without triumph"
+  ],
+  "must_avoid": [
+    "sentimental major-key swell",
+    "continuous melody under dialogue",
+    "huge climax"
+  ],
+  "instrument_roles": [
+    "piano",
+    "solo cello",
+    "soft strings",
+    "subtle pulse",
+    "air texture",
+    "low support"
+  ],
+  "delivery": [
+    "36 bars",
+    "6 to 8 tracks",
+    "dialogue space and controlled registers"
+  ],
+  "score_focus": [
+    "restraint",
+    "motif reinterpretation",
+    "dialogue support"
+  ],
+  "mode_a": false
+}

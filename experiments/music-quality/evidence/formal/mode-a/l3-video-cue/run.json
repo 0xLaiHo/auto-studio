@@ -1,0 +1,48 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l3-video-cue-a-1787581174879",
+  "candidate_id": "c-2578d02d0a69",
+  "status": "completed",
+  "mode": "a",
+  "brief_id": "l3-video-cue",
+  "brief_level": "L3",
+  "started_at": "2026-08-24T14:19:34.879896894Z",
+  "completed_at": "2026-08-24T14:24:11.865852080Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": true,
+  "compiled": true,
+  "validation_error": null,
+  "turn_count": 1,
+  "total_usage": {
+    "prompt_tokens": 2230,
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 1846,
+    "completion_tokens": 23438,
+    "total_tokens": 25668
+  },
+  "total_latency_ms": 276976,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1170,
+      "sha256": "d49dbb2f7f2b8ca0d367e80cd44cbfaf8da26bd04aeac53f36b48aff9401d862"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 40104,
+      "sha256": "3d22fcd40f52b4de1713145e1d0eacdbcc5211cea6acb6d0c5fd85ef451042f9"
+    },
+    {
+      "path": "spec.json",
+      "bytes": 48953,
+      "sha256": "5872769b9ca5142ba8240c81789809bb0ee8236c5b3ce68c77c1c36ebb519a23"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 2836,
+      "sha256": "57e9f0991f868bab4ffe127286ac0485f342dda881ae92a821a8547bb591de8f"
+    }
+  ]
+}

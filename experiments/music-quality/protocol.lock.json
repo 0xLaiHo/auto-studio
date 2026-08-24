@@ -1,8 +1,14 @@
 {
-  "schema_version": "q0-protocol-v1",
+  "schema_version": "q0-protocol-v2",
   "status": "locked-for-provider-runs; human-and-daw-gates-live-pending",
   "drafted_at": "2026-08-24T00:00:00+08:00",
-  "locked_at": "2026-08-24T21:20:00+08:00",
+  "locked_at": "2026-08-24T22:08:00+08:00",
+  "supersedes": {
+    "protocol_sha256": "236eba11d3e5563b62e44b4f14483ccf1bfec1f1d96c36bcd9e6a8545d6aea17",
+    "git_commit": "78eb675",
+    "evidence_root": "evidence/formal-v1-invalid",
+    "reason": "v1 could not satisfy the device gate because verbose L3/L4 JSON reached the 32768 output-token cap; those runs are apparatus evidence only"
+  },
   "baseline_commit": "b9db99cfafa465a2ee49b93140c6efe7537cf33e",
   "provider": {
     "name": "deepseek",
@@ -18,7 +24,7 @@
     "request_timeout_seconds": 600,
     "temperature": 0.7,
     "skeleton_max_tokens": 8192,
-    "full_spec_max_tokens": 32768,
+    "full_spec_max_tokens": 65536,
     "negative_recheck": "required before NO-GO; exact second-provider model remains BLOCKED until a distinct strong-model credential is supplied"
   },
   "modes": {
@@ -34,6 +40,11 @@
     "median_creator_edit_operations_max": 40,
     "formal_provider_calls_max": 52
   },
+  "spec_resource_limits": {
+    "total_notes_max": 768,
+    "total_cc_events_max": 256,
+    "reason": "bound evidence size while preserving sparse editable L1-L4 musical decisions"
+  },
   "gates": {
     "mode_b_valid_and_compiled_minimum": "11/12",
     "l4_mode_c_keep_minimum": "4/6",
@@ -43,6 +54,18 @@
   },
   "pilot": {
     "excluded_from_formal_results": true,
+    "revision_2_l4": {
+      "status": "PASS",
+      "brief_id": "l4-song-neon",
+      "turn_count": 3,
+      "total_notes": 679,
+      "total_cc_events": 33,
+      "total_tokens": 113342,
+      "total_latency_ms": 841105,
+      "run_sha256": "be79bf0ec7754b93df552ea3790173f0c9470f225ea82abe3dac2f8695588a43",
+      "spec_sha256": "2cb919d9c44b35f3e7a0eacb9455e9e573a7105dae7253665f836b89ea16bda9",
+      "midi_sha256": "d60901458ee46cc3b3f1c9a488fd32f4f2981caad5eeacb99ab3a299168f1c36"
+    },
     "mode_a": {
       "status": "PASS",
       "brief_id": "l1-song-hook",
@@ -69,7 +92,7 @@
   "input_hashes": {
     "corpus/corpus-v1.json": "81dda3b9c4fb9ac8c26353a12a186e03567cc63001431ad626c05c31b726659f",
     "schema/experimental-music-spec.schema.json": "09e95138f75efba7d5da4eb01bcdafed81b4284bec76a41fbf47236cd8812c2e",
-    "prompts/system-v1.md": "9625e323136a56cb263bdad1e407b8d87dd061b7eb8593a6fbd9e8b8ec93314e",
+    "prompts/system-v1.md": "33f3bd16e9685977c642f50176c11988cf9a9a28563bb269d35a6d9207cbc1d7",
     "prompts/mode-a-v1.md": "73e292e8cba807dae30696c64a67a3fad7496f0ae8221c38f3dddbff8ad5e572",
     "prompts/mode-b-skeleton-v1.md": "69ec39d3a0a9bc2a9be2e734a6faae9c759a32d0357538df1b09989e1e6d8e14",
     "prompts/mode-b-arrange-v1.md": "6177e91b2b1469346bcd858c6eee58900aa0b2c2ab2e95678a2721791a923582",

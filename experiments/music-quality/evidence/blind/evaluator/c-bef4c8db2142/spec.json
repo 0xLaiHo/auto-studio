@@ -1,0 +1,1355 @@
+{
+  "title": "Unsent voice message",
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 108.0,
+      "time_signature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "key_map": [
+    {
+      "bar": 1,
+      "tonic": "D",
+      "mode": "minor"
+    }
+  ],
+  "sections": [
+    {
+      "id": "record",
+      "label": "Record",
+      "start_bar": 1,
+      "length_bars": 8,
+      "intent": "sparse piano motif A, gentle, left-hand sustained"
+    },
+    {
+      "id": "hesitate",
+      "label": "Hesitate",
+      "start_bar": 9,
+      "length_bars": 8,
+      "intent": "repeat motif with hesitation, missed notes, rests"
+    },
+    {
+      "id": "delete",
+      "label": "Delete",
+      "start_bar": 17,
+      "length_bars": 4,
+      "intent": "nearly silent, isolated low single notes"
+    },
+    {
+      "id": "act",
+      "label": "Act",
+      "start_bar": 21,
+      "length_bars": 12,
+      "intent": "motif B in lower register, forward but not triumphant"
+    },
+    {
+      "id": "afterthought",
+      "label": "Afterthought",
+      "start_bar": 33,
+      "length_bars": 4,
+      "intent": "motif A fragment, unresolved"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "piano",
+      "name": "Felt Piano",
+      "role": "melody/harmony",
+      "register": {
+        "low": 48,
+        "high": 84
+      },
+      "instrument_hint": "felt piano, close mic, muted",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.5,
+              "pitch": 62,
+              "velocity": 60
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 64,
+              "velocity": 55
+            },
+            {
+              "beat": 4.0,
+              "duration": 2.5,
+              "pitch": 65,
+              "velocity": 62
+            },
+            {
+              "beat": 0.0,
+              "duration": 8.0,
+              "pitch": 53,
+              "velocity": 40
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 80
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 70
+            }
+          ]
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 50
+            },
+            {
+              "beat": 1.0,
+              "duration": 0.5,
+              "pitch": 64,
+              "velocity": 45
+            },
+            {
+              "beat": 3.0,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 40
+            },
+            {
+              "beat": 6.0,
+              "duration": 1.0,
+              "pitch": 62,
+              "velocity": 45
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.5,
+              "pitch": 64,
+              "velocity": 40
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 35
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 70
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 60
+            }
+          ]
+        },
+        {
+          "section_id": "delete",
+          "notes": [
+            {
+              "beat": 2.0,
+              "duration": 2.0,
+              "pitch": 50,
+              "velocity": 25
+            },
+            {
+              "beat": 12.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 20
+            }
+          ],
+          "cc": [
+            {
+              "beat": 2.0,
+              "controller": 11,
+              "value": 30
+            }
+          ]
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 4.0,
+              "pitch": 50,
+              "velocity": 45
+            },
+            {
+              "beat": 4.0,
+              "duration": 4.0,
+              "pitch": 53,
+              "velocity": 45
+            },
+            {
+              "beat": 8.0,
+              "duration": 4.0,
+              "pitch": 58,
+              "velocity": 45
+            },
+            {
+              "beat": 12.0,
+              "duration": 4.0,
+              "pitch": 62,
+              "velocity": 45
+            },
+            {
+              "beat": 16.0,
+              "duration": 4.0,
+              "pitch": 57,
+              "velocity": 45
+            },
+            {
+              "beat": 20.0,
+              "duration": 4.0,
+              "pitch": 60,
+              "velocity": 45
+            },
+            {
+              "beat": 24.0,
+              "duration": 4.0,
+              "pitch": 50,
+              "velocity": 45
+            },
+            {
+              "beat": 28.0,
+              "duration": 4.0,
+              "pitch": 53,
+              "velocity": 45
+            },
+            {
+              "beat": 32.0,
+              "duration": 4.0,
+              "pitch": 55,
+              "velocity": 45
+            },
+            {
+              "beat": 36.0,
+              "duration": 4.0,
+              "pitch": 58,
+              "velocity": 45
+            },
+            {
+              "beat": 40.0,
+              "duration": 4.0,
+              "pitch": 50,
+              "velocity": 45
+            },
+            {
+              "beat": 44.0,
+              "duration": 4.0,
+              "pitch": 53,
+              "velocity": 45
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 60
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 65
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 62
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 60
+            },
+            {
+              "beat": 32.0,
+              "controller": 11,
+              "value": 55
+            },
+            {
+              "beat": 40.0,
+              "controller": 11,
+              "value": 50
+            }
+          ]
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 35
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 64,
+              "velocity": 32
+            },
+            {
+              "beat": 4.0,
+              "duration": 2.0,
+              "pitch": 62,
+              "velocity": 28
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 6.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cello",
+      "name": "Solo Cello",
+      "role": "counter-melody",
+      "register": {
+        "low": 36,
+        "high": 72
+      },
+      "instrument_hint": "solo cello, warm, close",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 28.0,
+              "pitch": 50,
+              "velocity": 45
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 60
+            },
+            {
+              "beat": 8.0,
+              "controller": 1,
+              "value": 70
+            },
+            {
+              "beat": 16.0,
+              "controller": 1,
+              "value": 65
+            },
+            {
+              "beat": 24.0,
+              "controller": 1,
+              "value": 55
+            }
+          ]
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 57,
+              "velocity": 45
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.5,
+              "pitch": 57,
+              "velocity": 40
+            },
+            {
+              "beat": 12.0,
+              "duration": 1.0,
+              "pitch": 57,
+              "velocity": 35
+            }
+          ],
+          "cc": [
+            {
+              "beat": 2.0,
+              "controller": 1,
+              "value": 40
+            },
+            {
+              "beat": 6.0,
+              "controller": 1,
+              "value": 45
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 35
+            }
+          ]
+        },
+        {
+          "section_id": "delete",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.0,
+              "pitch": 53,
+              "velocity": 55
+            },
+            {
+              "beat": 1.0,
+              "duration": 1.0,
+              "pitch": 52,
+              "velocity": 55
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 50,
+              "velocity": 55
+            },
+            {
+              "beat": 3.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 52
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.5,
+              "pitch": 53,
+              "velocity": 55
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.5,
+              "pitch": 52,
+              "velocity": 52
+            },
+            {
+              "beat": 9.0,
+              "duration": 2.0,
+              "pitch": 50,
+              "velocity": 52
+            },
+            {
+              "beat": 11.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 50
+            },
+            {
+              "beat": 16.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 52
+            },
+            {
+              "beat": 17.0,
+              "duration": 1.0,
+              "pitch": 50,
+              "velocity": 52
+            },
+            {
+              "beat": 18.0,
+              "duration": 1.0,
+              "pitch": 52,
+              "velocity": 52
+            },
+            {
+              "beat": 19.0,
+              "duration": 1.0,
+              "pitch": 53,
+              "velocity": 55
+            },
+            {
+              "beat": 24.0,
+              "duration": 0.5,
+              "pitch": 53,
+              "velocity": 50
+            },
+            {
+              "beat": 24.5,
+              "duration": 0.5,
+              "pitch": 52,
+              "velocity": 48
+            },
+            {
+              "beat": 25.0,
+              "duration": 1.0,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 26.0,
+              "duration": 2.0,
+              "pitch": 48,
+              "velocity": 45
+            },
+            {
+              "beat": 32.0,
+              "duration": 4.0,
+              "pitch": 50,
+              "velocity": 40
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 55
+            },
+            {
+              "beat": 4.0,
+              "controller": 1,
+              "value": 45
+            },
+            {
+              "beat": 8.0,
+              "controller": 1,
+              "value": 55
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 45
+            },
+            {
+              "beat": 16.0,
+              "controller": 1,
+              "value": 52
+            },
+            {
+              "beat": 20.0,
+              "controller": 1,
+              "value": 42
+            },
+            {
+              "beat": 24.0,
+              "controller": 1,
+              "value": 50
+            },
+            {
+              "beat": 28.0,
+              "controller": 1,
+              "value": 40
+            },
+            {
+              "beat": 32.0,
+              "controller": 1,
+              "value": 35
+            }
+          ]
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 38,
+              "velocity": 55
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "strings",
+      "name": "Soft Strings",
+      "role": "harmony/texture",
+      "register": {
+        "low": 55,
+        "high": 84
+      },
+      "instrument_hint": "string pad, ppp",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 28.0,
+              "pitch": 62,
+              "velocity": 30
+            },
+            {
+              "beat": 0.0,
+              "duration": 28.0,
+              "pitch": 74,
+              "velocity": 25
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 60
+            }
+          ]
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 62,
+              "velocity": 30
+            },
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 65,
+              "velocity": 28
+            },
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 69,
+              "velocity": 26
+            },
+            {
+              "beat": 12.0,
+              "duration": 10.0,
+              "pitch": 58,
+              "velocity": 30
+            },
+            {
+              "beat": 12.0,
+              "duration": 10.0,
+              "pitch": 62,
+              "velocity": 28
+            },
+            {
+              "beat": 12.0,
+              "duration": 10.0,
+              "pitch": 65,
+              "velocity": 26
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 55,
+              "velocity": 30
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 58,
+              "velocity": 28
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 26
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        },
+        {
+          "section_id": "delete",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 30
+            },
+            {
+              "beat": 0.0,
+              "duration": 8.0,
+              "pitch": 65,
+              "velocity": 28
+            },
+            {
+              "beat": 0.0,
+              "duration": 8.0,
+              "pitch": 69,
+              "velocity": 26
+            },
+            {
+              "beat": 8.0,
+              "duration": 8.0,
+              "pitch": 58,
+              "velocity": 30
+            },
+            {
+              "beat": 8.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 28
+            },
+            {
+              "beat": 8.0,
+              "duration": 8.0,
+              "pitch": 65,
+              "velocity": 26
+            },
+            {
+              "beat": 16.0,
+              "duration": 8.0,
+              "pitch": 57,
+              "velocity": 30
+            },
+            {
+              "beat": 16.0,
+              "duration": 8.0,
+              "pitch": 60,
+              "velocity": 28
+            },
+            {
+              "beat": 16.0,
+              "duration": 8.0,
+              "pitch": 64,
+              "velocity": 26
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 30
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 65,
+              "velocity": 28
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 69,
+              "velocity": 26
+            },
+            {
+              "beat": 32.0,
+              "duration": 8.0,
+              "pitch": 55,
+              "velocity": 30
+            },
+            {
+              "beat": 32.0,
+              "duration": 8.0,
+              "pitch": 58,
+              "velocity": 28
+            },
+            {
+              "beat": 32.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 26
+            },
+            {
+              "beat": 40.0,
+              "duration": 8.0,
+              "pitch": 62,
+              "velocity": 30
+            },
+            {
+              "beat": 40.0,
+              "duration": 8.0,
+              "pitch": 65,
+              "velocity": 28
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 55
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 55
+            },
+            {
+              "beat": 32.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 40.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 62,
+              "velocity": 25
+            },
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 69,
+              "velocity": 22
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pulse",
+      "name": "Subtle Pulse",
+      "role": "rhythm",
+      "register": {
+        "low": 60,
+        "high": 72
+      },
+      "instrument_hint": "electronic soft pulse / muted click",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [
+            {
+              "beat": 1.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 35
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 35
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 35
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 35
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 1.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 19.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 25.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 29.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "delete",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 2.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 18.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 22.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 26.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 30.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 34.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 38.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 42.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            },
+            {
+              "beat": 46.5,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 30
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 1.0,
+              "duration": 0.1,
+              "pitch": 67,
+              "velocity": 25
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "air",
+      "name": "Air Texture",
+      "role": "texture/ambience",
+      "register": {
+        "low": 72,
+        "high": 96
+      },
+      "instrument_hint": "reversed swell, granular air, low-passed",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 28.0,
+              "pitch": 86,
+              "velocity": 8
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 25
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 35
+            },
+            {
+              "beat": 28.0,
+              "controller": 11,
+              "value": 20
+            }
+          ]
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 14.0,
+              "pitch": 81,
+              "velocity": 8
+            },
+            {
+              "beat": 16.0,
+              "duration": 14.0,
+              "pitch": 79,
+              "velocity": 7
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 20
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 40
+            },
+            {
+              "beat": 14.0,
+              "controller": 11,
+              "value": 10
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 20
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 35
+            },
+            {
+              "beat": 30.0,
+              "controller": 11,
+              "value": 10
+            }
+          ]
+        },
+        {
+          "section_id": "delete",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 24.0,
+              "pitch": 86,
+              "velocity": 8
+            },
+            {
+              "beat": 24.0,
+              "duration": 24.0,
+              "pitch": 88,
+              "velocity": 7
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 20
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 30
+            },
+            {
+              "beat": 36.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 46.0,
+              "controller": 11,
+              "value": 15
+            }
+          ]
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 12.0,
+              "pitch": 81,
+              "velocity": 5
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 20
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "low",
+      "name": "Low Support",
+      "role": "bass",
+      "register": {
+        "low": 24,
+        "high": 48
+      },
+      "instrument_hint": "double bass / sub bass, soft",
+      "regions": [
+        {
+          "section_id": "record",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "hesitate",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 32.0,
+              "pitch": 38,
+              "velocity": 38
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 30.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        },
+        {
+          "section_id": "delete",
+          "notes": [],
+          "cc": []
+        },
+        {
+          "section_id": "act",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 8.0,
+              "pitch": 38,
+              "velocity": 42
+            },
+            {
+              "beat": 8.0,
+              "duration": 8.0,
+              "pitch": 34,
+              "velocity": 42
+            },
+            {
+              "beat": 16.0,
+              "duration": 8.0,
+              "pitch": 33,
+              "velocity": 42
+            },
+            {
+              "beat": 24.0,
+              "duration": 8.0,
+              "pitch": 38,
+              "velocity": 42
+            },
+            {
+              "beat": 32.0,
+              "duration": 8.0,
+              "pitch": 31,
+              "velocity": 42
+            },
+            {
+              "beat": 40.0,
+              "duration": 8.0,
+              "pitch": 38,
+              "velocity": 42
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 16.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 24.0,
+              "controller": 11,
+              "value": 45
+            },
+            {
+              "beat": 32.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 40.0,
+              "controller": 11,
+              "value": 40
+            }
+          ]
+        },
+        {
+          "section_id": "afterthought",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 16.0,
+              "pitch": 38,
+              "velocity": 40
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 50
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 30
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

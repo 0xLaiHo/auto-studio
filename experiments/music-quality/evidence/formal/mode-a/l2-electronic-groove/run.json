@@ -1,0 +1,48 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l2-electronic-groove-a-1787581174877",
+  "candidate_id": "c-d60d39b5b819",
+  "status": "completed",
+  "mode": "a",
+  "brief_id": "l2-electronic-groove",
+  "brief_level": "L2",
+  "started_at": "2026-08-24T14:19:34.877125978Z",
+  "completed_at": "2026-08-24T14:23:00.533505283Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": true,
+  "compiled": true,
+  "validation_error": null,
+  "turn_count": 1,
+  "total_usage": {
+    "prompt_tokens": 2186,
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 1802,
+    "completion_tokens": 17549,
+    "total_tokens": 19735
+  },
+  "total_latency_ms": 205645,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1007,
+      "sha256": "b8eea6d5d3774e68d48cca63656484716d3f87a858a8bfd6ba5a9c0efa6ce6f5"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 25912,
+      "sha256": "1bb8f57b2daad6d4a8120293e3eeb0c895c162fb10c02eb9b78bd456ec5d2c1b"
+    },
+    {
+      "path": "spec.json",
+      "bytes": 27201,
+      "sha256": "e59c28ef1ca3f66b402fd6e7a1ed1bc13d46a957e8fd3a9a9c71b069be4dc39b"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 1534,
+      "sha256": "9e92986f2296ac7c78b3df46245796185fc9606622956eec949d5133050993fe"
+    }
+  ]
+}

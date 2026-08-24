@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants::{
     MAX_BAR, MAX_BPM, MAX_CC_PER_REGION, MAX_NOTES_PER_REGION, MAX_REGIONS_PER_TRACK,
-    MAX_SECTION_BARS, MAX_SECTIONS, MAX_TIME_SIGNATURE_NUMERATOR, MAX_TRACKS, MIDI_MAX, MIN_BPM,
-    SUPPORTED_TIME_SIGNATURE_DENOMINATORS,
+    MAX_SECTION_BARS, MAX_SECTIONS, MAX_TIME_SIGNATURE_NUMERATOR, MAX_TOTAL_CC_EVENTS,
+    MAX_TOTAL_NOTES, MAX_TRACKS, MIDI_MAX, MIN_BPM, SUPPORTED_TIME_SIGNATURE_DENOMINATORS,
 };
 use crate::error::SpecError;
 
@@ -210,6 +210,28 @@ impl ExperimentalMusicSpec {
         sections: &HashMap<&str, &MusicSection>,
         violations: &mut Vec<String>,
     ) {
+        let total_notes = self
+            .tracks
+            .iter()
+            .flat_map(|track| &track.regions)
+            .map(|region| region.notes.len())
+            .sum::<usize>();
+        if total_notes > MAX_TOTAL_NOTES {
+            violations.push(format!(
+                "total notes {total_notes} exceeds {MAX_TOTAL_NOTES}"
+            ));
+        }
+        let total_cc = self
+            .tracks
+            .iter()
+            .flat_map(|track| &track.regions)
+            .map(|region| region.cc.len())
+            .sum::<usize>();
+        if total_cc > MAX_TOTAL_CC_EVENTS {
+            violations.push(format!(
+                "total CC events {total_cc} exceeds {MAX_TOTAL_CC_EVENTS}"
+            ));
+        }
         if self.tracks.is_empty() || self.tracks.len() > MAX_TRACKS {
             violations.push(format!("tracks count must be 1..={MAX_TRACKS}"));
         }

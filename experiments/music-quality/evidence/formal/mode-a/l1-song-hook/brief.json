@@ -1,0 +1,46 @@
+{
+  "id": "l1-song-hook",
+  "level": "L1",
+  "title": "Open-window song hook",
+  "purpose": "An original eight-bar instrumental hook that could anchor an optimistic indie-pop song.",
+  "duration_seconds": 18,
+  "section_plan": [
+    "hook: 8 bars"
+  ],
+  "style": [
+    "indie pop",
+    "clear diatonic harmony",
+    "singable"
+  ],
+  "mood": [
+    "hopeful",
+    "open",
+    "human"
+  ],
+  "must_include": [
+    "four-bar harmonic question and answer",
+    "recognizable two-bar melodic cell",
+    "bass supports chord inversions"
+  ],
+  "must_avoid": [
+    "quoted melodies",
+    "constant eighth-note melody",
+    "four identical bars"
+  ],
+  "instrument_roles": [
+    "piano harmony",
+    "lead melody",
+    "bass"
+  ],
+  "delivery": [
+    "8 bars",
+    "3 tracks",
+    "complete note endings"
+  ],
+  "score_focus": [
+    "harmony",
+    "melody",
+    "brief match"
+  ],
+  "mode_a": true
+}

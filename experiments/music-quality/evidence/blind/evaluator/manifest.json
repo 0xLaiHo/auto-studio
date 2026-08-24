@@ -1,0 +1,336 @@
+{
+  "schema_version": "q0-blind-package-v1",
+  "generated_at": "2026-08-24T15:01:24.413229104Z",
+  "candidates": [
+    {
+      "candidate_id": "c-00180c9480db",
+      "brief_id": "l3-verse-chorus",
+      "brief_level": "L3",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1162,
+          "sha256": "5221a8bcdff9cbecc0986e404986cf0b977ac5c61a94ef289587747a9e85f24a"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 106788,
+          "sha256": "b862c260bdac118ab077f78ac07575ab52bf0835eabf092bc51eaa3fd2c73a3c"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 6585,
+          "sha256": "3c25e918e47b7b6fa91f0f23bec896474755b856f0f0f846233c6e8090eef6a3"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-2578d02d0a69",
+      "brief_id": "l3-video-cue",
+      "brief_level": "L3",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1170,
+          "sha256": "d49dbb2f7f2b8ca0d367e80cd44cbfaf8da26bd04aeac53f36b48aff9401d862"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 48953,
+          "sha256": "5872769b9ca5142ba8240c81789809bb0ee8236c5b3ce68c77c1c36ebb519a23"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 2836,
+          "sha256": "57e9f0991f868bab4ffe127286ac0485f342dda881ae92a821a8547bb591de8f"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-263107aaa9d0",
+      "brief_id": "l3-video-cue",
+      "brief_level": "L3",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1170,
+          "sha256": "d49dbb2f7f2b8ca0d367e80cd44cbfaf8da26bd04aeac53f36b48aff9401d862"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 69216,
+          "sha256": "58bb4213b7ea8a0dbb1765e6aa65b3b4ebbad90bf308b9116f9ee844578e601f"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 4040,
+          "sha256": "8c234850a147a9a68b326747cd1af7374cb00a860a9b01f2c8f77a2474988e09"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-328148861a99",
+      "brief_id": "l4-song-neon",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1255,
+          "sha256": "45dd884db25a217fc6752c19c2a5e1fc6f5ca4cc3177c97350e6929ba870945a"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 109371,
+          "sha256": "531e472e709af8b7eaa31d1ada038de6f2704ede05d05e146a331844fe0df436"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 6440,
+          "sha256": "fa274611bdd67b4d59a27eb02b1f590f795320c11c0a4c59e974f76a108ab5e3"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-4e8ffe1e5c6c",
+      "brief_id": "l4-song-neon",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1255,
+          "sha256": "45dd884db25a217fc6752c19c2a5e1fc6f5ca4cc3177c97350e6929ba870945a"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 129514,
+          "sha256": "c5270a7b590aac446102d6ade8f0d602c6beefd3690e87cf17a5a56cef4698ba"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 7211,
+          "sha256": "c1dcdc087554105bc2ae1b14722ad7f7eaa7047e502865781df8e5936eb8202f"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-79e84af76f97",
+      "brief_id": "l1-video-motif",
+      "brief_level": "L1",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 944,
+          "sha256": "9e6c1ef2bb1241837fc916911ffed7528593649bf2c1034ba532e759625f50f4"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 8250,
+          "sha256": "b0e636462a534666e7751ffc0dad225cf4c5aa4ae33a0497a0bd8b5509033422"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 516,
+          "sha256": "1988eff8e68a38140fe4bb3a2f54d57f2b1157a01f5389ae9defb5206811c73f"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-86c53fc3e671",
+      "brief_id": "l2-electronic-groove",
+      "brief_level": "L2",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1007,
+          "sha256": "b8eea6d5d3774e68d48cca63656484716d3f87a858a8bfd6ba5a9c0efa6ce6f5"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 20806,
+          "sha256": "d3e0d80592b0853ad6950587300d31248669ef794e7fedbefda8cd56af978d28"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 1236,
+          "sha256": "d74b558ffdd52b09e428ba229d347eac8db1f75ef4079d7ab47a0d387a58cca1"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-88708323e4f0",
+      "brief_id": "l4-song-intimate",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1197,
+          "sha256": "8d65801f4a0da81cb2fe1073733a433a74bdfcb49fa03eb4ffe81a077443016d"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 122143,
+          "sha256": "d4657e7d6503e48a5bfcb5b61775e517efdee86230856a37b0b5b4181acc2528"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 7021,
+          "sha256": "3e0175b725420c1e29ddf61be2d454cff6ecbee2cc176c0567f51c979a7db4b0"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-a2358748b226",
+      "brief_id": "l1-song-hook",
+      "brief_level": "L1",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 892,
+          "sha256": "fa1ee8ae0ecf8fa40afa0c2300366c4a07d6a3134ffd33a22e27a316ea0e2e12"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 10963,
+          "sha256": "e3c688fc405df77f990b96df7cd77a611b0b5698401abfff08db6b82c9e2b22b"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 671,
+          "sha256": "51c195b4e5e516847400e3232bea204781e1a11acf870c9d1b24eaa75d9afed9"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-b03a0c626872",
+      "brief_id": "l2-orchestral-ostinato",
+      "brief_level": "L2",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1057,
+          "sha256": "953bc17deb9762422fcbb9df58e9802fe8ddfb22e5af23004783bc37934ec890"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 20523,
+          "sha256": "a0fc6f6f44da004cf26b126c5344fd71f54c067795811c8139167ffc0dd0f81f"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 1260,
+          "sha256": "6296b9f9b7b78350b4a92b737a612329b30e20308922f07cfb20d6db411e7c26"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-bef4c8db2142",
+      "brief_id": "l4-video-emotional",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1179,
+          "sha256": "6a704209b1061175e8e15dbcd2b65dabb43404fd4d4bca16f55ab3b18e0d637c"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 30319,
+          "sha256": "71d077c37570cf2bb6bd6b09b3a726cd9bb127b83eb130630ab919c3851b81c0"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 1578,
+          "sha256": "c425de79673a324fd3e4615429569d53db6185cf80bb7a8230cf6057ae5f6034"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-d2e4b3a7291b",
+      "brief_id": "l1-song-hook",
+      "brief_level": "L1",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 892,
+          "sha256": "fa1ee8ae0ecf8fa40afa0c2300366c4a07d6a3134ffd33a22e27a316ea0e2e12"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 13734,
+          "sha256": "252bd40b60f5fc36756b87d8f3ddd82904d2cc4aaf1649855177dec8eff9f9e7"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 818,
+          "sha256": "804fd9756186350de59dd85c423aa49f8614dbee25185d8eb4dc4451f64e17a8"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-d60d39b5b819",
+      "brief_id": "l2-electronic-groove",
+      "brief_level": "L2",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1007,
+          "sha256": "b8eea6d5d3774e68d48cca63656484716d3f87a858a8bfd6ba5a9c0efa6ce6f5"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 27201,
+          "sha256": "e59c28ef1ca3f66b402fd6e7a1ed1bc13d46a957e8fd3a9a9c71b069be4dc39b"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 1534,
+          "sha256": "9e92986f2296ac7c78b3df46245796185fc9606622956eec949d5133050993fe"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-e0dcec0f654c",
+      "brief_id": "l4-video-chase",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1226,
+          "sha256": "72df572b0788c803afdd4e58e734ae972ed2b7156cff2b24a64ed49cbd8c17a2"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 79218,
+          "sha256": "b06bbbcd5856e7ece87797fb1fc16a4ee838b36ce665ff84a9e8c597b8bee5e7"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 4501,
+          "sha256": "73075ba4aa113e6e8f4f13de13fb2b84e96f4fb8b5e36cd7a77594ca5104f888"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c-fb1469a62dfc",
+      "brief_id": "l4-electronic-microcity",
+      "brief_level": "L4",
+      "artifacts": [
+        {
+          "path": "brief.json",
+          "bytes": 1373,
+          "sha256": "54c7a9423e0f8fd31e07531420de1af7c9d0b050ffd798f41b9e18af70a988bf"
+        },
+        {
+          "path": "spec.json",
+          "bytes": 101002,
+          "sha256": "1cb1e9c7bc362230bc63ae888dc4430ee818e4826d5fce4ada27c33e0ed485f1"
+        },
+        {
+          "path": "composition.mid",
+          "bytes": 6152,
+          "sha256": "62774028284eaf8444e97efe33b3e261feb3aef45df6d51a17ea07e79202dfa3"
+        }
+      ]
+    }
+  ]
+}

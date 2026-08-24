@@ -1,0 +1,58 @@
+{
+  "id": "l4-orchestral-argument",
+  "level": "L4",
+  "title": "Chamber argument without words",
+  "purpose": "An orchestral miniature where two ideas interrupt, listen, and finally coexist without fully agreeing.",
+  "duration_seconds": 88,
+  "section_plan": [
+    "idea A: 8 bars",
+    "idea B: 8 bars",
+    "argument: 12 bars",
+    "listening: 8 bars",
+    "coexistence: 8 bars"
+  ],
+  "style": [
+    "contemporary chamber orchestra",
+    "contrapuntal",
+    "playable"
+  ],
+  "mood": [
+    "assertive",
+    "wounded",
+    "attentive",
+    "ambiguous"
+  ],
+  "must_include": [
+    "distinct A and B motives",
+    "register-separated counterpoint",
+    "dynamics shape the argument",
+    "coexistence combines rather than stacks motives"
+  ],
+  "must_avoid": [
+    "block-chord tutti throughout",
+    "impossible leaps",
+    "constant doubled unison",
+    "film-trailer ending"
+  ],
+  "instrument_roles": [
+    "violin line",
+    "viola response",
+    "cello line",
+    "double bass support",
+    "woodwind color",
+    "horn support",
+    "light percussion"
+  ],
+  "delivery": [
+    "44 bars",
+    "7 to 9 tracks",
+    "CC1 or CC11 phrasing on sustained parts"
+  ],
+  "score_focus": [
+    "counterpoint",
+    "playability",
+    "orchestral roles",
+    "formal argument"
+  ],
+  "mode_a": false
+}

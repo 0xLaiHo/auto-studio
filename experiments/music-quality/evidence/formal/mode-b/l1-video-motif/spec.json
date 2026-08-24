@@ -1,0 +1,371 @@
+{
+  "title": "Discovery documentary motif",
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 96.0,
+      "time_signature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "key_map": [
+    {
+      "bar": 1,
+      "tonic": "D",
+      "mode": "dorian"
+    }
+  ],
+  "sections": [
+    {
+      "id": "observation",
+      "label": "Observation",
+      "start_bar": 1,
+      "length_bars": 4,
+      "intent": "Introduce three-note motif D-F-E with gentle rhythm, leave space"
+    },
+    {
+      "id": "realization",
+      "label": "Realization",
+      "start_bar": 5,
+      "length_bars": 4,
+      "intent": "Transform motif: invert contour and shift to G dorian color, vary rhythm"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "felt_piano",
+      "name": "Felt Piano",
+      "role": "melody",
+      "register": {
+        "low": 48,
+        "high": 84
+      },
+      "instrument_hint": "felt piano",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.5,
+              "pitch": 62,
+              "velocity": 60
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 64,
+              "velocity": 58
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 1.0,
+              "duration": 1.0,
+              "pitch": 64,
+              "velocity": 58
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.5,
+              "pitch": 67,
+              "velocity": 58
+            },
+            {
+              "beat": 4.5,
+              "duration": 0.5,
+              "pitch": 64,
+              "velocity": 54
+            },
+            {
+              "beat": 5.0,
+              "duration": 1.0,
+              "pitch": 65,
+              "velocity": 56
+            },
+            {
+              "beat": 12.0,
+              "duration": 1.0,
+              "pitch": 62,
+              "velocity": 52
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "soft_strings",
+      "name": "Soft Strings",
+      "role": "harmony",
+      "register": {
+        "low": 50,
+        "high": 76
+      },
+      "instrument_hint": "soft string pad",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 15.5,
+              "pitch": 57,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.5,
+              "pitch": 60,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.5,
+              "pitch": 62,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.5,
+              "pitch": 65,
+              "velocity": 48
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.5,
+              "pitch": 64,
+              "velocity": 48
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 35
+            },
+            {
+              "beat": 6.0,
+              "controller": 1,
+              "value": 70
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 50
+            },
+            {
+              "beat": 15.5,
+              "controller": 1,
+              "value": 40
+            }
+          ]
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 7.5,
+              "pitch": 50,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 7.5,
+              "pitch": 55,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 7.5,
+              "pitch": 59,
+              "velocity": 50
+            },
+            {
+              "beat": 8.0,
+              "duration": 3.5,
+              "pitch": 52,
+              "velocity": 50
+            },
+            {
+              "beat": 8.0,
+              "duration": 3.5,
+              "pitch": 55,
+              "velocity": 50
+            },
+            {
+              "beat": 8.0,
+              "duration": 3.5,
+              "pitch": 59,
+              "velocity": 50
+            },
+            {
+              "beat": 8.0,
+              "duration": 3.5,
+              "pitch": 62,
+              "velocity": 50
+            },
+            {
+              "beat": 12.0,
+              "duration": 3.5,
+              "pitch": 55,
+              "velocity": 50
+            },
+            {
+              "beat": 12.0,
+              "duration": 3.5,
+              "pitch": 57,
+              "velocity": 50
+            },
+            {
+              "beat": 12.0,
+              "duration": 3.5,
+              "pitch": 59,
+              "velocity": 50
+            },
+            {
+              "beat": 12.0,
+              "duration": 3.5,
+              "pitch": 62,
+              "velocity": 50
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 30
+            },
+            {
+              "beat": 4.0,
+              "controller": 1,
+              "value": 60
+            },
+            {
+              "beat": 8.0,
+              "controller": 1,
+              "value": 40
+            },
+            {
+              "beat": 10.0,
+              "controller": 1,
+              "value": 65
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 35
+            },
+            {
+              "beat": 14.0,
+              "controller": 1,
+              "value": 55
+            },
+            {
+              "beat": 15.5,
+              "controller": 1,
+              "value": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "single_pulse",
+      "name": "Single Pulse",
+      "role": "pulse",
+      "register": {
+        "low": 40,
+        "high": 52
+      },
+      "instrument_hint": "soft felt piano or muted pulse",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 10.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 44
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 48
+            }
+          ],
+          "cc": []
+        }
+      ]
+    }
+  ]
+}

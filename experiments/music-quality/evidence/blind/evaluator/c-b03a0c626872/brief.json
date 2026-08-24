@@ -1,0 +1,48 @@
+{
+  "id": "l2-orchestral-ostinato",
+  "level": "L2",
+  "title": "Measured orchestral pursuit",
+  "purpose": "An ostinato and bass-pulse sketch for a dialogue scene that gains urgency without becoming a trailer cue.",
+  "duration_seconds": 28,
+  "section_plan": [
+    "contained: 4 bars",
+    "pressure: 4 bars"
+  ],
+  "style": [
+    "modern chamber orchestra",
+    "asymmetric accent",
+    "dry"
+  ],
+  "mood": [
+    "watchful",
+    "tense",
+    "disciplined"
+  ],
+  "must_include": [
+    "ostinato leaves gaps for dialogue",
+    "bass pulse and ostinato accents interact",
+    "second section intensifies by register or rhythm"
+  ],
+  "must_avoid": [
+    "wall-to-wall sixteenths",
+    "brass fanfare",
+    "unison doubling on every note"
+  ],
+  "instrument_roles": [
+    "low strings pulse",
+    "viola ostinato",
+    "cello counterline",
+    "muted percussion"
+  ],
+  "delivery": [
+    "8 bars",
+    "4 tracks",
+    "playable orchestral registers"
+  ],
+  "score_focus": [
+    "pulse",
+    "voice separation",
+    "dialogue space"
+  ],
+  "mode_a": false
+}

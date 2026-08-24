@@ -1,0 +1,54 @@
+{
+  "id": "l4-song-intimate",
+  "level": "L4",
+  "title": "Kitchen-light acoustic arrangement",
+  "purpose": "An intimate songwriter arrangement about an ordinary conversation that changes a relationship.",
+  "duration_seconds": 86,
+  "section_plan": [
+    "intro: 4 bars",
+    "verse: 8 bars",
+    "chorus: 8 bars",
+    "verse 2: 8 bars",
+    "bridge: 8 bars",
+    "final chorus: 8 bars"
+  ],
+  "style": [
+    "indie folk",
+    "small ensemble",
+    "natural dynamics"
+  ],
+  "mood": [
+    "close",
+    "vulnerable",
+    "quietly hopeful"
+  ],
+  "must_include": [
+    "arrangement grows by changed roles, not only more notes",
+    "bridge changes perspective",
+    "final chorus contains a meaningful variation"
+  ],
+  "must_avoid": [
+    "stadium drums",
+    "dense pad throughout",
+    "virtuosic lead fills over every gap"
+  ],
+  "instrument_roles": [
+    "acoustic guitar or piano",
+    "bass",
+    "brush percussion",
+    "cello",
+    "subtle counterline",
+    "optional warm keys"
+  ],
+  "delivery": [
+    "44 bars",
+    "6 tracks",
+    "breathing room and playable ranges"
+  ],
+  "score_focus": [
+    "emotional pacing",
+    "voice leading",
+    "role development"
+  ],
+  "mode_a": false
+}

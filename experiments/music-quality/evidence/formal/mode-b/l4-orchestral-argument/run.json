@@ -1,0 +1,53 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l4-orchestral-argument-b-1787582817188",
+  "candidate_id": "c-da6cc47b79ec",
+  "status": "invalid",
+  "mode": "b",
+  "brief_id": "l4-orchestral-argument",
+  "brief_level": "L4",
+  "started_at": "2026-08-24T14:46:57.188036299Z",
+  "completed_at": "2026-08-24T14:58:55.256611462Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": false,
+  "compiled": false,
+  "validation_error": "ExperimentalMusicSpec validation failed: total CC events 269 exceeds 256",
+  "turn_count": 3,
+  "total_usage": {
+    "prompt_tokens": 25729,
+    "prompt_cache_hit_tokens": 1280,
+    "prompt_cache_miss_tokens": 24449,
+    "completion_tokens": 70881,
+    "total_tokens": 96610
+  },
+  "total_latency_ms": 718058,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1297,
+      "sha256": "80be3b4b40cebfacd175de25bd6c921f524607a9171e190c031c07a875135ef4"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 13158,
+      "sha256": "789f028e4be164db685eaafcd3eb93bbebcfdf11897dd351730656eef6fe24c8"
+    },
+    {
+      "path": "turn-02.json",
+      "bytes": 65657,
+      "sha256": "4b863b0158b308ecc3d9348f6ee34e873a4a180ef23a2176da3d7f7dca652ccf"
+    },
+    {
+      "path": "turn-03.json",
+      "bytes": 120378,
+      "sha256": "98be5f5e5acf61adad51e621fc0077e1d25c7b08ddd3b15f46be1ea6ff9064eb"
+    },
+    {
+      "path": "validation-error.txt",
+      "bytes": 72,
+      "sha256": "a619168868482c3428cc9657899ad9f5d857835816ad6801c006c0255d8ef9c7"
+    }
+  ]
+}
