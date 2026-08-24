@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Auto Studio · Durable Agent Harness Architecture",
+    "subtitle": "Normalized run facts, opaque provider continuity, and scoped tool approval stay separate",
+    "output": "docs/design/agent-harness-architecture.html",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "views": [
+      { "id": "creative-loop", "label": "Creative loop", "focus": ["creator", "client", "core_api", "agent_harness", "llm_adapter", "llm_provider", "tool_runtime", "music_project", "audio_runtime", "project_store"], "note": "Follow one brief through a bounded model turn, approved local tools, editable project facts, and a local render." },
+      { "id": "run-recovery", "label": "Run recovery", "focus": ["agent_harness", "run_transcript", "continuity_vault", "llm_adapter", "tool_runtime"], "note": "Semantic transcript and provider continuity are both durable during a run, but they have different visibility and retention." },
+      { "id": "local-truth", "label": "Local project truth", "focus": ["tool_runtime", "music_project", "audio_runtime", "project_store", "run_transcript"], "note": "Only validated tool results change project facts; chat and provider payloads never become music truth." },
+      { "id": "external-surface", "label": "External surface", "focus": ["agent_harness", "llm_adapter", "llm_provider", "continuity_vault"], "note": "The BYOK LLM is the only required cloud dependency; continuity payloads remain sealed and provider-bound." }
+    ]
+  },
+  "layout": { "mode": "grid", "origin": [36, 70], "cols": 6, "gapX": 42, "gapY": 92, "cellW": 142, "cellH": 68 },
+  "components": [
+    { "id": "creator", "type": "external", "label": "Creator", "sublabel": "brief · approval · selection", "row": 1, "col": 0 },
+    { "id": "client", "type": "frontend", "label": "TUI / GUI / Web", "sublabel": "transcript + projections", "row": 1, "col": 1 },
+    { "id": "core_api", "type": "backend", "label": "Core Interface", "sublabel": "commands · queries · events", "row": 1, "col": 2 },
+    { "id": "agent_harness", "type": "backend", "label": "Agent Harness", "sublabel": "context · turns · bounded loop", "row": 1, "col": 3, "tag": "single agent" },
+    { "id": "llm_adapter", "type": "backend", "label": "LLM Inference", "sublabel": "stream + protocol adapters", "row": 0, "col": 4 },
+    { "id": "llm_provider", "type": "external", "label": "BYOK LLM", "sublabel": "OpenAI · Anthropic · others", "row": 0, "col": 5, "tag": "only cloud dependency" },
+    { "id": "run_transcript", "type": "database", "label": "Run Transcript", "sublabel": "items · usage · finish", "row": 2, "col": 2, "tag": "creator-auditable" },
+    { "id": "continuity_vault", "type": "security", "label": "Continuity Vault", "sublabel": "encrypted · opaque · run-scoped", "row": 0, "col": 2, "tag": "not project export" },
+    { "id": "tool_runtime", "type": "security", "label": "Tool Runtime", "sublabel": "schema · grant · budget · audit", "row": 1, "col": 4 },
+    { "id": "music_project", "type": "backend", "label": "Music Project", "sublabel": "typed commands · editable facts", "row": 2, "col": 5, "tag": "authority" },
+    { "id": "audio_runtime", "type": "backend", "label": "Audio Runtime", "sublabel": "Sampler · DSP · render · VST3", "row": 3, "col": 5 },
+    { "id": "project_store", "type": "database", "label": "Project Package", "sublabel": "SQLite · assets · provenance", "row": 4, "col": 5 }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Creator Device · Local-first", "wraps": ["client", "core_api", "agent_harness", "llm_adapter", "run_transcript", "continuity_vault", "tool_runtime", "music_project", "audio_runtime", "project_store"], "pad": 22 }
+  ],
+  "connections": [
+    { "id": "creator_client", "from": "creator", "to": "client", "variant": "emphasis" },
+    { "id": "client_core", "from": "client", "to": "core_api" },
+    { "id": "core_agent", "from": "core_api", "to": "agent_harness" },
+    { "id": "agent_llm", "from": "agent_harness", "to": "llm_adapter" },
+    { "id": "llm_cloud", "from": "llm_adapter", "to": "llm_provider", "label": "BYOK HTTPS", "variant": "dashed" },
+    { "id": "agent_transcript", "from": "agent_harness", "to": "run_transcript", "label": "normalized items" },
+    { "id": "adapter_continuity", "from": "llm_adapter", "to": "continuity_vault", "variant": "security" },
+    { "id": "agent_tools", "from": "agent_harness", "to": "tool_runtime", "variant": "security" },
+    { "id": "runtime_project", "from": "tool_runtime", "to": "music_project", "label": "typed command", "variant": "emphasis" },
+    { "id": "project_audio", "from": "music_project", "to": "audio_runtime" },
+    { "id": "audio_commit", "from": "audio_runtime", "to": "project_store" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Three different durable concerns", "items": ["Inference Transcript stores normalized visible messages, complete Tool Requests/Results, usage, and finish reasons", "Project Package stores authoritative music facts, assets, snapshots, and provenance", "Continuity Vault stores only opaque provider-bound payloads needed to finish an active inference chain"] },
+    { "dot": "emerald", "title": "Scoped local execution", "items": ["Approval Grant binds exact project revision, tool fingerprints, targets, effect limits, and cost scope", "Run Budget is a separate system ceiling that the LLM cannot raise", "Tool Runtime validates and deducts both before committing any effect"] },
+    { "dot": "rose", "title": "Privacy and lifecycle", "items": ["Provider continuity is never Creator content, project truth, event text, log, compaction summary, or export", "A provider/model/protocol switch invalidates incompatible continuity", "Terminal runs purge continuity payloads after the final semantic commit"] }
+  ]
+}

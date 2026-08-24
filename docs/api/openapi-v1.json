@@ -1,0 +1,651 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Auto Studio Local Core API",
+    "version": "0.3.0",
+    "description": "Ship 0 loopback contract. State-changing and media routes require the per-process Core bearer token and reject requests carrying a browser Origin."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": { "port": { "default": "47321" } }
+    }
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Core protocol and schema handshake",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } }
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "operationId": "openApi",
+        "responses": {
+          "200": {
+            "description": "This frozen API contract",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "post": {
+        "operationId": "createProject",
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProject" } } }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/Project" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/projects/current": {
+      "get": {
+        "operationId": "openProject",
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/projects/current/backup": {
+      "post": {
+        "operationId": "backupProject",
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": {
+            "description": "Consistent application-local Project Package backup",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectBackup" } } }
+          },
+          "409": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/projects/current/brief": {
+      "put": {
+        "operationId": "setBrief",
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SetBrief" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/projects/current/events": {
+      "get": {
+        "operationId": "projectEvents",
+        "security": [{ "coreSession": [] }],
+        "parameters": [
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered Project Event SSE replay",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/v1/provider-connections/llm": {
+      "get": {
+        "operationId": "getLlmConnection",
+        "description": "Returns non-secret LLM connection metadata. The API key is never readable through the Core API.",
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Current LLM connection status",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LlmConnectionStatus" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "put": {
+        "operationId": "configureLlmConnection",
+        "description": "Validates and replaces the private local LLM connection used by subsequent Agent planning calls.",
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfigureLlmConnection" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Non-secret connection status",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LlmConnectionStatus" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/providers/llm": {
+      "get": {
+        "operationId": "listLlmProviders",
+        "description": "Returns the Provider adapters supported by this Core build.",
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Supported Provider descriptors",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/LlmProvider" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/provider-connections/llm/models": {
+      "get": {
+        "operationId": "getLlmModelCatalog",
+        "description": "Returns the last durable model catalog without contacting the Provider.",
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Durable model catalog",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LlmModelCatalog" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "operationId": "refreshLlmModelCatalog",
+        "description": "Refreshes the configured Provider catalog and durably caches the outcome.",
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Refreshed or failed catalog state",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LlmModelCatalog" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "put": {
+        "operationId": "selectLlmModel",
+        "description": "Selects one model from the current durable catalog.",
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SelectLlmModel" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated non-secret connection status",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LlmConnectionStatus" } } }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/agent-runs": {
+      "post": {
+        "operationId": "planAgentRun",
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/agent-runs/{runId}/approval": {
+      "post": {
+        "operationId": "approveAgentRun",
+        "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApproveAgentRun" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/agent-runs/{runId}/execute": {
+      "post": {
+        "operationId": "executeAgentRun",
+        "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/agent-runs/{runId}/refresh": {
+      "post": {
+        "operationId": "refreshAgentRun",
+        "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/agent-runs/{runId}/reconcile": {
+      "post": {
+        "operationId": "reconcileAgentRun",
+        "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/candidates/{candidateId}/selection": {
+      "post": {
+        "operationId": "selectCandidate",
+        "parameters": [{ "$ref": "#/components/parameters/CandidateId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SelectCandidate" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/assets/{assetVersionId}/preview": {
+      "get": {
+        "operationId": "previewAsset",
+        "parameters": [
+          { "$ref": "#/components/parameters/AssetVersionId" },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "description": "One explicit inclusive bytes=start-end range; suffix and multiple ranges are rejected.",
+            "schema": { "type": "string", "examples": ["bytes=0-65535"] }
+          }
+        ],
+        "security": [{ "coreSession": [] }],
+        "responses": {
+          "200": {
+            "description": "Complete verified WAV",
+            "content": { "audio/wav": { "schema": { "type": "string", "contentEncoding": "binary" } } }
+          },
+          "206": {
+            "description": "Verified WAV byte range",
+            "content": { "audio/wav": { "schema": { "type": "string", "contentEncoding": "binary" } } }
+          },
+          "416": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/v1/handoffs": {
+      "post": {
+        "operationId": "exportHandoff",
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "coreSession": { "type": "http", "scheme": "bearer" }
+    },
+    "parameters": {
+      "RunId": { "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "CandidateId": { "name": "candidateId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+      "AssetVersionId": { "name": "assetVersionId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+    },
+    "requestBodies": {
+      "ExpectedRevision": {
+        "required": true,
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ExpectedRevision" } } }
+      }
+    },
+    "responses": {
+      "Project": {
+        "description": "Current durable Project snapshot",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Project" } } }
+      },
+      "Error": {
+        "description": "Structured Core error",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["status", "coreVersion", "protocolVersion", "schemaVersion"],
+        "properties": {
+          "status": { "const": "ok" },
+          "coreVersion": { "type": "string" },
+          "protocolVersion": { "const": "0.3.0" },
+          "schemaVersion": { "const": "1" }
+        },
+        "additionalProperties": false
+      },
+      "ProjectBackup": {
+        "type": "object",
+        "required": ["id", "sourceProjectId", "sourceProjectRevision", "backupName"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sourceProjectId": { "type": "string", "format": "uuid" },
+          "sourceProjectRevision": { "type": "integer", "minimum": 0 },
+          "backupName": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.autostudio$" }
+        },
+        "additionalProperties": false
+      },
+      "LlmConnectionStatus": {
+        "type": "object",
+        "required": ["configured", "providerKind", "model", "modelEffort", "modelThinkingLevels", "source", "catalog"],
+        "properties": {
+          "configured": { "type": "boolean" },
+          "providerKind": {
+            "type": ["string", "null"],
+            "enum": ["deepseek", "openai", "anthropic", "kimi-open", "kimi-code", null]
+          },
+          "model": { "type": ["string", "null"] },
+          "modelEffort": { "$ref": "#/components/schemas/ModelEffort" },
+          "modelThinkingLevels": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/ModelEffort" },
+            "description": "Per-model local thinking preference keyed by exact Provider model id."
+          },
+          "source": {
+            "type": ["string", "null"],
+            "enum": ["private_file", "environment", null]
+          },
+          "catalog": { "$ref": "#/components/schemas/LlmModelCatalog" }
+        },
+        "additionalProperties": false
+      },
+      "LlmProvider": {
+        "type": "object",
+        "required": ["id", "displayName", "thinking"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string", "minLength": 1 },
+          "thinking": { "$ref": "#/components/schemas/ThinkingCapability" }
+        },
+        "additionalProperties": false
+      },
+      "LlmModel": {
+        "type": "object",
+        "required": ["id", "displayName"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "LlmModelCatalog": {
+        "type": "object",
+        "required": ["state", "models", "error"],
+        "properties": {
+          "state": { "enum": ["not_loaded", "refreshing", "ready", "failed"] },
+          "models": { "type": "array", "items": { "$ref": "#/components/schemas/LlmModel" } },
+          "error": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "ConfigureLlmConnection": {
+        "type": "object",
+        "required": ["providerKind", "apiKey"],
+        "properties": {
+          "providerKind": {
+            "enum": ["deepseek", "openai", "anthropic", "kimi-open", "kimi-code"]
+          },
+          "model": { "type": ["string", "null"], "minLength": 1 },
+          "baseUrl": { "type": ["string", "null"], "format": "uri" },
+          "apiKey": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true,
+            "description": "Write-only credential; never returned by Core."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SelectLlmModel": {
+        "type": "object",
+        "required": ["model", "modelEffort"],
+        "properties": {
+          "model": { "type": "string", "minLength": 1 },
+          "modelEffort": { "$ref": "#/components/schemas/ModelEffort" }
+        },
+        "additionalProperties": false
+      },
+      "ModelEffort": {
+        "type": "string",
+        "enum": ["provider_default", "off", "minimal", "low", "medium", "high", "xhigh", "max"],
+        "description": "Compatibility wire name for the creator-selected thinking level; never private chain-of-thought content."
+      },
+      "ThinkingCapability": {
+        "type": "object",
+        "required": ["control", "levels", "defaultLevel"],
+        "properties": {
+          "control": {
+            "enum": ["unsupported", "toggle", "effort", "adaptive_effort", "token_budget"]
+          },
+          "levels": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ModelEffort" },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "defaultLevel": { "$ref": "#/components/schemas/ModelEffort" }
+        },
+        "additionalProperties": false
+      },
+      "Project": {
+        "type": "object",
+        "required": ["id", "name", "revision", "timeline"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "revision": { "type": "integer", "minimum": 0 },
+          "brief": { "$ref": "#/components/schemas/CreativeBrief" },
+          "agentRuns": { "type": "array", "items": { "$ref": "#/components/schemas/AgentRun" } },
+          "candidates": { "type": "array", "items": { "type": "object" } },
+          "selection": { "type": ["object", "null"] },
+          "timeline": { "type": "object" },
+          "exports": { "type": "array", "items": { "type": "object" } }
+        },
+        "additionalProperties": false
+      },
+      "CreateProject": {
+        "type": "object",
+        "required": ["name"],
+        "properties": { "name": { "type": "string", "minLength": 1, "maxLength": 128 } },
+        "additionalProperties": false
+      },
+      "CreativeBrief": {
+        "type": "object",
+        "required": ["summary", "style", "mood", "instrumentation", "constraints"],
+        "properties": {
+          "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "purpose": { "type": ["string", "null"] },
+          "style": { "type": "array", "items": { "type": "string" } },
+          "mood": { "type": "array", "items": { "type": "string" } },
+          "instrumentation": { "type": "array", "items": { "type": "string" } },
+          "targetDurationSeconds": { "type": ["integer", "null"], "minimum": 1, "maximum": 900 },
+          "lyrics": { "type": ["string", "null"] },
+          "constraints": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      },
+      "SetBrief": {
+        "type": "object",
+        "required": ["expectedRevision", "brief"],
+        "properties": {
+          "expectedRevision": { "type": "integer", "minimum": 0 },
+          "brief": { "$ref": "#/components/schemas/CreativeBrief" }
+        },
+        "additionalProperties": false
+      },
+      "ExpectedRevision": {
+        "type": "object",
+        "required": ["expectedRevision"],
+        "properties": { "expectedRevision": { "type": "integer", "minimum": 0 } },
+        "additionalProperties": false
+      },
+      "Approval": {
+        "type": "object",
+        "required": ["currency", "maxMinorUnits", "inputHash"],
+        "properties": {
+          "currency": { "type": "string", "minLength": 1 },
+          "maxMinorUnits": { "type": "integer", "minimum": 0 },
+          "inputHash": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "ApproveAgentRun": {
+        "type": "object",
+        "required": ["expectedRevision", "approval"],
+        "properties": {
+          "expectedRevision": { "type": "integer", "minimum": 0 },
+          "approval": { "$ref": "#/components/schemas/Approval" }
+        },
+        "additionalProperties": false
+      },
+      "AgentRun": {
+        "type": "object",
+        "required": ["id", "contextRevision", "plan", "status", "approval"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "contextRevision": { "type": "integer", "minimum": 0 },
+          "plan": { "$ref": "#/components/schemas/AgentPlan" },
+          "status": {
+            "enum": ["awaiting_approval", "ready_to_submit", "submitting", "submitted", "unknown_outcome", "completed", "failed", "cancelled"]
+          },
+          "approval": { "oneOf": [{ "$ref": "#/components/schemas/Approval" }, { "type": "null" }] },
+          "generationAttempt": { "type": "object" },
+          "generationJob": { "type": "object" },
+          "failure": { "$ref": "#/components/schemas/AgentRunFailure" }
+        },
+        "additionalProperties": false
+      },
+      "AgentPlan": {
+        "type": "object",
+        "required": ["visibleSummary", "decision", "estimatedCost", "usage", "inference", "inputHash"],
+        "properties": {
+          "visibleSummary": { "type": "string", "minLength": 1 },
+          "decision": { "type": "object" },
+          "estimatedCost": { "type": "object" },
+          "usage": { "$ref": "#/components/schemas/InferenceUsage" },
+          "inference": { "$ref": "#/components/schemas/InferenceProvenance" },
+          "inputHash": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "InferenceUsage": {
+        "type": "object",
+        "required": ["inputTokens", "outputTokens", "actualCostMinorUnits", "currency"],
+        "properties": {
+          "inputTokens": { "type": ["integer", "null"], "minimum": 0 },
+          "outputTokens": { "type": ["integer", "null"], "minimum": 0 },
+          "actualCostMinorUnits": { "type": ["integer", "null"], "minimum": 0 },
+          "currency": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "InferenceProvenance": {
+        "type": "object",
+        "required": ["providerKind", "model", "modelEffort", "thinkingControl", "thinkingBudgetTokens", "capabilityRevision", "mappingRevision", "protocol", "responseId"],
+        "properties": {
+          "providerKind": { "type": "string", "minLength": 1 },
+          "model": { "type": "string", "minLength": 1 },
+          "modelEffort": { "$ref": "#/components/schemas/ModelEffort" },
+          "thinkingControl": {
+            "enum": ["unsupported", "toggle", "effort", "adaptive_effort", "token_budget"]
+          },
+          "thinkingBudgetTokens": { "type": ["integer", "null"], "minimum": 0 },
+          "capabilityRevision": { "type": "string", "minLength": 1 },
+          "mappingRevision": { "type": "string", "minLength": 1 },
+          "protocol": { "type": "string", "minLength": 1 },
+          "responseId": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "AgentRunFailure": {
+        "type": "object",
+        "required": ["kind", "message"],
+        "properties": {
+          "kind": {
+            "enum": ["provider_rejected", "provider_unavailable", "invalid_provider_response", "provider_confirmed_not_found"]
+          },
+          "message": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "SelectCandidate": {
+        "type": "object",
+        "required": ["expectedRevision", "startMicros"],
+        "properties": {
+          "expectedRevision": { "type": "integer", "minimum": 0 },
+          "startMicros": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Auto Studio · Durable Music Agent Run",
+    "subtitle": "Inference continuity, scoped approval, local tools, and recovery from semantic checkpoints",
+    "output": "docs/design/agent-run-lifecycle.html",
+    "viewBox": [1100, 760],
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow",
+    "views": [
+      { "id": "normal-run", "label": "Normal creation run", "focus": ["planning", "approval", "applying", "quality_check", "candidate_ready"], "note": "The model proposes edits; Core validates scoped consent and applies local tools before presenting an editable candidate." },
+      { "id": "inference-recovery", "label": "Inference recovery", "focus": ["planning", "inference_interrupted"], "note": "Resume an incomplete provider tool-use chain only when its exact opaque continuity state is available." },
+      { "id": "tool-recovery", "label": "Tool recovery", "focus": ["applying", "tool_interrupted"], "note": "Committed execution identity and receipts recover local effects without asking the model to repeat them." },
+      { "id": "human-control", "label": "Human control", "focus": ["approval", "needs_attention", "candidate_ready", "cancelled"], "note": "Approval grants effects; Selection later adopts a candidate; terminal runs purge provider continuity." }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Creator-visible phases" },
+    { "id": "waiting", "label": "Waiting for input" },
+    { "id": "recovery", "label": "Durable recovery" },
+    { "id": "terminal", "label": "Terminal outcomes" }
+  ],
+  "states": [
+    { "id": "planning", "type": "start", "label": "Planning", "sublabel": "turn + continuity checkpoint", "lane": "main", "col": 0, "step": "01", "tag": "Inference Turn" },
+    { "id": "approval", "type": "waiting", "label": "Awaiting Approval", "sublabel": "review effects and limits", "lane": "main", "col": 1, "step": "02", "tag": "Approval Grant" },
+    { "id": "applying", "type": "active", "label": "Applying Tools", "sublabel": "validate · deduct · commit", "lane": "main", "col": 2, "step": "03", "tag": "ToolExecution" },
+    { "id": "quality_check", "type": "decision", "label": "Quality Check", "sublabel": "analysis and brief fit", "lane": "main", "col": 3, "step": "04", "tag": "bounded iteration" },
+    { "id": "candidate_ready", "type": "success", "label": "Awaiting Selection", "sublabel": "commit · purge state", "lane": "main", "col": 4, "step": "05", "tag": "editable candidate" },
+    { "id": "needs_attention", "type": "waiting", "label": "Needs Attention", "sublabel": "input · scope · budget", "lane": "waiting", "col": 2, "tag": "non-terminal" },
+    { "id": "inference_interrupted", "type": "failure", "label": "Inference Interrupted", "sublabel": "transcript safe · state required", "lane": "recovery", "col": 0, "tag": "resumable" },
+    { "id": "tool_interrupted", "type": "failure", "label": "Tool Interrupted", "sublabel": "resume from receipt", "lane": "recovery", "col": 1, "tag": "resumable" },
+    { "id": "cancelled", "type": "failure", "label": "Cancelled", "sublabel": "stop work · purge state", "lane": "terminal", "col": 2, "tag": "terminal" }
+  ],
+  "transitions": [
+    { "id": "plan_approve", "from": "planning", "to": "approval", "route": "straight" },
+    { "id": "approve_apply", "from": "approval", "to": "applying", "variant": "security", "route": "straight" },
+    { "id": "apply_check", "from": "applying", "to": "quality_check", "route": "straight" },
+    { "id": "check_candidate", "from": "quality_check", "to": "candidate_ready", "variant": "emphasis", "route": "straight" },
+    { "id": "check_iterate", "from": "quality_check", "to": "applying", "variant": "emphasis", "route": "top-channel" },
+    { "id": "check_attention", "from": "quality_check", "to": "needs_attention", "variant": "security", "route": "drop" },
+    { "id": "attention_resume", "from": "needs_attention", "to": "quality_check", "variant": "emphasis" },
+    { "id": "planning_interrupted", "from": "planning", "to": "inference_interrupted", "variant": "security", "route": "drop" },
+    { "id": "inference_resume", "from": "inference_interrupted", "to": "planning", "variant": "emphasis" },
+    { "id": "applying_interrupted", "from": "applying", "to": "tool_interrupted", "variant": "security", "route": "drop" },
+    { "id": "tool_resume", "from": "tool_interrupted", "to": "applying", "variant": "emphasis" },
+    { "id": "attention_cancel", "from": "needs_attention", "to": "cancelled", "variant": "security", "route": "straight", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Inference semantics", "items": ["Every completed normalized item is appended to the Inference Transcript", "Provider continuity is opaque and only resumes the exact compatible tool-use chain", "Missing continuity never causes an incomplete tool call to be guessed or replayed"] },
+    { "dot": "emerald", "title": "Consent and safety", "items": ["Approval Grant binds tool fingerprints, project revision, target scope, effect counts, and cost limits", "Run Budget and per-tool resource limits remain independent system ceilings", "The LLM cannot expand any grant or budget"] },
+    { "dot": "amber", "title": "Local recovery", "items": ["Inference interruption and Tool interruption have different checkpoints", "Tool effects recover from execution identity and receipts, not chat text", "Candidate, Cancelled, and Failed terminal outcomes purge provider continuity after semantic commit"] }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Auto Studio Tool Runtime and MCP Integration",
+    "subtitle": "One durable execution path for local music tools and optional external MCP servers",
+    "output": "docs/design/tool-runtime-mcp-architecture.html",
+    "visual_preset": "blueprint",
+    "animation": "none",
+    "quality_profile": "showcase",
+    "viewBox": [1440, 780],
+    "views": [
+      {
+        "id": "local-music-now",
+        "label": "M3 local music",
+        "focus": ["agent_decision", "tool_registry", "policy_approval", "durable_execution", "music_adapter", "music_project", "audio_adapter", "audio_engine", "project_store"],
+        "note": "The LLM edits a local Music Project Model and asks the Rust engine to render it."
+      },
+      {
+        "id": "tool-sources",
+        "label": "Tool implementations",
+        "focus": ["tool_registry", "music_adapter", "audio_adapter", "mcp_adapter", "music_project", "audio_engine", "mcp_server"],
+        "note": "The Agent sees one canonical tool interface while local and MCP implementations keep their execution semantics."
+      },
+      {
+        "id": "trust-and-recovery",
+        "label": "Trust and recovery",
+        "focus": ["policy_approval", "durable_execution", "project_store", "connection_vault", "mcp_adapter", "mcp_server"],
+        "note": "Project edits are revision-bound; MCP secrets stay outside the Project and external calls are recorded first."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "agent_decision",
+      "type": "backend",
+      "label": "Agent Decision",
+      "sublabel": "canonical ToolRequest",
+      "tag": "no raw commands",
+      "pos": [35, 315],
+      "size": [150, 70]
+    },
+    {
+      "id": "tool_registry",
+      "type": "backend",
+      "label": "Tool Registry",
+      "sublabel": "descriptor · resolve · snapshot",
+      "tag": "extract on second real tool",
+      "pos": [235, 315],
+      "size": [175, 70]
+    },
+    {
+      "id": "policy_approval",
+      "type": "security",
+      "label": "Policy + Approval",
+      "sublabel": "risk · budget · capability",
+      "tag": "fail closed",
+      "pos": [460, 315],
+      "size": [175, 70]
+    },
+    {
+      "id": "durable_execution",
+      "type": "backend",
+      "label": "Durable ToolExecution",
+      "sublabel": "prepare · invoke · observe",
+      "tag": "M3 foundation",
+      "pos": [685, 315],
+      "size": [195, 70]
+    },
+    {
+      "id": "music_adapter",
+      "type": "backend",
+      "label": "Music Tool Adapter",
+      "sublabel": "tempo · harmony · MIDI · arrange",
+      "tag": "M3 local tools",
+      "pos": [940, 150],
+      "size": [180, 70]
+    },
+    {
+      "id": "audio_adapter",
+      "type": "backend",
+      "label": "Audio Tool Adapter",
+      "sublabel": "instrument · DSP · render · analyze",
+      "tag": "bounded local work",
+      "pos": [940, 350],
+      "size": [180, 70]
+    },
+    {
+      "id": "mcp_adapter",
+      "type": "backend",
+      "label": "MCP Client Adapter",
+      "sublabel": "discover · list · call",
+      "tag": "post-M4 target",
+      "pos": [940, 525],
+      "size": [180, 70]
+    },
+    {
+      "id": "music_project",
+      "type": "backend",
+      "label": "Music Project Model",
+      "sublabel": "editable symbolic facts",
+      "tag": "Core-owned truth",
+      "pos": [1210, 150],
+      "size": [170, 70]
+    },
+    {
+      "id": "audio_engine",
+      "type": "backend",
+      "label": "Rust Audio Engine",
+      "sublabel": "Sampler · VST3 · DSP",
+      "tag": "local render",
+      "pos": [1210, 350],
+      "size": [170, 70]
+    },
+    {
+      "id": "mcp_server",
+      "type": "external",
+      "label": "External MCP Server",
+      "sublabel": "untrusted tools + results",
+      "tag": "optional connection",
+      "pos": [1210, 525],
+      "size": [170, 70]
+    },
+    {
+      "id": "project_store",
+      "type": "database",
+      "label": "Project Facts",
+      "sublabel": "execution · events · receipts",
+      "tag": "SQLite source of truth",
+      "pos": [685, 430],
+      "size": [195, 72]
+    },
+    {
+      "id": "connection_vault",
+      "type": "security",
+      "label": "Connection Vault",
+      "sublabel": "secret refs · trust policy",
+      "tag": "outside Project",
+      "pos": [430, 570],
+      "size": [180, 72]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Creator-owned local Core",
+      "wraps": ["agent_decision", "tool_registry", "policy_approval", "durable_execution", "music_adapter", "audio_adapter", "music_project", "audio_engine", "mcp_adapter", "project_store", "connection_vault"],
+      "pad": 22
+    },
+    {
+      "kind": "security-group",
+      "label": "External MCP trust boundary",
+      "wraps": ["mcp_server"],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    { "id": "decision_registry", "from": "agent_decision", "to": "tool_registry", "variant": "emphasis", "route": "straight" },
+    { "id": "registry_policy", "from": "tool_registry", "to": "policy_approval", "variant": "security", "route": "straight" },
+    { "id": "policy_execution", "from": "policy_approval", "to": "durable_execution", "variant": "emphasis", "route": "straight" },
+    { "id": "execution_music", "from": "durable_execution", "to": "music_adapter", "variant": "emphasis" },
+    { "id": "execution_audio", "from": "durable_execution", "to": "audio_adapter", "variant": "emphasis", "route": "orthogonal-h" },
+    { "id": "execution_mcp", "from": "durable_execution", "to": "mcp_adapter", "variant": "dashed" },
+    { "id": "music_project_edit", "from": "music_adapter", "to": "music_project", "variant": "emphasis", "route": "straight" },
+    { "id": "audio_render", "from": "audio_adapter", "to": "audio_engine", "variant": "emphasis", "route": "straight" },
+    { "id": "mcp_external", "from": "mcp_adapter", "to": "mcp_server", "variant": "security", "route": "straight" },
+    { "id": "execution_store", "from": "durable_execution", "to": "project_store", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "orthogonal-v" },
+    { "id": "vault_policy", "from": "connection_vault", "to": "policy_approval", "variant": "security", "fromSide": "top", "toSide": "bottom", "route": "orthogonal-v" },
+    { "id": "vault_mcp", "from": "connection_vault", "to": "mcp_adapter", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One interface for the Agent",
+      "items": [
+        "The model produces canonical ToolRequest values, never shell commands or raw plugin payloads",
+        "Registry descriptors expose validated schemas and capability snapshots",
+        "Adapters keep Music IR, audio engine, plugin, and MCP protocols out of Agent logic"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "One durable execution path",
+      "items": [
+        "Policy and one-time Approval run before side effects",
+        "ToolExecution is persisted before invoke and records normalized results",
+        "Revision checks and atomic commit prevent partial or duplicate project edits"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Progressive rollout",
+      "items": [
+        "M3 instantiates the minimum local composition, render, and analysis tool set",
+        "No Music Provider or prompt-to-WAV external job exists in the product runtime",
+        "Generic MCP remains later and does not block the local music-quality Gate"
+      ]
+    }
+  ]
+}

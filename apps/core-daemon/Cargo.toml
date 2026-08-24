@@ -1,0 +1,22 @@
+[package]
+name = "core-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+autostudio-api = { path = "../../crates/autostudio-api" }
+autostudio-core = { path = "../../crates/autostudio-core" }
+autostudio-media = { path = "../../crates/autostudio-media" }
+autostudio-provider = { path = "../../crates/autostudio-provider" }
+autostudio-storage = { path = "../../crates/autostudio-storage" }
+axum.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

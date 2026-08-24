@@ -1,0 +1,28 @@
+[package]
+name = "autostudio-tui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "autostudio"
+path = "src/main.rs"
+
+[dependencies]
+autostudio-api = { path = "../../crates/autostudio-api" }
+crossterm.workspace = true
+ratatui.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tui-big-text.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

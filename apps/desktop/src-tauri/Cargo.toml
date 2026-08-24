@@ -1,0 +1,36 @@
+[package]
+name = "autostudio-desktop"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+name = "autostudio_desktop"
+
+[[bin]]
+name = "auto-studio"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+autostudio-api = { path = "../../../crates/autostudio-api" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+autostudio-core = { path = "../../../crates/autostudio-core" }
+autostudio-media = { path = "../../../crates/autostudio-media" }
+autostudio-provider = { path = "../../../crates/autostudio-provider" }
+autostudio-storage = { path = "../../../crates/autostudio-storage" }
+axum.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

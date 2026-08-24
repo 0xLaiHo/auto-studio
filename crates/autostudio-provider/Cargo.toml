@@ -1,0 +1,28 @@
+[package]
+name = "autostudio-provider"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+autostudio-core = { path = "../autostudio-core" }
+fs2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+hound.workspace = true
+reqwest.workspace = true
+
+[dev-dependencies]
+autostudio-media = { path = "../autostudio-media" }
+autostudio-storage = { path = "../autostudio-storage" }
+axum.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

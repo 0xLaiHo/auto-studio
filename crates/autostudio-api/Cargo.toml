@@ -1,0 +1,30 @@
+[package]
+name = "autostudio-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+autostudio-core = { path = "../autostudio-core" }
+async-stream.workspace = true
+axum.workspace = true
+fs2.workspace = true
+futures-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+autostudio-media = { path = "../autostudio-media" }
+autostudio-provider = { path = "../autostudio-provider" }
+autostudio-storage = { path = "../autostudio-storage" }
+http-body-util.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tower.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

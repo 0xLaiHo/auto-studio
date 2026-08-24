@@ -1,0 +1,7 @@
+# Provider 调研入口（2026-08-22）
+# 状态：来源清单，不是支持矩阵；当前实现与发布资格以 docs/README.md、技术设计和发布状态为准。
+# 这些条目都是 Agent/LLM Provider，不是 Music Provider，不能关闭 M3 Real Generation Gate。
+
+DeepSeek: https://api-docs.deepseek.com/zh-cn/
+Kimi Open Platform: https://platform.kimi.com/docs/overview
+Kimi Code: https://www.kimi.com/code/docs/

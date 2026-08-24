@@ -1,0 +1,7 @@
+target/
+**/node_modules/
+apps/desktop/dist/
+*.db
+*.db-shm
+*.db-wal
+.env
