@@ -1,0 +1,7 @@
+{
+  "schema_version": "q0-protocol-binding-v1",
+  "protocol_id": "q0-protocol-v3-l4-rebaseline",
+  "protocol_sha256": "080c7daf92b3d3272da5b3a27c08315d20f0aa760761b0edcfabf5e591de4a6a",
+  "mode_b_resource_repair_max_turns": 1,
+  "mode_b_resource_repair_turns_used": 0
+}

@@ -13,12 +13,12 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS（contract）`：OpenAI、Anthropic、DeepSeek、Kimi 等 LLM 协议与一次 typed Planning Turn；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
-- `PASS（Q0 v2 machine gate）/ IN PROGRESS（v3 L4 rebaseline）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；一个无合法基线的 L4 阻塞 6/6 B/C 比较，因此已冻结 v3 全量 L4 重基线协议，真实 v3 运行、Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
+- `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
 - `NOT IMPLEMENTED（production）`：Inference Transcript/Continuity Vault、Approval Grant/Run Budget、通用 LLM Tool loop、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
 
-当前正在执行 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md)。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 将为全部 6 个 L4 建立可比较的合法 B 基线。真实 v3、Bitwig 导入、盲听与继续编辑完成前不形成 `GO`。Q0 `GO` 后的 M3 目标是：
+当前正在执行 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md)。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 已为全部 6 个 L4 建立可比较的合法 B 基线。Bitwig 导入、真人反馈、盲听与继续编辑完成前仍不形成 `GO`。Q0 `GO` 后的 M3 目标是：
 
 ```text
 Brief

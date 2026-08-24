@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`LIVE-PENDING`；v2 真实 pilot 与正式 A/B 机器 Gate 已完成；v3 L4 重基线装置已冻结、真实运行 `IN PROGRESS`；真人/DAW Gate 尚未完成
+> 状态：`LIVE-PENDING`；v2 正式 A/B 机器 Gate 与 v3 真实 L4 6/6 重基线已完成；真人/DAW Gate 尚未完成
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -216,7 +216,7 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [x] 运行正式 Mode A 4/4 与 Mode B 12/12；Mode B 11/12 valid + compiled，达到装置门槛；
 - [x] 冻结 `protocol-v3-l4.lock.json`、全量 L4 重基线、逐 Run 协议绑定和一次资源预算修订规则；
 - [x] 实现从任意已落盘 Mode B turn 恢复、v3 Formal Verifier 和 fixture 端到端验证；
-- [ ] 在 `evidence/formal-v3-l4/` 运行全部 6 个 L4 Mode B，并达到 6/6 valid + compiled；
+- [x] 在 `evidence/formal-v3-l4/` 运行全部 6 个 L4 Mode B，并达到 6/6 valid + compiled；
 - [ ] 运行真实 Creator feedback Mode C、盲评和 continued-editing session；
 - [ ] 输出 `GO/REVISE/NO-GO/INVALID` 报告；
 - [ ] 只有 `GO` 才把 M3 从目标设计转为 production 实施。
@@ -229,7 +229,7 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - Mode B pilot：3 个真实调用，51,275 tokens，521,949 ms，逐轮 artifact 可恢复，最终严格校验并编译成功；
 - protocol v1 正式装置在 L3/L4 暴露输出截断，按 Gate 判定为 apparatus invalid；原始结果保留，不做人为修 JSON；
 - protocol v2 L4 pilot：3 个真实调用，113,342 tokens，841,105 ms，679 notes / 33 CC，最终严格校验并编译成功；正式 v2 A/B 使用全新目录；
-- protocol v3 L4：apparatus、lock、runner、resume、binding、verifier 与本地 fixture Gate 已完成；真实 Provider evidence 尚未产生；
+- protocol v3 L4：apparatus、lock、runner、resume、binding、verifier 与真实 Provider evidence 已完成；6/6 valid + compiled，601,537 tokens，peak USD 1.933172824，未使用第 4 个资源修订回合；
 - Provider evidence 不持久化 API Key 或 private reasoning；请求固定 `Accept-Encoding: identity`，单次超时 600 秒；
 - Bitwig 进程和 48 kHz PipeWire 初始化已实测，MIDI GUI import 尚未取得可验证证据；
 - pilot 明确排除于正式评分，不能用于填充 11/12、Keep 或 continued-editing 门槛。

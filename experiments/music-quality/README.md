@@ -28,6 +28,8 @@ third turn after interruption.
 - `evidence/formal/mode-a/` and `mode-b/` contain machine-verifiable outputs.
 - `evidence/formal-v3-l4/` is reserved for the six-pair L4 rebaseline. Every
   run is bound to `protocol-v3-l4.lock.json`; v2 evidence is never overwritten.
+  The formal v3 result is 6/6 valid and compiled; human Mode C/Keep/editing is
+  still pending.
 - Q0 v3 permits at most one additional Mode B turn, and only when turn 3 is
   strict JSON whose sole failures are the frozen global note/CC budgets. The
   full before/after turns remain evidence; no event is silently clipped.

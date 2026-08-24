@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-25
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 v2 独立实验已完成真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec、Type-1 SMF MIDI 与 11/12 机器 Gate；Q0 v3 已实现逐 Run 协议绑定、任意已落盘 Mode B 回合恢复、一次受限资源预算修订和严格验证，真实 6 个 L4 重基线尚未运行。Q0 不属于 production runtime，真人/DAW Gate 尚未完成；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 v2 独立实验已完成真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec、Type-1 SMF MIDI 与 11/12 机器 Gate；Q0 v3 已完成逐 Run 协议绑定、任意已落盘 Mode B 回合恢复、一次受限资源预算修订、严格验证和真实 6/6 L4 重基线。Q0 不属于 production runtime，真人/DAW Gate 尚未完成；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -78,7 +78,7 @@ Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provi
 | TUI `/connect`、`/model`、Thinking、`/exit` | `PASS` | Ratatui reducer/UI 与 Core Connection 合同 |
 | LLM Adapter | `PASS（contract）` | OpenAI/Anthropic/DeepSeek 等协议合同；真实计费需对应 Key |
 | LLM Planning Turn | `PASS（contract）` | typed Plan 与 Approval 已接 production composition root |
-| Q0 实验 Harness | `PASS（v2）` / `IN PROGRESS（v3 live）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订、formal verifier 与 fixture Gate 已通过，真实 L4 待运行 |
+| Q0 实验 Harness | `PASS（v2/v3 machine）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订与 formal verifier 通过，真实 L4 6/6 valid + compiled |
 | Inference Transcript/Continuity Vault | `NOT IMPLEMENTED` | 当前没有 durable Turn/Message/ToolCall 类型或 Provider Continuity 存储 |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |

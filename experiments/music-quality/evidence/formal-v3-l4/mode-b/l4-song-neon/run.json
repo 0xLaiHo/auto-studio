@@ -1,0 +1,63 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l4-song-neon-b-1787592619416",
+  "candidate_id": "c-f6e771a0d7cb",
+  "status": "completed",
+  "mode": "b",
+  "brief_id": "l4-song-neon",
+  "brief_level": "L4",
+  "started_at": "2026-08-24T17:30:19.416807748Z",
+  "completed_at": "2026-08-24T17:46:15.852060625Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": true,
+  "compiled": true,
+  "validation_error": null,
+  "turn_count": 3,
+  "total_usage": {
+    "prompt_tokens": 32254,
+    "prompt_cache_hit_tokens": 2432,
+    "prompt_cache_miss_tokens": 29822,
+    "completion_tokens": 88292,
+    "total_tokens": 120546
+  },
+  "total_latency_ms": 956418,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1255,
+      "sha256": "45dd884db25a217fc6752c19c2a5e1fc6f5ca4cc3177c97350e6929ba870945a"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 10792,
+      "sha256": "96e3a4d668e9d8a41d704a3faf94294303257146dc01084b9dbed31693d971b4"
+    },
+    {
+      "path": "turn-02.json",
+      "bytes": 85498,
+      "sha256": "71af26fc84098197919151f59f6874e7ce3b70a3bd7842d8bd96051ccfedd4eb"
+    },
+    {
+      "path": "turn-03.json",
+      "bytes": 157839,
+      "sha256": "49bb0f5c416eac0045a0a6762d89b311bb9b941e457ad338f0ec146683f936eb"
+    },
+    {
+      "path": "protocol-binding.json",
+      "bytes": 269,
+      "sha256": "b9d40361dc840e63aa6991c136a9c1f2294a6e6b25868264b579babde082b8d5"
+    },
+    {
+      "path": "spec.json",
+      "bytes": 119837,
+      "sha256": "ec4392e7223b83fca449819d6ea3cc5f2bb6ef797b0adb6dbb3f19ba4f2fd71b"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 6806,
+      "sha256": "2da9ac22c598ab2da7da5523298f174cbae12e71a1036e163af53f7b24a7b9cf"
+    }
+  ]
+}

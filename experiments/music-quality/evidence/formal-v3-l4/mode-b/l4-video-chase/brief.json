@@ -1,0 +1,55 @@
+{
+  "id": "l4-video-chase",
+  "level": "L4",
+  "title": "Silent data-center escape",
+  "purpose": "A 75 second cue for a character moving through a dark data center while avoiding detection, then sprinting for an exit.",
+  "duration_seconds": 75,
+  "section_plan": [
+    "infiltration: 8 bars",
+    "near miss: 8 bars",
+    "decision: 4 bars",
+    "sprint: 12 bars",
+    "cut: 2 bars"
+  ],
+  "style": [
+    "hybrid electronic percussion",
+    "textural suspense",
+    "precise sync"
+  ],
+  "mood": [
+    "stealthy",
+    "compressed",
+    "urgent"
+  ],
+  "must_include": [
+    "low and high rhythmic layers have different jobs",
+    "near miss creates negative space",
+    "sprint earns higher density",
+    "hard editorial ending"
+  ],
+  "must_avoid": [
+    "continuous ostinato without gaps",
+    "oversized trailer brass",
+    "random percussion fills"
+  ],
+  "instrument_roles": [
+    "sub pulse",
+    "muted percussion",
+    "high tick",
+    "dark harmony",
+    "motif",
+    "impact layer",
+    "texture"
+  ],
+  "delivery": [
+    "34 bars",
+    "7 to 9 tracks",
+    "clear section markers and dynamic CC"
+  ],
+  "score_focus": [
+    "rhythmic hierarchy",
+    "narrative density",
+    "editability"
+  ],
+  "mode_a": false
+}

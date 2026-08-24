@@ -7,7 +7,8 @@ verification succeeds.
 The v2 11/12 device Gate remains immutable, but its invalid
 `l4-orchestral-argument` run has no legal base spec. Before requesting Creator
 feedback, `evidence/formal-v3-l4/formal-summary.json` must therefore show an
-exact, protocol-bound 6/6 valid and compiled L4 Mode B rebaseline.
+exact, protocol-bound 6/6 valid and compiled L4 Mode B rebaseline. This
+prerequisite is now `PASS`; the remaining sections still require a human.
 
 ## 1. Bitwig import smoke
 

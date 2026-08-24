@@ -3,8 +3,8 @@
 > 日期：2026-08-24  
 > 当前结论：`LIVE-PENDING`，不是 `GO`、`REVISE` 或 `NO-GO`  
 > 已完成：工程装置、真实 DeepSeek pilot、正式 Mode A/B、机器 Gate、匿名评审包  
-> 2026-08-25 更新：v2 证据保持不可变；v3 L4 全量重基线装置/协议已冻结，真实 6 个 L4 尚未运行
-> 未完成：v3 L4 真实运行、Bitwig MIDI import、真实 Creator feedback/Mode C、盲听 Keep、actual continued editing
+> 2026-08-25 更新：v2 证据保持不可变；v3 L4 全量重基线 6/6 valid + compiled，机器 Gate 通过
+> 未完成：Bitwig MIDI import、真实 Creator feedback/Mode C、盲听 Keep、actual continued editing
 
 ## 0. v3 L4 协议补充
 
@@ -19,7 +19,20 @@ v2 的 11/12 装置门槛成立，但唯一无效项 `l4-orchestral-argument` �
 - 每个 run 绑定 protocol SHA-256，保存修订前后完整 turn；中断恢复复用已落盘 turn，不盲目产生重复计费请求；
 - v3 Formal Verifier 要求精确 6 个 L4、6/6 valid + compiled，并拒绝 protocol drift、无 trigger 的修订回合和 artifact hash 不一致。
 
-当前 v3 的代码、fixture 测试、锁和运行脚本已完成，但真实 Provider 运行尚未形成结果，因此仍是 `IN PROGRESS`，不能提前把 6/6 写成 `PASS`。
+v3 已完成真实 Provider 运行并由 Formal Verifier 通过：
+
+| Brief | Turns | Tracks | Notes | CC | Tokens | Provider latency ms |
+|---|---:|---:|---:|---:|---:|---:|
+| l4-song-neon | 3 | 7 | 702 | 98 | 120,546 | 956,418 |
+| l4-song-intimate | 3 | 6 | 766 | 50 | 117,640 | 819,816 |
+| l4-video-chase | 3 | 7 | 461 | 61 | 88,656 | 618,952 |
+| l4-video-emotional | 3 | 6 | 113 | 82 | 57,353 | 501,851 |
+| l4-orchestral-argument | 3 | 7 | 408 | 166 | 107,325 | 850,175 |
+| l4-electronic-microcity | 3 | 8 | 533 | 60 | 110,017 | 742,549 |
+
+聚合结果：精确 6/6 Candidate、6/6 completed + compiled、601,537 tokens（input 164,970；output 436,567）、Provider latency 4,489,761 ms、off-peak USD 0.966586412、peak USD 1.933172824。六项均在第三轮直接通过，因此冻结的资源预算修订能力没有被正式样本使用；这不能被写成“修订策略经过真实触发验证”，其真实证据仍只有 fixture contract。
+
+v3 protocol SHA-256 为 `080c7daf92b3d3272da5b3a27c08315d20f0aa760761b0edcfabf5e591de4a6a`，summary SHA-256 为 `7606aecebfb0d9fba49f48f0402588737950741bea8115294fc7ef7463a0f804`；apparatus 由提交 `369a20b` 与 `ce81aed` 冻结。Credential/private-reasoning sentinel 通过。v2 + v3 的 peak 累计成本为 USD 5.383661712，仍低于冻结的 USD 10 累计上限。
 
 ## 1. 结论先行
 
@@ -98,11 +111,10 @@ Formal Verifier 的完整聚合：
 
 严格按 [`experiments/music-quality/HUMAN-GATES.md`](../../experiments/music-quality/HUMAN-GATES.md) 完成：
 
-1. 按 v3 lock 在独立目录运行全部 6 个 L4 Mode B，并由 Formal Verifier 得到 6/6；
-2. 在 Bitwig Studio 6.0.11 实际导入 pilot MIDI，固定 GeneralUser GS mapping，保存、关闭、重开并记录工程 hash/截图；
-3. 对 v3 的 6 个 L4 Mode B 结果写 1—2 条真实 Creator feedback，运行 Mode C；不能让另一个 LLM 代写反馈；
-4. 重新生成含 v3 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
-5. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；
-6. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
+1. 在 Bitwig Studio 6.0.11 实际导入 pilot MIDI，固定 GeneralUser GS mapping，保存、关闭、重开并记录工程 hash/截图；
+2. 对 v3 的 6 个 L4 Mode B 结果写 1—2 条真实 Creator feedback，运行 Mode C；不能让另一个 LLM 代写反馈；
+3. 重新生成含 v3 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
+4. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；
+5. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
 
 在这些证据完成之前，诚实的 Q0 状态只能是 `LIVE-PENDING`，不能授权 M3。
