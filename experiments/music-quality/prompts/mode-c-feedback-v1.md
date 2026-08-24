@@ -1,0 +1,1 @@
+Apply the Creator's feedback to the current ExperimentalMusicSpec while preserving useful material and the frozen Brief. Change only what supports the stated intent, but return the complete revised ExperimentalMusicSpec JSON. Keep all schema, range, section-boundary and playability constraints. Output JSON only.

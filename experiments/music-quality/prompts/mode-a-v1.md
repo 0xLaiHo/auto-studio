@@ -1,0 +1,1 @@
+Create the complete ExperimentalMusicSpec in one pass from the frozen Brief and schema. Satisfy the exact section plan, role count, must-include, must-avoid and delivery conditions. Output only the complete spec JSON.

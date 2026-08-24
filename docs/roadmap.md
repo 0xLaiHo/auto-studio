@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-24  
 > 当前执行 Gate：Q0 音乐内容可行性 Spike  
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 与 M3 目前都只有设计，没有实验或 production 实现；当前仍不能真实生成音乐。
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 实验装置与真实 DeepSeek/MIDI pilot 已完成，正式 A/B 正在执行，真人/DAW Gate 仍待完成；M3 production 尚未开工，当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -31,13 +31,13 @@
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
 | Tool Registry/Runtime | `NOT IMPLEMENTED` | ADR/架构图 | 固定 catalog、Policy、ToolExecution |
-| MIDI/Arrangement | `NOT IMPLEMENTED` | 无运行代码 | tempo/section/track/note/CC tools |
+| MIDI/Arrangement | `PASS（Q0 experiment）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC 实测 | production Music Project 与 Semantic Tool |
 | Offline Audio Engine | `NOT IMPLEMENTED` | `hound` 只用于 WAV 合同 | Render Plan、instrument、mix、analysis |
 | Factory Pack/Sampler | `NOT IMPLEMENTED` | 研究与候选清单 | 许可批准、manifest、sampler、盲听 |
 | VST3 Host | `NOT IMPLEMENTED` | 目标隔离设计 | 目标 OS、SDK Spike、worker、corpus |
 | MCP | `NOT IMPLEMENTED` | 目标设计 | Post-MVP，不阻塞本地音乐 Gate |
 
-仓库安全状态：Git 已初始化，但截至基线日没有 commit，文件未被追踪，且本机 `user.name/user.email` 未配置。建立可回退 baseline commit 是清理旧 Generation 代码和运行 Q0 前的工作项；文档更新不将其误报为已完成。
+仓库安全状态：已配置仓库级 Git identity，`main` 跟踪 `origin/main`，并建立可回退 baseline commit `b9db99c`。远端基线仍可追溯；Q0 不删除 legacy 文件。
 
 ## 3. 里程碑总览
 
@@ -46,7 +46,7 @@
 | M0 Workspace Baseline | Rust workspace、Core、Project、API、基础 TUI | `PASS` |
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
-| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `NOT IMPLEMENTED` |
+| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `IN PROGRESS`：装置/pilot PASS，正式 A/B 运行中，真人/DAW `LIVE-PENDING` |
 | M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `NOT IMPLEMENTED（等待 Q0 GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
@@ -61,23 +61,26 @@ Q0 不建设 production Audio Engine。完成定义是：
 
 ### 4.1 Q0-0：仓库与协议基线
 
-- [ ] 配置正确的 Git identity 并建立包含当前代码/文档的 baseline commit；
-- [ ] 确认 190 个当前未追踪项的纳入/忽略策略；
-- [ ] 创建 `experiments/music-quality/` 独立 workspace 与 lockfile，不加入 production workspace；
-- [ ] 冻结 12 个 Brief、ExperimentalMusicSpec、prompt、评分表和 `protocol.lock.json`；
-- [ ] 冻结主模型、负面复核模型、DAW/version/template 与 instrument mapping；
-- [ ] 记录音色来源、license/EULA、本地使用权和 hash。
+- [x] 配置正确的 Git identity 并建立包含当前代码/文档的 baseline commit `b9db99c`；
+- [x] 完成当前 workspace 的纳入/忽略与 secret/generated/large-file 审计；
+- [x] 创建 `experiments/music-quality/` 独立 workspace 与 lockfile，不加入 production workspace；
+- [x] 冻结 12 个 Brief、ExperimentalMusicSpec、prompt、评分表和 `protocol.lock.json`；
+- [x] 冻结主模型、DAW/version/import recipe 与 instrument mapping；
+- [ ] 第二个不同强模型只在主模型负面时启用，仍需 Credential 与精确 model；
+- [x] 记录音色来源、license/EULA、本地使用权和 hash。
 
 完成定义：实验输入、阈值、环境和代码都可追溯；未建立 baseline 时不删除 legacy 文件。
 
 ### 4.2 Q0-A：实验装置
 
-- [ ] schema/parser/compiler 单元测试；
-- [ ] ExperimentalMusicSpec → SMF MIDI/tempo/marker；
-- [ ] 一个不计入结果的 pilot 与 DAW import smoke；
-- [ ] Provider request/response normalization、usage/cost/latency 记录；
-- [ ] 随机 candidate ID、blind mapping 与编辑动作记录；
-- [ ] Credential、private reasoning 和不允许分发音色不进入 artifact。
+- [x] schema/parser/compiler 单元测试；
+- [x] ExperimentalMusicSpec → SMF MIDI/tempo/拍号/key/marker/track/note/CC；
+- [x] 不计入结果的真实 DeepSeek Mode A/Mode B pilot；
+- [ ] Bitwig MIDI import、固定音色装载和工程保存 smoke 为 `LIVE-PENDING`；
+- [x] Provider request/response normalization、逐轮恢复、usage/cost/latency 记录；
+- [x] 匿名 candidate ID、evaluator package、独立 private mapping 与编辑动作表；
+- [x] Credential、private reasoning 和不允许分发音色不进入 artifact；
+- [x] formal verifier 按 Plan 校验 4 个 A/12 个 B、Provider identity 与 artifact hash。
 
 完成定义：Mode B 至少 11/12 可无人工修 JSON 编译并导入，否则只修实验装置，不判断产品前提。
 
@@ -266,7 +269,7 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 ### Gate Q0：内容可行性
 
-- `NOT IMPLEMENTED`：只有实验协议，没有运行结果；
+- `IN PROGRESS`：实验装置与真实 pilot 已通过；正式 A/B 正在运行，Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
 - 通过条件：实验装置有效，L4 达到冻结 Keep/Actual continued editing 门槛；负面主模型结果由第二个不同强模型复核。
 
 ### Gate A：产品基线

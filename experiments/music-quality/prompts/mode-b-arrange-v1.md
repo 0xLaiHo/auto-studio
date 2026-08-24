@@ -1,0 +1,1 @@
+Using the frozen Brief and approved skeleton, write a complete ExperimentalMusicSpec. Preserve the skeleton's identity and section plan while realizing concrete notes, rests, velocities and useful CC. Output only the complete spec JSON.

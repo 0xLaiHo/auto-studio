@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`NOT IMPLEMENTED`；只有实验设计，没有结果  
+> 状态：`IN PROGRESS`；实验装置与真实 pilot 已完成，正式 A/B 正在执行，真人/DAW Gate 为 `LIVE-PENDING`  
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -9,7 +9,7 @@
 
 [ADR-0011](../adr/0011-llm-authored-local-music.md) 把产品方向改为“LLM 通过本地语义工具创作可编辑音乐”。这个方向成立需要一个尚未验证的核心前提：通用 LLM 能产生值得创作者保留并继续编辑的结构、和声、旋律、节奏与配器决定。
 
-当前代码只证明一次 typed Planning Turn，没有真实 Tool loop、Music Project、MIDI、Sampler 或 Audio Engine。若先完成完整本地引擎再验证音乐决策质量，会把最昂贵的技术投入放在最大的不确定性之前。因此 Q0 只建设足以回答内容问题的最薄实验，不提前实现生产架构。
+Q0 开工前，production 代码只证明一次 typed Planning Turn，没有真实 Tool loop、Music Project、MIDI、Sampler 或 Audio Engine。现已在 `experiments/music-quality/` 建成独立试验纵切，但它不改变 production 的 planning-only 状态。若先完成完整本地引擎再验证音乐决策质量，仍会把最昂贵的技术投入放在最大的不确定性之前。
 
 ## 2. 要回答的决策问题
 
@@ -186,16 +186,29 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 
 ## 13. 开工清单
 
-- [ ] 建立 Git baseline commit；当前仓库无 commit、文件未被追踪且 user identity 未配置时，不执行 destructive cleanup；
-- [ ] 冻结 12 个 Brief、评分表与 `protocol.lock.json`；
-- [ ] 冻结首个精确模型与负面复核模型；
-- [ ] 冻结 DAW/version/template 与 instrument mapping；
-- [ ] 完成内容本地使用许可与 hash 记录；
-- [ ] 创建独立 experiment workspace、schema/compiler tests；
-- [ ] 完成不计入结果的 pilot；
+- [x] 建立 Git baseline commit `b9db99c`，配置仓库 identity，并保留远端 `origin/main` 可回退点；
+- [x] 冻结 12 个 Brief、评分表与 `protocol.lock.json`；
+- [x] 冻结主模型 `deepseek-v4-pro`、Thinking `high`、协议和价格快照；
+- [ ] 负面结果的第二个不同强模型仍需独立 Credential/精确 model 后冻结；
+- [x] 冻结 Bitwig Studio 6.0.11、48 kHz 导入 recipe 与 instrument mapping；
+- [ ] Bitwig 实际 MIDI 导入/音色装载/保存仍为 `LIVE-PENDING`；当前 accessibility provider 不暴露其自绘窗口，不以坐标猜测冒充通过；
+- [x] 完成本地音色使用许可、版本和 hash 记录；GeneralUser GS 只批准本地评价，不批准产品再分发；
+- [x] 创建独立 experiment workspace、严格 schema/parser、Type-1 SMF compiler、逐轮恢复、证据哈希和测试；
+- [x] 完成不计入结果的真实 Mode A/Mode B DeepSeek pilot；
+- [x] 实现按锁定清单校验 Candidate、Provider identity、artifact hash、usage/cost 的 formal verifier；
+- [x] 实现 evaluator-safe 匿名包、独立 private mapping 与评价表；
 - [ ] 运行 A/B/C、盲评和 continued-editing session；
 - [ ] 输出 `GO/REVISE/NO-GO/INVALID` 报告；
 - [ ] 只有 `GO` 才把 M3 从目标设计转为 production 实施。
+
+## 14. 当前可审计证据
+
+- `protocol.lock.json`：冻结 corpus、schema、prompt、模型、Thinking、超时、价格、环境、随机种子与投资阈值；
+- Mode A pilot：1 个真实调用，11,011 tokens，142,780 ms，严格校验并编译成功；
+- Mode B pilot：3 个真实调用，51,275 tokens，521,949 ms，逐轮 artifact 可恢复，最终严格校验并编译成功；
+- Provider evidence 不持久化 API Key 或 private reasoning；请求固定 `Accept-Encoding: identity`，单次超时 600 秒；
+- Bitwig 进程和 48 kHz PipeWire 初始化已实测，MIDI GUI import 尚未取得可验证证据；
+- pilot 明确排除于正式评分，不能用于填充 11/12、Keep 或 continued-editing 门槛。
 
 ## 关联
 

@@ -1,0 +1,12 @@
+{
+  "schema_version": "q0-provider-pricing-v1",
+  "captured_at": "2026-08-24T00:00:00+08:00",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing",
+  "unit": "USD per 1M tokens",
+  "model": "deepseek-v4-pro",
+  "model_version": "DeepSeek-V4-Pro-0813",
+  "off_peak": {"input_cache_hit": 0.022, "input_cache_miss": 0.66, "output": 1.98},
+  "peak": {"input_cache_hit": 0.044, "input_cache_miss": 1.32, "output": 3.96},
+  "price_note": "Provider prices can change. Evidence must preserve this frozen snapshot and usage; do not silently recompute historical cost with newer prices.",
+  "experiment_budget_usd": 10.0
+}

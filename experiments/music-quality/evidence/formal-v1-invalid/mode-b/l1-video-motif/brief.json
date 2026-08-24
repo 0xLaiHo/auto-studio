@@ -1,0 +1,46 @@
+{
+  "id": "l1-video-motif",
+  "level": "L1",
+  "title": "Discovery documentary motif",
+  "purpose": "A restrained motif for the opening of a documentary scene where a scientist notices an unexpected pattern.",
+  "duration_seconds": 20,
+  "section_plan": [
+    "observation: 4 bars",
+    "realization: 4 bars"
+  ],
+  "style": [
+    "minimal chamber",
+    "modal",
+    "cinematic restraint"
+  ],
+  "mood": [
+    "curious",
+    "precise",
+    "quietly surprising"
+  ],
+  "must_include": [
+    "motif transforms in the second section",
+    "harmonic ambiguity resolves only partially"
+  ],
+  "must_avoid": [
+    "trailer braams",
+    "heroic cadence",
+    "busy percussion"
+  ],
+  "instrument_roles": [
+    "felt piano",
+    "soft strings",
+    "single pulse"
+  ],
+  "delivery": [
+    "8 bars",
+    "2 to 3 tracks",
+    "clear section marker"
+  ],
+  "score_focus": [
+    "motif identity",
+    "development",
+    "restraint"
+  ],
+  "mode_a": false
+}

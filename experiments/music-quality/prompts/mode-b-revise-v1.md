@@ -1,0 +1,1 @@
+Act as a strict composer-editor. Re-read the frozen Brief, skeleton and current ExperimentalMusicSpec. Correct structural violations, weak role separation, unplayable writing, monotonous repetition, missing development and violations of must-include or must-avoid requirements. Return the complete revised ExperimentalMusicSpec JSON only. Do not describe the changes.

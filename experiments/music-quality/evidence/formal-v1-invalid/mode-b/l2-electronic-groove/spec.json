@@ -1,0 +1,973 @@
+{
+  "title": "Broken-grid electronic groove",
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 80.0,
+      "time_signature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "key_map": [
+    {
+      "bar": 1,
+      "tonic": "D",
+      "mode": "minor"
+    }
+  ],
+  "sections": [
+    {
+      "id": "establish",
+      "label": "Establish",
+      "start_bar": 1,
+      "length_bars": 4,
+      "intent": "Establish a broken-grid groove with sparse syncopated kick and offbeat chord stabs, while the two-note motif first appears."
+    },
+    {
+      "id": "variation",
+      "label": "Variation",
+      "start_bar": 5,
+      "length_bars": 4,
+      "intent": "Increase percussion density, vary kick and bass relationship, and develop the motif rhythmically with an added note in the second half."
+    }
+  ],
+  "tracks": [
+    {
+      "id": "kick",
+      "name": "Kick",
+      "role": "kick",
+      "register": {
+        "low": 35,
+        "high": 36
+      },
+      "instrument_hint": "Electronic Kick",
+      "regions": [
+        {
+          "section_id": "establish",
+          "notes": [
+            {
+              "beat": 1.5,
+              "duration": 0.4,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.4,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.4,
+              "pitch": 36,
+              "velocity": 105
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.4,
+              "pitch": 36,
+              "velocity": 95
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "variation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 110
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 105
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 105
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 110
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 105
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 100
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.3,
+              "pitch": 36,
+              "velocity": 105
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "percussion",
+      "name": "Percussion",
+      "role": "percussion",
+      "register": {
+        "low": 37,
+        "high": 42
+      },
+      "instrument_hint": "Electronic Percussion",
+      "regions": [
+        {
+          "section_id": "establish",
+          "notes": [
+            {
+              "beat": 0.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 1.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 2.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 60
+            },
+            {
+              "beat": 3.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 3.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 4.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 5.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 6.25,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 60
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 7.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 9.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 60
+            },
+            {
+              "beat": 11.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 11.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 13.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            },
+            {
+              "beat": 14.75,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 60
+            },
+            {
+              "beat": 15.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 90
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 80
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "variation",
+          "notes": [
+            {
+              "beat": 0.25,
+              "duration": 0.1,
+              "pitch": 42,
+              "velocity": 75
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 1.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 2.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 120
+            },
+            {
+              "beat": 3.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 3.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 4.25,
+              "duration": 0.1,
+              "pitch": 42,
+              "velocity": 75
+            },
+            {
+              "beat": 4.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 5.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 6.25,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 70
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 7.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 8.25,
+              "duration": 0.1,
+              "pitch": 42,
+              "velocity": 75
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 9.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.1,
+              "pitch": 37,
+              "velocity": 120
+            },
+            {
+              "beat": 11.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 11.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 12.25,
+              "duration": 0.1,
+              "pitch": 42,
+              "velocity": 75
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 13.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            },
+            {
+              "beat": 15.0,
+              "duration": 0.2,
+              "pitch": 39,
+              "velocity": 95
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.2,
+              "pitch": 42,
+              "velocity": 85
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "sub_bass",
+      "name": "Sub Bass",
+      "role": "bass",
+      "register": {
+        "low": 28,
+        "high": 43
+      },
+      "instrument_hint": "Sub Bass",
+      "regions": [
+        {
+          "section_id": "establish",
+          "notes": [
+            {
+              "beat": 1.5,
+              "duration": 0.75,
+              "pitch": 38,
+              "velocity": 100
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.75,
+              "pitch": 33,
+              "velocity": 105
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.75,
+              "pitch": 31,
+              "velocity": 100
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.75,
+              "pitch": 38,
+              "velocity": 95
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "variation",
+          "notes": [
+            {
+              "beat": 0.5,
+              "duration": 3.0,
+              "pitch": 38,
+              "velocity": 90
+            },
+            {
+              "beat": 4.5,
+              "duration": 3.0,
+              "pitch": 33,
+              "velocity": 90
+            },
+            {
+              "beat": 8.5,
+              "duration": 3.0,
+              "pitch": 38,
+              "velocity": 90
+            },
+            {
+              "beat": 12.5,
+              "duration": 3.0,
+              "pitch": 33,
+              "velocity": 90
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.5,
+              "controller": 11,
+              "value": 105
+            },
+            {
+              "beat": 1.5,
+              "controller": 11,
+              "value": 90
+            },
+            {
+              "beat": 4.5,
+              "controller": 11,
+              "value": 105
+            },
+            {
+              "beat": 5.5,
+              "controller": 11,
+              "value": 90
+            },
+            {
+              "beat": 8.5,
+              "controller": 11,
+              "value": 105
+            },
+            {
+              "beat": 9.5,
+              "controller": 11,
+              "value": 90
+            },
+            {
+              "beat": 12.5,
+              "controller": 11,
+              "value": 105
+            },
+            {
+              "beat": 13.5,
+              "controller": 11,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chord_stab",
+      "name": "Chord Stab",
+      "role": "harmony",
+      "register": {
+        "low": 48,
+        "high": 65
+      },
+      "instrument_hint": "Synth Stab",
+      "regions": [
+        {
+          "section_id": "establish",
+          "notes": [
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 58,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 62,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 65,
+              "velocity": 85
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 58,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 62,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 65,
+              "velocity": 85
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "variation",
+          "notes": [
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 100
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 100
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 100
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 58,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 62,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.3,
+              "pitch": 65,
+              "velocity": 85
+            },
+            {
+              "beat": 7.75,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 7.75,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 7.75,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 100
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 100
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 100
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 58,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 62,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.3,
+              "pitch": 65,
+              "velocity": 85
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.3,
+              "pitch": 50,
+              "velocity": 85
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.3,
+              "pitch": 53,
+              "velocity": 85
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.3,
+              "pitch": 57,
+              "velocity": 85
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "short_motif",
+      "name": "Short Motif",
+      "role": "melody",
+      "register": {
+        "low": 60,
+        "high": 76
+      },
+      "instrument_hint": "FM Pluck",
+      "regions": [
+        {
+          "section_id": "establish",
+          "notes": [
+            {
+              "beat": 1.5,
+              "duration": 0.25,
+              "pitch": 74,
+              "velocity": 100
+            },
+            {
+              "beat": 2.5,
+              "duration": 0.25,
+              "pitch": 72,
+              "velocity": 100
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.25,
+              "pitch": 74,
+              "velocity": 100
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.25,
+              "pitch": 72,
+              "velocity": 100
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.25,
+              "pitch": 69,
+              "velocity": 100
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 100
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "variation",
+          "notes": [
+            {
+              "beat": 2.5,
+              "duration": 0.2,
+              "pitch": 74,
+              "velocity": 100
+            },
+            {
+              "beat": 2.75,
+              "duration": 0.2,
+              "pitch": 76,
+              "velocity": 100
+            },
+            {
+              "beat": 3.25,
+              "duration": 0.2,
+              "pitch": 72,
+              "velocity": 100
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.2,
+              "pitch": 72,
+              "velocity": 100
+            },
+            {
+              "beat": 10.75,
+              "duration": 0.2,
+              "pitch": 74,
+              "velocity": 100
+            },
+            {
+              "beat": 11.25,
+              "duration": 0.2,
+              "pitch": 69,
+              "velocity": 100
+            }
+          ],
+          "cc": []
+        }
+      ]
+    }
+  ]
+}

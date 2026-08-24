@@ -1,0 +1,53 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l3-verse-chorus-b-1787578163063",
+  "candidate_id": "c-00180c9480db",
+  "status": "invalid",
+  "mode": "b",
+  "brief_id": "l3-verse-chorus",
+  "brief_level": "L3",
+  "started_at": "2026-08-24T13:29:23.063709365Z",
+  "completed_at": "2026-08-24T13:42:32.248044105Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": false,
+  "compiled": false,
+  "validation_error": "invalid ExperimentalMusicSpec JSON: EOF while parsing a value at line 1225 column 20",
+  "turn_count": 3,
+  "total_usage": {
+    "prompt_tokens": 23487,
+    "prompt_cache_hit_tokens": 1280,
+    "prompt_cache_miss_tokens": 22207,
+    "completion_tokens": 70573,
+    "total_tokens": 94060
+  },
+  "total_latency_ms": 789172,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1162,
+      "sha256": "5221a8bcdff9cbecc0986e404986cf0b977ac5c61a94ef289587747a9e85f24a"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 11549,
+      "sha256": "fb956acbc0553162d82a6edaf98ad8e7f9d5235f8fce27607ec35804d506bb36"
+    },
+    {
+      "path": "turn-02.json",
+      "bytes": 58647,
+      "sha256": "957948f237ed2d8954f574afe57749e73b828505361fdd5ee20d373c2216b38d"
+    },
+    {
+      "path": "turn-03.json",
+      "bytes": 142767,
+      "sha256": "54ed50cb1328fcf3e41a706ed28cf7587f994077035bc956b149424aca21117b"
+    },
+    {
+      "path": "validation-error.txt",
+      "bytes": 84,
+      "sha256": "aa3c7b32239f7265aaa580d1ac921bf8920ce39ec66620fdfc3e1ad02cac759d"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "provider": "deepseek",
+  "protocol": "openai-chat-completions",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "request": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": "You are the composition engine for a controlled professional-music experiment. Write original, editable MIDI-level musical decisions, not prose and not audio.\n\nRules:\n\n1. Return exactly one JSON object and no Markdown fences.\n2. Do not imitate or quote a named living artist or identifiable copyrighted melody.\n3. Treat MIDI pitch 60 as middle C. Keep every note within its declared track register.\n4. A region's beat is relative to its Section. In 4/4, an 8-bar Section has beats 0 through less than 32. Every note must end within its Section.\n5. Section IDs and Track IDs are unique lowercase identifiers. Sections are ordered, non-overlapping and use one-based start_bar.\n6. tempo_map and key_map start at bar 1 and are strictly increasing.\n7. Use velocity and CC1 or CC11 deliberately on sustained parts. Avoid decorative CC noise.\n8. Make roles independent: melody, harmony, bass, pulse, percussion and texture should not all double the same rhythm or pitch class.\n9. Prefer playable phrases, voice leading, rests and development over maximum note count.\n10. The JSON must conform to the supplied ExperimentalMusicSpec schema or stage schema.\n",
+        "role": "system"
+      },
+      {
+        "content": "Design the musical skeleton before writing notes. Output exactly this JSON shape:\n\n{\"title\":\"...\",\"tempo_map\":[...],\"key_map\":[...],\"sections\":[...],\"track_plan\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"...\",\"register\":{\"low\":0,\"high\":127},\"instrument_hint\":\"...\",\"section_jobs\":[{\"section_id\":\"...\",\"intent\":\"...\",\"density\":\"sparse|medium|dense\"}]}],\"motif_strategy\":\"...\",\"harmony_strategy\":\"...\",\"groove_strategy\":\"...\"}\n\nUse the same field shapes for tempo_map, key_map, sections and register as ExperimentalMusicSpec. Do not include notes yet. Output only JSON.\n\n\nFROZEN BRIEF:\n{\n  \"id\": \"l2-orchestral-ostinato\",\n  \"level\": \"L2\",\n  \"title\": \"Measured orchestral pursuit\",\n  \"purpose\": \"An ostinato and bass-pulse sketch for a dialogue scene that gains urgency without becoming a trailer cue.\",\n  \"duration_seconds\": 28,\n  \"section_plan\": [\n    \"contained: 4 bars\",\n    \"pressure: 4 bars\"\n  ],\n  \"style\": [\n    \"modern chamber orchestra\",\n    \"asymmetric accent\",\n    \"dry\"\n  ],\n  \"mood\": [\n    \"watchful\",\n    \"tense\",\n    \"disciplined\"\n  ],\n  \"must_include\": [\n    \"ostinato leaves gaps for dialogue\",\n    \"bass pulse and ostinato accents interact\",\n    \"second section intensifies by register or rhythm\"\n  ],\n  \"must_avoid\": [\n    \"wall-to-wall sixteenths\",\n    \"brass fanfare\",\n    \"unison doubling on every note\"\n  ],\n  \"instrument_roles\": [\n    \"low strings pulse\",\n    \"viola ostinato\",\n    \"cello counterline\",\n    \"muted percussion\"\n  ],\n  \"delivery\": [\n    \"8 bars\",\n    \"4 tracks\",\n    \"playable orchestral registers\"\n  ],\n  \"score_focus\": [\n    \"pulse\",\n    \"voice separation\",\n    \"dialogue space\"\n  ],\n  \"mode_a\": false\n}",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-pro",
+    "reasoning_effort": "high",
+    "response_format": {
+      "type": "json_object"
+    },
+    "stream": false,
+    "temperature": 0.7,
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "response_id": "fd1c8d93-bb4c-4926-8287-7b83afdaef1c",
+  "content": "{\n  \"title\": \"Measured Orchestral Pursuit\",\n  \"tempo_map\": [\n    {\n      \"bar\": 1,\n      \"bpm\": 68.0\n    }\n  ],\n  \"key_map\": [\n    {\n      \"bar\": 1,\n      \"key\": \"D minor\"\n    }\n  ],\n  \"sections\": [\n    {\n      \"id\": \"contained\",\n      \"start_bar\": 1,\n      \"bars\": 4\n    },\n    {\n      \"id\": \"pressure\",\n      \"start_bar\": 5,\n      \"bars\": 4\n    }\n  ],\n  \"track_plan\": [\n    {\n      \"id\": \"low_strings_pulse\",\n      \"name\": \"Low Strings Pulse\",\n      \"role\": \"bass pulse\",\n      \"register\": {\n        \"low\": 28,\n        \"high\": 55\n      },\n      \"instrument_hint\": \"contrabasses, pizzicato/arco\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"contained\",\n          \"intent\": \"Lay down steady half-note and quarter-note pulse; leave space on beat 4\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"pressure\",\n          \"intent\": \"Add off-beat accents and occasional syncopation to push momentum\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"viola_ostinato\",\n      \"name\": \"Viola Ostinato\",\n      \"role\": \"ostinato\",\n      \"register\": {\n        \"low\": 48,\n        \"high\": 72\n      },\n      \"instrument_hint\": \"violas, non legato\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"contained\",\n          \"intent\": \"Repeating three-note figure with a rest gap; irregular accent on second sixteenth\",\n          \"density\": \"medium\"\n        },\n        {\n          \"section_id\": \"pressure\",\n          \"intent\": \"Shift ostinato up a third and shorten gaps; add a passing chromatic note\",\n          \"density\": \"dense\"\n        }\n      ]\n    },\n    {\n      \"id\": \"cello_counterline\",\n      \"name\": \"Cello Counterline\",\n      \"role\": \"counterline\",\n      \"register\": {\n        \"low\": 36,\n        \"high\": 69\n      },\n      \"instrument_hint\": \"cellos, lyrical\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"contained\",\n          \"intent\": \"Answer the ostinato with long notes and one stepwise descent\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"pressure\",\n          \"intent\": \"Climb into tenor register and use dotted rhythm to create tension\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"muted_percussion\",\n      \"name\": \"Muted Percussion\",\n      \"role\": \"pulse/color\",\n      \"register\": {\n        \"low\": 60,\n        \"high\": 72\n      },\n      \"instrument_hint\": \"timpani with cloth mallets, or woodblock\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"contained\",\n          \"intent\": \"Soft timpani on downbeats only; remain in background\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"pressure\",\n          \"intent\": \"Add rhythmic punctuation on beat 2 and syncopated pickup to beat 4\",\n          \"density\": \"medium\"\n        }\n      ]\n    }\n  ],\n  \"motif_strategy\": \"Viola ostinato uses a short 3+2 pattern with rests on the last eighth; cello counterline decorates phrase endings while bass pulse anchors chord roots. Second section transposes the motif up a minor third and compresses rests to raise intensity without sixteenth-note walls.\",\n  \"harmony_strategy\": \"D minor with alternating Dm and Bb/D implied by bass pulse; second section moves to Bb major and G minor, creating lift; avoid full triads in any single track to keep dialogue space.\",\n  \"groove_strategy\": \"Steady half-note bass pulse in contained section, with octave accents on off-beats in pressure section; muted percussion marks structural downbeats and adds a dry woodblock pick-up only in bar 7-8.\"\n}",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 822,
+    "prompt_cache_hit_tokens": 512,
+    "prompt_cache_miss_tokens": 310,
+    "completion_tokens": 3400,
+    "total_tokens": 4222
+  },
+  "latency_ms": 54236
+}

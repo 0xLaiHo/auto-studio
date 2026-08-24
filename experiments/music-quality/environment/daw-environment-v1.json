@@ -1,0 +1,38 @@
+{
+  "schema_version": "q0-daw-environment-v1",
+  "captured_at": "2026-08-24T21:14:26+08:00",
+  "os": "Linux 6.18.42-1-cachyos-lts x86_64 GNU/Linux",
+  "daw": {
+    "name": "Bitwig Studio",
+    "version": "6.0.11-1",
+    "main_binary": "/opt/bitwig-studio/BitwigStudio",
+    "main_binary_sha256": "f11f185ea8287cc81db4bd8fb93fea7e732fe43cdd70dc1d72963633fd5b66e0",
+    "eula_path": "/opt/bitwig-studio/EULA.txt",
+    "eula_sha256": "f96c3f22616010c5ec5ea4184d0500169b13b28f2f688331eef712f27e2b4bbe"
+  },
+  "audio": {
+    "server": "PulseAudio on PipeWire 1.6.8",
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "buffer_frames": 256
+  },
+  "import_recipe": [
+    "Create a blank Bitwig project at 48 kHz.",
+    "Drag composition.mid into the Arranger and choose one track per MIDI track.",
+    "Keep the imported tempo, time signature and marker information where Bitwig exposes it.",
+    "Load the fixed GeneralUser GS v1.471 SoundFont patch named in instrument-mapping-v1.json for each track; use channel 10 for drum roles.",
+    "Do not add effects, humanization or replacement presets before blind scoring.",
+    "Save the imported project under the anonymous candidate_id, never the Brief or mode name."
+  ],
+  "launch_smoke": {
+    "status": "PASS",
+    "observed_at": "2026-08-24T21:14:26+08:00",
+    "evidence": "BitwigStudio process remained live and its application log enumerated the PipeWire graph at 48 kHz"
+  },
+  "midi_import_smoke": {
+    "status": "LIVE-PENDING",
+    "reason": "Bitwig's custom-rendered Linux window is not exposed by the available accessibility provider: app_not_found(\"Bitwig Studio\"); the provider also reports screenshot=false. No unverified coordinate interaction was treated as evidence.",
+    "pilot_midi": "../evidence/pilot/l1-song-hook/composition.mid"
+  },
+  "template_status": "recipe and mapping frozen; Bitwig launch passed; physical import, patch assignment, save and continued-editing remain LIVE-PENDING"
+}

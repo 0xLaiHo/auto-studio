@@ -1,0 +1,409 @@
+{
+  "title": "Discovery documentary motif",
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 72.0,
+      "time_signature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "key_map": [
+    {
+      "bar": 1,
+      "tonic": "D",
+      "mode": "dorian"
+    }
+  ],
+  "sections": [
+    {
+      "id": "observation",
+      "label": "Observation",
+      "start_bar": 1,
+      "length_bars": 4,
+      "intent": "Sparse felt piano introduces 5-note D dorian motif D-E-F-A-G with rests; soft strings sustain Dm9 voicing D-F-A-E with slow swells; single pulse on beats 1 and 3 with subtle velocity variation."
+    },
+    {
+      "id": "realization",
+      "label": "Realization",
+      "start_bar": 5,
+      "length_bars": 4,
+      "intent": "Piano transposes motif up a fourth to G-A-Bb-D-C, augments final C, and adds upper neighbor D; strings shift to Bbmaj7#11/D with inner voice movement; pulse on beat 1 with occasional off-beat D or Bb."
+    }
+  ],
+  "tracks": [
+    {
+      "id": "piano",
+      "name": "Felt Piano",
+      "role": "melody",
+      "register": {
+        "low": 55,
+        "high": 84
+      },
+      "instrument_hint": "felt piano",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.5,
+              "pitch": 62,
+              "velocity": 64
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.5,
+              "pitch": 64,
+              "velocity": 58
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 56
+            },
+            {
+              "beat": 2.5,
+              "duration": 1.0,
+              "pitch": 69,
+              "velocity": 62
+            },
+            {
+              "beat": 3.5,
+              "duration": 2.0,
+              "pitch": 67,
+              "velocity": 60
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.5,
+              "pitch": 67,
+              "velocity": 66
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.5,
+              "pitch": 69,
+              "velocity": 60
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.5,
+              "pitch": 70,
+              "velocity": 58
+            },
+            {
+              "beat": 2.5,
+              "duration": 1.0,
+              "pitch": 74,
+              "velocity": 64
+            },
+            {
+              "beat": 3.5,
+              "duration": 3.0,
+              "pitch": 72,
+              "velocity": 62
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.5,
+              "pitch": 74,
+              "velocity": 58
+            },
+            {
+              "beat": 7.0,
+              "duration": 1.5,
+              "pitch": 72,
+              "velocity": 60
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "strings",
+      "name": "Soft Strings",
+      "role": "harmony",
+      "register": {
+        "low": 48,
+        "high": 76
+      },
+      "instrument_hint": "soft string ensemble",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 50,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 53,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 57,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 52,
+              "velocity": 50
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 0
+            },
+            {
+              "beat": 2.0,
+              "controller": 1,
+              "value": 35
+            },
+            {
+              "beat": 4.0,
+              "controller": 1,
+              "value": 55
+            },
+            {
+              "beat": 8.0,
+              "controller": 1,
+              "value": 75
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 55
+            },
+            {
+              "beat": 14.0,
+              "controller": 1,
+              "value": 35
+            },
+            {
+              "beat": 15.0,
+              "controller": 1,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 50,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 53,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 58,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 15.0,
+              "pitch": 52,
+              "velocity": 50
+            },
+            {
+              "beat": 0.0,
+              "duration": 7.5,
+              "pitch": 57,
+              "velocity": 50
+            },
+            {
+              "beat": 7.5,
+              "duration": 4.0,
+              "pitch": 55,
+              "velocity": 48
+            },
+            {
+              "beat": 11.5,
+              "duration": 3.5,
+              "pitch": 57,
+              "velocity": 50
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 1,
+              "value": 0
+            },
+            {
+              "beat": 2.0,
+              "controller": 1,
+              "value": 40
+            },
+            {
+              "beat": 4.0,
+              "controller": 1,
+              "value": 65
+            },
+            {
+              "beat": 8.0,
+              "controller": 1,
+              "value": 80
+            },
+            {
+              "beat": 10.0,
+              "controller": 1,
+              "value": 60
+            },
+            {
+              "beat": 12.0,
+              "controller": 1,
+              "value": 70
+            },
+            {
+              "beat": 14.0,
+              "controller": 1,
+              "value": 45
+            },
+            {
+              "beat": 15.0,
+              "controller": 1,
+              "value": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pulse",
+      "name": "Single Pulse",
+      "role": "bass",
+      "register": {
+        "low": 36,
+        "high": 48
+      },
+      "instrument_hint": "soft felt piano or muted bass",
+      "regions": [
+        {
+          "section_id": "observation",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 58
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 52
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 58
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 52
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 58
+            },
+            {
+              "beat": 10.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 52
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 58
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 52
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "realization",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 55
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 55
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.6,
+              "pitch": 46,
+              "velocity": 48
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 55
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.9,
+              "pitch": 38,
+              "velocity": 55
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.6,
+              "pitch": 46,
+              "velocity": 48
+            }
+          ],
+          "cc": []
+        }
+      ]
+    }
+  ]
+}

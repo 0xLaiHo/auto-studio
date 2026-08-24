@@ -1,0 +1,40 @@
+{
+  "provider": "deepseek",
+  "protocol": "openai-chat-completions",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "request": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": "You are the composition engine for a controlled professional-music experiment. Write original, editable MIDI-level musical decisions, not prose and not audio.\n\nRules:\n\n1. Return exactly one JSON object and no Markdown fences.\n2. Do not imitate or quote a named living artist or identifiable copyrighted melody.\n3. Treat MIDI pitch 60 as middle C. Keep every note within its declared track register.\n4. A region's beat is relative to its Section. In 4/4, an 8-bar Section has beats 0 through less than 32. Every note must end within its Section.\n5. Section IDs and Track IDs are unique lowercase identifiers. Sections are ordered, non-overlapping and use one-based start_bar.\n6. tempo_map and key_map start at bar 1 and are strictly increasing.\n7. Use velocity and CC1 or CC11 deliberately on sustained parts. Avoid decorative CC noise.\n8. Make roles independent: melody, harmony, bass, pulse, percussion and texture should not all double the same rhythm or pitch class.\n9. Prefer playable phrases, voice leading, rests and development over maximum note count.\n10. The JSON must conform to the supplied ExperimentalMusicSpec schema or stage schema.\n",
+        "role": "system"
+      },
+      {
+        "content": "Design the musical skeleton before writing notes. Output exactly this JSON shape:\n\n{\"title\":\"...\",\"tempo_map\":[...],\"key_map\":[...],\"sections\":[...],\"track_plan\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"...\",\"register\":{\"low\":0,\"high\":127},\"instrument_hint\":\"...\",\"section_jobs\":[{\"section_id\":\"...\",\"intent\":\"...\",\"density\":\"sparse|medium|dense\"}]}],\"motif_strategy\":\"...\",\"harmony_strategy\":\"...\",\"groove_strategy\":\"...\"}\n\nUse the same field shapes for tempo_map, key_map, sections and register as ExperimentalMusicSpec. Do not include notes yet. Output only JSON.\n\n\nFROZEN BRIEF:\n{\n  \"id\": \"l1-video-motif\",\n  \"level\": \"L1\",\n  \"title\": \"Discovery documentary motif\",\n  \"purpose\": \"A restrained motif for the opening of a documentary scene where a scientist notices an unexpected pattern.\",\n  \"duration_seconds\": 20,\n  \"section_plan\": [\n    \"observation: 4 bars\",\n    \"realization: 4 bars\"\n  ],\n  \"style\": [\n    \"minimal chamber\",\n    \"modal\",\n    \"cinematic restraint\"\n  ],\n  \"mood\": [\n    \"curious\",\n    \"precise\",\n    \"quietly surprising\"\n  ],\n  \"must_include\": [\n    \"motif transforms in the second section\",\n    \"harmonic ambiguity resolves only partially\"\n  ],\n  \"must_avoid\": [\n    \"trailer braams\",\n    \"heroic cadence\",\n    \"busy percussion\"\n  ],\n  \"instrument_roles\": [\n    \"felt piano\",\n    \"soft strings\",\n    \"single pulse\"\n  ],\n  \"delivery\": [\n    \"8 bars\",\n    \"2 to 3 tracks\",\n    \"clear section marker\"\n  ],\n  \"score_focus\": [\n    \"motif identity\",\n    \"development\",\n    \"restraint\"\n  ],\n  \"mode_a\": false\n}",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-pro",
+    "reasoning_effort": "high",
+    "response_format": {
+      "type": "json_object"
+    },
+    "stream": false,
+    "temperature": 0.7,
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "response_id": "c9e86a36-3e65-4759-8429-0a8148f65c2a",
+  "content": "{\n  \"title\": \"Discovery documentary motif\",\n  \"tempo_map\": [\n    {\n      \"bar\": 1,\n      \"bpm\": 72\n    }\n  ],\n  \"key_map\": [\n    {\n      \"bar\": 1,\n      \"key\": \"D dorian\"\n    }\n  ],\n  \"sections\": [\n    {\n      \"id\": \"observation\",\n      \"name\": \"Observation\",\n      \"start_bar\": 1,\n      \"bars\": 4,\n      \"time_signature\": \"4/4\"\n    },\n    {\n      \"id\": \"realization\",\n      \"name\": \"Realization\",\n      \"start_bar\": 5,\n      \"bars\": 4,\n      \"time_signature\": \"4/4\"\n    }\n  ],\n  \"track_plan\": [\n    {\n      \"id\": \"piano\",\n      \"name\": \"Felt Piano\",\n      \"role\": \"melody\",\n      \"register\": {\n        \"low\": 55,\n        \"high\": 84\n      },\n      \"instrument_hint\": \"felt piano\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"observation\",\n          \"intent\": \"Introduce 5-note modal motif D-E-F-A-G with rests, sparse phrasing\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"realization\",\n          \"intent\": \"Transpose motif up a fourth and augment the final note, add upper neighbor\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"strings\",\n      \"name\": \"Soft Strings\",\n      \"role\": \"harmony\",\n      \"register\": {\n        \"low\": 48,\n        \"high\": 76\n      },\n      \"instrument_hint\": \"soft string ensemble\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"observation\",\n          \"intent\": \"Sustain Dm9 voicing D-F-A-E with slow swells using CC1\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"realization\",\n          \"intent\": \"Move to Bbmaj7#11/D with inner voice movement, avoid resolution\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"pulse\",\n      \"name\": \"Single Pulse\",\n      \"role\": \"bass\",\n      \"register\": {\n        \"low\": 36,\n        \"high\": 48\n      },\n      \"instrument_hint\": \"soft felt piano or muted bass\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"observation\",\n          \"intent\": \"Soft pulse on beats 1 and 3, root D2\",\n          \"density\": \"sparse\"\n        },\n        {\n          \"section_id\": \"realization\",\n          \"intent\": \"Pulse on beat 1 with occasional off-beat, low D or Bb\",\n          \"density\": \"sparse\"\n        }\n      ]\n    }\n  ],\n  \"motif_strategy\": \"A five-note modal motif D-E-F-A-G introduced in piano, then in realization transposed up a fifth and rhythmically augmented with an unresolved 9th.\",\n  \"harmony_strategy\": \"D dorian ambiguity using Dm9 and Gsus2/B in observation; realization shifts to Bbmaj7#11/D (chromatic mediant) resolving only to the suspended 4th, never a heroic tonic.\",\n  \"groove_strategy\": \"No percussion; felt piano and soft pulse outline 4/4 with beats 1 and 3, while strings provide slow-attack swells; all tracks leave rests for restraint.\"\n}",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 784,
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 528,
+    "completion_tokens": 2120,
+    "total_tokens": 2904
+  },
+  "latency_ms": 38765
+}

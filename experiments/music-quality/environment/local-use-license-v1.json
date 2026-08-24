@@ -1,0 +1,13 @@
+{
+  "schema_version": "q0-local-use-license-v1",
+  "asset": "GeneralUser GS v1.471",
+  "asset_path": "/home/mactavish/dev/zimmer-rock/soundfonts/GeneralUser GS 1.471/GeneralUser GS v1.471.sf2",
+  "asset_bytes": 31281186,
+  "asset_sha256": "f45b6b4a68b6bf3d792fcbb6d7de24dc701a0f89c5900a21ef3aaece993b839a",
+  "license_path": "/home/mactavish/dev/zimmer-rock/soundfonts/GeneralUser GS 1.471/LICENSE.txt",
+  "license_sha256": "028b1e776fa60262da8124cb57901239f107fc6b369a48ed95159a1e84261942",
+  "local_music_creation": "allowed, including commercial recordings, according to the bundled license",
+  "redistribution": "not exercised by Q0; the SoundFont and license text are not copied into this repository or evidence bundle",
+  "risk_note": "The bundled license discloses incomplete provenance for some historical samples. Q0 accepts local experimental use only; product redistribution requires a separate legal/content review.",
+  "decision": "approved-for-local-q0-only"
+}

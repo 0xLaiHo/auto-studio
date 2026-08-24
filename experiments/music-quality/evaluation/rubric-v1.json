@@ -1,0 +1,15 @@
+{
+  "schema_version": "q0-evaluation-v1",
+  "blind_scale": {"minimum": 1, "maximum": 5},
+  "content_dimensions": ["brief_match", "structure", "harmony", "melody", "groove", "orchestration"],
+  "keep_values": ["keep", "reject"],
+  "continued_editing_definition": "Open the MIDI in the frozen Bitwig project, perform at least one intentional musical edit, and save a new revision or export a changed MIDI. Playback alone does not count.",
+  "severe_structural_error_examples": ["invalid import", "stuck note", "section overlap", "majority of a role outside playable register", "unusable voice collision across most of a section"],
+  "edit_distance_fields": ["sections_deleted", "sections_rewritten", "tracks_deleted", "tracks_added", "regions_rewritten", "notes_changed", "operations"],
+  "gate": {
+    "mode_b_valid_and_compiled_minimum": "11/12",
+    "l4_mode_c_keep_minimum": "4/6",
+    "l4_mode_c_continued_editing_minimum": "3/6",
+    "l4_feedback_non_degradation_minimum": "4/6"
+  }
+}

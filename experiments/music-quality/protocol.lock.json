@@ -1,0 +1,85 @@
+{
+  "schema_version": "q0-protocol-v1",
+  "status": "locked-for-provider-runs; human-and-daw-gates-live-pending",
+  "drafted_at": "2026-08-24T00:00:00+08:00",
+  "locked_at": "2026-08-24T21:20:00+08:00",
+  "baseline_commit": "b9db99cfafa465a2ee49b93140c6efe7537cf33e",
+  "provider": {
+    "name": "deepseek",
+    "base_url": "https://api.deepseek.com",
+    "protocol": "openai-chat-completions",
+    "model_id": "deepseek-v4-pro",
+    "catalog_model_ids": ["deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp"],
+    "thinking_level": "high",
+    "thinking_request": {"thinking": {"type": "enabled"}, "reasoning_effort": "high"},
+    "response_format": "json_object",
+    "stream": false,
+    "accept_encoding": "identity",
+    "request_timeout_seconds": 600,
+    "temperature": 0.7,
+    "skeleton_max_tokens": 8192,
+    "full_spec_max_tokens": 32768,
+    "negative_recheck": "required before NO-GO; exact second-provider model remains BLOCKED until a distinct strong-model credential is supplied"
+  },
+  "modes": {
+    "a_brief_ids": ["l1-song-hook", "l2-electronic-groove", "l3-video-cue", "l4-song-neon"],
+    "b_brief_ids": ["l1-song-hook", "l1-video-motif", "l2-electronic-groove", "l2-orchestral-ostinato", "l3-verse-chorus", "l3-video-cue", "l4-song-neon", "l4-song-intimate", "l4-video-chase", "l4-video-emotional", "l4-orchestral-argument", "l4-electronic-microcity"],
+    "c_brief_ids": ["l4-song-neon", "l4-song-intimate", "l4-video-chase", "l4-video-emotional", "l4-orchestral-argument", "l4-electronic-microcity"],
+    "c_max_feedback_rounds": 2
+  },
+  "blind_seed": "auto-studio-q0-blind-seed-v1-20260824",
+  "investment_limits_frozen_before_results": {
+    "total_provider_budget_usd": 10.0,
+    "median_time_to_useful_minutes_max": 15,
+    "median_creator_edit_operations_max": 40,
+    "formal_provider_calls_max": 52
+  },
+  "gates": {
+    "mode_b_valid_and_compiled_minimum": "11/12",
+    "l4_mode_c_keep_minimum": "4/6",
+    "l4_mode_c_continued_editing_minimum": "3/6",
+    "l4_feedback_non_degradation_minimum": "4/6",
+    "severe_structural_errors_must_not_affect_majority_of_l4": true
+  },
+  "pilot": {
+    "excluded_from_formal_results": true,
+    "mode_a": {
+      "status": "PASS",
+      "brief_id": "l1-song-hook",
+      "turn_count": 1,
+      "total_tokens": 11011,
+      "total_latency_ms": 142780,
+      "run_sha256": "1987a42c386af9e7057a8885b764aabb32e32f7123328fec8fa4530bec5dfbdf",
+      "spec_sha256": "7c003dc5a6b67ead319d4e3e809d220131a565e2b69aa778fdae86673d03198c",
+      "midi_sha256": "f2de571e43e0fbb227ada4cfdcdb704113b17940955f725d5b2af7418bb7db38"
+    },
+    "mode_b": {
+      "status": "PASS",
+      "brief_id": "l1-song-hook",
+      "turn_count": 3,
+      "total_tokens": 51275,
+      "total_latency_ms": 521949,
+      "run_sha256": "253e863e1b04df72baac3ba481efffc6e6b1f8e5e4d2b87db272c6f322f41a42",
+      "spec_sha256": "351647e537a34d121c3976a28ab062ed376903c190189dfb636313546783743c",
+      "midi_sha256": "26bf923ce4c8038c42fa8b3b71a31b2293bedb05c3cbe949259799d89ca9b347"
+    },
+    "bitwig_launch": "PASS",
+    "bitwig_midi_import": "LIVE-PENDING: custom-rendered window unavailable to the accessibility provider; no unverified interaction counted"
+  },
+  "input_hashes": {
+    "corpus/corpus-v1.json": "81dda3b9c4fb9ac8c26353a12a186e03567cc63001431ad626c05c31b726659f",
+    "schema/experimental-music-spec.schema.json": "09e95138f75efba7d5da4eb01bcdafed81b4284bec76a41fbf47236cd8812c2e",
+    "prompts/system-v1.md": "9625e323136a56cb263bdad1e407b8d87dd061b7eb8593a6fbd9e8b8ec93314e",
+    "prompts/mode-a-v1.md": "73e292e8cba807dae30696c64a67a3fad7496f0ae8221c38f3dddbff8ad5e572",
+    "prompts/mode-b-skeleton-v1.md": "69ec39d3a0a9bc2a9be2e734a6faae9c759a32d0357538df1b09989e1e6d8e14",
+    "prompts/mode-b-arrange-v1.md": "6177e91b2b1469346bcd858c6eee58900aa0b2c2ab2e95678a2721791a923582",
+    "prompts/mode-b-revise-v1.md": "15a487c9c00d81e3ee65018e8d652c0557041a6443ecc969982dbd5448cc5ad8",
+    "prompts/mode-c-feedback-v1.md": "3250c452de381e99b38cafe31bc487d69a644563f247b4b864e50a2782a792c9",
+    "evaluation/rubric-v1.json": "2314d2f6856f3fc291ec89314276611ea29eaf3ec9560776bd9088e7193d50c5",
+    "evaluation/continued-editing-template.csv": "653f2623f07576dc50b62ee8570ce0e4799457cf347e810b62bfd70e3f429a2c",
+    "environment/daw-environment-v1.json": "ea5ad62935289712ded7e54e8c9c0ce8bdd4f28820880b70705b265cd5bae8a0",
+    "environment/deepseek-pricing-v1.json": "66339a63e3218fc24b37e94d80c12adaaf4543f829fd287f9540656ff06198b9",
+    "environment/instrument-mapping-v1.json": "c7b483d27f3ef3b745dbe8c7bfdb6a8868816f0bd630796f451400c9732d1fa5",
+    "environment/local-use-license-v1.json": "c176597a1638a52709629f995be6163b22a07f2e6791786691eca61d641b5e78"
+  }
+}

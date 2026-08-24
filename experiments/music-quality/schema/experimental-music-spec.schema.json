@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-studio.local/q0/experimental-music-spec.schema.json",
+  "title": "ExperimentalMusicSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "tempo_map", "key_map", "sections", "tracks"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1, "maxLength": 120},
+    "tempo_map": {"type": "array", "minItems": 1, "maxItems": 24, "items": {"$ref": "#/$defs/tempo_change"}},
+    "key_map": {"type": "array", "minItems": 1, "maxItems": 24, "items": {"$ref": "#/$defs/key_change"}},
+    "sections": {"type": "array", "minItems": 1, "maxItems": 24, "items": {"$ref": "#/$defs/section"}},
+    "tracks": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/track"}}
+  },
+  "$defs": {
+    "time_signature": {
+      "type": "object", "additionalProperties": false,
+      "required": ["numerator", "denominator"],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": 1, "maximum": 32},
+        "denominator": {"enum": [1, 2, 4, 8, 16, 32]}
+      }
+    },
+    "tempo_change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bar", "bpm", "time_signature"],
+      "properties": {
+        "bar": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "bpm": {"type": "number", "minimum": 30, "maximum": 300},
+        "time_signature": {"$ref": "#/$defs/time_signature"}
+      }
+    },
+    "key_change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bar", "tonic", "mode"],
+      "properties": {
+        "bar": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "tonic": {"type": "string", "minLength": 1, "maxLength": 8},
+        "mode": {"type": "string", "minLength": 1, "maxLength": 32}
+      }
+    },
+    "section": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "start_bar", "length_bars", "intent"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$"},
+        "label": {"type": "string", "minLength": 1, "maxLength": 80},
+        "start_bar": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "length_bars": {"type": "integer", "minimum": 1, "maximum": 128},
+        "intent": {"type": "string", "minLength": 1, "maxLength": 240}
+      }
+    },
+    "register": {
+      "type": "object", "additionalProperties": false,
+      "required": ["low", "high"],
+      "properties": {
+        "low": {"type": "integer", "minimum": 0, "maximum": 127},
+        "high": {"type": "integer", "minimum": 0, "maximum": 127}
+      }
+    },
+    "note": {
+      "type": "object", "additionalProperties": false,
+      "required": ["beat", "duration", "pitch", "velocity"],
+      "properties": {
+        "beat": {"type": "number", "minimum": 0},
+        "duration": {"type": "number", "exclusiveMinimum": 0},
+        "pitch": {"type": "integer", "minimum": 0, "maximum": 127},
+        "velocity": {"type": "integer", "minimum": 1, "maximum": 127}
+      }
+    },
+    "cc": {
+      "type": "object", "additionalProperties": false,
+      "required": ["beat", "controller", "value"],
+      "properties": {
+        "beat": {"type": "number", "minimum": 0},
+        "controller": {"type": "integer", "minimum": 0, "maximum": 127},
+        "value": {"type": "integer", "minimum": 0, "maximum": 127}
+      }
+    },
+    "region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["section_id", "notes", "cc"],
+      "properties": {
+        "section_id": {"type": "string", "minLength": 1, "maxLength": 48},
+        "notes": {"type": "array", "maxItems": 2048, "items": {"$ref": "#/$defs/note"}},
+        "cc": {"type": "array", "maxItems": 1024, "items": {"$ref": "#/$defs/cc"}}
+      }
+    },
+    "track": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "role", "register", "instrument_hint", "regions"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "role": {"type": "string", "minLength": 1, "maxLength": 80},
+        "register": {"$ref": "#/$defs/register"},
+        "instrument_hint": {"type": "string", "minLength": 1, "maxLength": 120},
+        "regions": {"type": "array", "maxItems": 48, "items": {"$ref": "#/$defs/region"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l4-song-neon-b-1787578706152",
+  "candidate_id": "c-4e8ffe1e5c6c",
+  "status": "invalid",
+  "mode": "b",
+  "brief_id": "l4-song-neon",
+  "brief_level": "L4",
+  "started_at": "2026-08-24T13:38:26.152935237Z",
+  "completed_at": "2026-08-24T13:52:08.622965514Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": false,
+  "compiled": false,
+  "validation_error": "invalid ExperimentalMusicSpec JSON: EOF while parsing an object at line 1183 column 23",
+  "turn_count": 3,
+  "total_usage": {
+    "prompt_tokens": 27664,
+    "prompt_cache_hit_tokens": 1280,
+    "prompt_cache_miss_tokens": 26384,
+    "completion_tokens": 71628,
+    "total_tokens": 99292
+  },
+  "total_latency_ms": 822454,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1255,
+      "sha256": "45dd884db25a217fc6752c19c2a5e1fc6f5ca4cc3177c97350e6929ba870945a"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 15972,
+      "sha256": "a69a1e04d4aa643d89b5e0b58031882c2d94ae0a683e2b7d3aaab6bc73ca32e7"
+    },
+    {
+      "path": "turn-02.json",
+      "bytes": 69151,
+      "sha256": "dd53bac4ee2d0f958169beb5b92f66a8fc03a1ae4a0f4004d7b286a08a98a470"
+    },
+    {
+      "path": "turn-03.json",
+      "bytes": 147672,
+      "sha256": "f57671c8627a6ffc7b9d54b72c15abfe9b292763b5645e110eaf3dadd3a792e1"
+    },
+    {
+      "path": "validation-error.txt",
+      "bytes": 86,
+      "sha256": "fc826ffec129e57ae1f1f42aad6d706e75801ef052c8b24ef1ed5e9452c91532"
+    }
+  ]
+}

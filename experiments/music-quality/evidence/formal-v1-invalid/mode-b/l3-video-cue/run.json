@@ -1,0 +1,53 @@
+{
+  "schema_version": "q0-run-v1",
+  "run_id": "l3-video-cue-b-1787578625586",
+  "candidate_id": "c-263107aaa9d0",
+  "status": "invalid",
+  "mode": "b",
+  "brief_id": "l3-video-cue",
+  "brief_level": "L3",
+  "started_at": "2026-08-24T13:37:05.586058927Z",
+  "completed_at": "2026-08-24T13:48:27.945050210Z",
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "schema_valid": false,
+  "compiled": false,
+  "validation_error": "ExperimentalMusicSpec validation failed: track `strings_low` note 32 pitch 36 is outside track register 40..=67; track `strings_low` note 34 pitch 36 is outside track register 40..=67; track `strings_low` note 36 pitch 36 is outside track register 40..=67; track `strings_low` note 38 pitch 36 is outside track register 40..=67; track `strings_low` note 40 pitch 36 is outside track register 40..=67; track `strings_low` note 42 pitch 36 is outside track register 40..=67; track `strings_low` note 44 pitch 36 is outside track register 40..=67; track `strings_low` note 46 pitch 36 is outside track register 40..=67; track `strings_low` note 48 pitch 38 is outside track register 40..=67; track `strings_low` note 50 pitch 38 is outside track register 40..=67; track `strings_low` note 52 pitch 38 is outside track register 40..=67; track `strings_low` note 54 pitch 38 is outside track register 40..=67; track `strings_low` note 56 pitch 38 is outside track register 40..=67; track `strings_low` note 58 pitch 38 is outside track register 40..=67; track `strings_low` note 60 pitch 38 is outside track register 40..=67; track `strings_low` note 62 pitch 38 is outside track register 40..=67",
+  "turn_count": 3,
+  "total_usage": {
+    "prompt_tokens": 25057,
+    "prompt_cache_hit_tokens": 1280,
+    "prompt_cache_miss_tokens": 23777,
+    "completion_tokens": 61855,
+    "total_tokens": 86912
+  },
+  "total_latency_ms": 682340,
+  "artifacts": [
+    {
+      "path": "brief.json",
+      "bytes": 1170,
+      "sha256": "d49dbb2f7f2b8ca0d367e80cd44cbfaf8da26bd04aeac53f36b48aff9401d862"
+    },
+    {
+      "path": "turn-01.json",
+      "bytes": 10501,
+      "sha256": "b5df89e4ed67f9c4bcf586c3ed912d4b8cc5744a66d33b57f3a9ad371a83338f"
+    },
+    {
+      "path": "turn-02.json",
+      "bytes": 64418,
+      "sha256": "c0eedfcb51bbbce05bbbd069f38d1d4c18717e40e2bb87679e138b1d8ab7b1db"
+    },
+    {
+      "path": "turn-03.json",
+      "bytes": 123933,
+      "sha256": "f5b429bf1b45639e28ec7e39e8a4cc86d2fc14d8c81ee9a306aced5f9b1ce587"
+    },
+    {
+      "path": "validation-error.txt",
+      "bytes": 1191,
+      "sha256": "61c89600506e1ba29f29d36d504217415afefe00a3124463ecc405787f0da996"
+    }
+  ]
+}

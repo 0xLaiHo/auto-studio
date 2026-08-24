@@ -1,0 +1,958 @@
+{
+  "title": "Measured Orchestral Pursuit",
+  "tempo_map": [
+    {
+      "bar": 1,
+      "bpm": 68.0,
+      "time_signature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "key_map": [
+    {
+      "bar": 1,
+      "tonic": "D",
+      "mode": "minor"
+    }
+  ],
+  "sections": [
+    {
+      "id": "contained",
+      "label": "Contained",
+      "start_bar": 1,
+      "length_bars": 4,
+      "intent": "Sparse pulse and repeating ostinato with dialogue space"
+    },
+    {
+      "id": "pressure",
+      "label": "Pressure",
+      "start_bar": 5,
+      "length_bars": 4,
+      "intent": "Intensify via register lift, off-beat accents, and denser ostinato"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "low_strings_pulse",
+      "name": "Low Strings Pulse",
+      "role": "bass pulse",
+      "register": {
+        "low": 28,
+        "high": 55
+      },
+      "instrument_hint": "contrabasses, pizzicato/arco",
+      "regions": [
+        {
+          "section_id": "contained",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 2.0,
+              "pitch": 38,
+              "velocity": 70
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 38,
+              "velocity": 60
+            },
+            {
+              "beat": 4.0,
+              "duration": 2.0,
+              "pitch": 38,
+              "velocity": 72
+            },
+            {
+              "beat": 6.0,
+              "duration": 1.0,
+              "pitch": 45,
+              "velocity": 62
+            },
+            {
+              "beat": 8.0,
+              "duration": 2.0,
+              "pitch": 38,
+              "velocity": 74
+            },
+            {
+              "beat": 10.0,
+              "duration": 1.0,
+              "pitch": 38,
+              "velocity": 62
+            },
+            {
+              "beat": 12.0,
+              "duration": 2.0,
+              "pitch": 38,
+              "velocity": 76
+            },
+            {
+              "beat": 14.0,
+              "duration": 1.0,
+              "pitch": 45,
+              "velocity": 64
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 70
+            },
+            {
+              "beat": 4.0,
+              "controller": 11,
+              "value": 72
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 74
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 76
+            }
+          ]
+        },
+        {
+          "section_id": "pressure",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.0,
+              "pitch": 46,
+              "velocity": 70
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.5,
+              "pitch": 46,
+              "velocity": 80
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 46,
+              "velocity": 70
+            },
+            {
+              "beat": 4.0,
+              "duration": 1.0,
+              "pitch": 46,
+              "velocity": 72
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 82
+            },
+            {
+              "beat": 6.0,
+              "duration": 1.0,
+              "pitch": 46,
+              "velocity": 72
+            },
+            {
+              "beat": 8.0,
+              "duration": 1.0,
+              "pitch": 43,
+              "velocity": 70
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.5,
+              "pitch": 43,
+              "velocity": 80
+            },
+            {
+              "beat": 10.0,
+              "duration": 1.0,
+              "pitch": 43,
+              "velocity": 70
+            },
+            {
+              "beat": 12.0,
+              "duration": 1.0,
+              "pitch": 43,
+              "velocity": 72
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.5,
+              "pitch": 50,
+              "velocity": 82
+            },
+            {
+              "beat": 14.0,
+              "duration": 1.0,
+              "pitch": 43,
+              "velocity": 72
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 65
+            },
+            {
+              "beat": 4.0,
+              "controller": 11,
+              "value": 70
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 72
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 75
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "viola_ostinato",
+      "name": "Viola Ostinato",
+      "role": "ostinato",
+      "register": {
+        "low": 48,
+        "high": 72
+      },
+      "instrument_hint": "violas, non legato",
+      "regions": [
+        {
+          "section_id": "contained",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 0.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 2.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 2.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 4.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 4.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 6.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 8.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 10.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 10.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 12.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 55
+            },
+            {
+              "beat": 14.25,
+              "duration": 0.25,
+              "pitch": 64,
+              "velocity": 80
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 55
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "pressure",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 0.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 0.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 1.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 1.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 2.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 2.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 4.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 4.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 5.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 5.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 6.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 6.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 8.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 8.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 9.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 9.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 10.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 10.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 10.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 12.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 12.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 13.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 13.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 60
+            },
+            {
+              "beat": 14.25,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 85
+            },
+            {
+              "beat": 14.5,
+              "duration": 0.25,
+              "pitch": 68,
+              "velocity": 60
+            }
+          ],
+          "cc": []
+        }
+      ]
+    },
+    {
+      "id": "cello_counterline",
+      "name": "Cello Counterline",
+      "role": "counterline",
+      "register": {
+        "low": 36,
+        "high": 69
+      },
+      "instrument_hint": "cellos, lyrical",
+      "regions": [
+        {
+          "section_id": "contained",
+          "notes": [
+            {
+              "beat": 1.0,
+              "duration": 2.0,
+              "pitch": 50,
+              "velocity": 60
+            },
+            {
+              "beat": 3.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 58
+            },
+            {
+              "beat": 5.0,
+              "duration": 2.0,
+              "pitch": 53,
+              "velocity": 62
+            },
+            {
+              "beat": 7.0,
+              "duration": 1.0,
+              "pitch": 52,
+              "velocity": 60
+            },
+            {
+              "beat": 9.0,
+              "duration": 2.0,
+              "pitch": 52,
+              "velocity": 64
+            },
+            {
+              "beat": 11.0,
+              "duration": 1.0,
+              "pitch": 50,
+              "velocity": 62
+            },
+            {
+              "beat": 13.0,
+              "duration": 2.0,
+              "pitch": 50,
+              "velocity": 60
+            },
+            {
+              "beat": 15.0,
+              "duration": 1.0,
+              "pitch": 48,
+              "velocity": 58
+            }
+          ],
+          "cc": [
+            {
+              "beat": 1.0,
+              "controller": 11,
+              "value": 60
+            },
+            {
+              "beat": 3.0,
+              "controller": 11,
+              "value": 58
+            },
+            {
+              "beat": 5.0,
+              "controller": 11,
+              "value": 62
+            },
+            {
+              "beat": 7.0,
+              "controller": 11,
+              "value": 60
+            },
+            {
+              "beat": 9.0,
+              "controller": 11,
+              "value": 64
+            },
+            {
+              "beat": 11.0,
+              "controller": 11,
+              "value": 62
+            },
+            {
+              "beat": 13.0,
+              "controller": 11,
+              "value": 60
+            },
+            {
+              "beat": 15.0,
+              "controller": 11,
+              "value": 58
+            }
+          ]
+        },
+        {
+          "section_id": "pressure",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 1.5,
+              "pitch": 50,
+              "velocity": 65
+            },
+            {
+              "beat": 1.5,
+              "duration": 0.5,
+              "pitch": 52,
+              "velocity": 60
+            },
+            {
+              "beat": 2.0,
+              "duration": 1.0,
+              "pitch": 53,
+              "velocity": 62
+            },
+            {
+              "beat": 3.0,
+              "duration": 1.0,
+              "pitch": 55,
+              "velocity": 62
+            },
+            {
+              "beat": 4.0,
+              "duration": 1.5,
+              "pitch": 57,
+              "velocity": 68
+            },
+            {
+              "beat": 5.5,
+              "duration": 0.5,
+              "pitch": 58,
+              "velocity": 63
+            },
+            {
+              "beat": 6.0,
+              "duration": 1.0,
+              "pitch": 60,
+              "velocity": 65
+            },
+            {
+              "beat": 7.0,
+              "duration": 1.0,
+              "pitch": 62,
+              "velocity": 65
+            },
+            {
+              "beat": 8.0,
+              "duration": 1.5,
+              "pitch": 62,
+              "velocity": 70
+            },
+            {
+              "beat": 9.5,
+              "duration": 0.5,
+              "pitch": 60,
+              "velocity": 65
+            },
+            {
+              "beat": 10.0,
+              "duration": 1.0,
+              "pitch": 58,
+              "velocity": 63
+            },
+            {
+              "beat": 11.0,
+              "duration": 1.0,
+              "pitch": 57,
+              "velocity": 63
+            },
+            {
+              "beat": 12.0,
+              "duration": 1.5,
+              "pitch": 55,
+              "velocity": 60
+            },
+            {
+              "beat": 13.5,
+              "duration": 0.5,
+              "pitch": 53,
+              "velocity": 58
+            },
+            {
+              "beat": 14.0,
+              "duration": 1.0,
+              "pitch": 52,
+              "velocity": 55
+            },
+            {
+              "beat": 15.0,
+              "duration": 1.0,
+              "pitch": 50,
+              "velocity": 55
+            }
+          ],
+          "cc": [
+            {
+              "beat": 0.0,
+              "controller": 11,
+              "value": 62
+            },
+            {
+              "beat": 4.0,
+              "controller": 11,
+              "value": 66
+            },
+            {
+              "beat": 8.0,
+              "controller": 11,
+              "value": 70
+            },
+            {
+              "beat": 12.0,
+              "controller": 11,
+              "value": 58
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "muted_percussion",
+      "name": "Muted Percussion",
+      "role": "pulse/color",
+      "register": {
+        "low": 60,
+        "high": 72
+      },
+      "instrument_hint": "timpani with cloth mallets, or woodblock",
+      "regions": [
+        {
+          "section_id": "contained",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 40
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 42
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.5,
+              "pitch": 62,
+              "velocity": 44
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.5,
+              "pitch": 65,
+              "velocity": 46
+            }
+          ],
+          "cc": []
+        },
+        {
+          "section_id": "pressure",
+          "notes": [
+            {
+              "beat": 0.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 45
+            },
+            {
+              "beat": 2.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 50
+            },
+            {
+              "beat": 3.5,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 48
+            },
+            {
+              "beat": 4.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 45
+            },
+            {
+              "beat": 6.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 50
+            },
+            {
+              "beat": 7.5,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 48
+            },
+            {
+              "beat": 8.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 46
+            },
+            {
+              "beat": 10.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 52
+            },
+            {
+              "beat": 11.5,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 50
+            },
+            {
+              "beat": 12.0,
+              "duration": 0.25,
+              "pitch": 62,
+              "velocity": 46
+            },
+            {
+              "beat": 14.0,
+              "duration": 0.25,
+              "pitch": 65,
+              "velocity": 52
+            },
+            {
+              "beat": 15.5,
+              "duration": 0.25,
+              "pitch": 67,
+              "velocity": 50
+            }
+          ],
+          "cc": []
+        }
+      ]
+    }
+  ]
+}

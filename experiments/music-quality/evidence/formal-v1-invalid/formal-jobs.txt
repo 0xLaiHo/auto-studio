@@ -1,0 +1,16 @@
+a l1-song-hook
+a l2-electronic-groove
+a l3-video-cue
+a l4-song-neon
+b l1-song-hook
+b l1-video-motif
+b l2-electronic-groove
+b l2-orchestral-ostinato
+b l3-verse-chorus
+b l3-video-cue
+b l4-song-neon
+b l4-song-intimate
+b l4-video-chase
+b l4-video-emotional
+b l4-orchestral-argument
+b l4-electronic-microcity

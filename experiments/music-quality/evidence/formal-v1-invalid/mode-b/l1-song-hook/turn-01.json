@@ -1,0 +1,40 @@
+{
+  "provider": "deepseek",
+  "protocol": "openai-chat-completions",
+  "model": "deepseek-v4-pro",
+  "thinking_level": "high",
+  "request": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": "You are the composition engine for a controlled professional-music experiment. Write original, editable MIDI-level musical decisions, not prose and not audio.\n\nRules:\n\n1. Return exactly one JSON object and no Markdown fences.\n2. Do not imitate or quote a named living artist or identifiable copyrighted melody.\n3. Treat MIDI pitch 60 as middle C. Keep every note within its declared track register.\n4. A region's beat is relative to its Section. In 4/4, an 8-bar Section has beats 0 through less than 32. Every note must end within its Section.\n5. Section IDs and Track IDs are unique lowercase identifiers. Sections are ordered, non-overlapping and use one-based start_bar.\n6. tempo_map and key_map start at bar 1 and are strictly increasing.\n7. Use velocity and CC1 or CC11 deliberately on sustained parts. Avoid decorative CC noise.\n8. Make roles independent: melody, harmony, bass, pulse, percussion and texture should not all double the same rhythm or pitch class.\n9. Prefer playable phrases, voice leading, rests and development over maximum note count.\n10. The JSON must conform to the supplied ExperimentalMusicSpec schema or stage schema.\n",
+        "role": "system"
+      },
+      {
+        "content": "Design the musical skeleton before writing notes. Output exactly this JSON shape:\n\n{\"title\":\"...\",\"tempo_map\":[...],\"key_map\":[...],\"sections\":[...],\"track_plan\":[{\"id\":\"...\",\"name\":\"...\",\"role\":\"...\",\"register\":{\"low\":0,\"high\":127},\"instrument_hint\":\"...\",\"section_jobs\":[{\"section_id\":\"...\",\"intent\":\"...\",\"density\":\"sparse|medium|dense\"}]}],\"motif_strategy\":\"...\",\"harmony_strategy\":\"...\",\"groove_strategy\":\"...\"}\n\nUse the same field shapes for tempo_map, key_map, sections and register as ExperimentalMusicSpec. Do not include notes yet. Output only JSON.\n\n\nFROZEN BRIEF:\n{\n  \"id\": \"l1-song-hook\",\n  \"level\": \"L1\",\n  \"title\": \"Open-window song hook\",\n  \"purpose\": \"An original eight-bar instrumental hook that could anchor an optimistic indie-pop song.\",\n  \"duration_seconds\": 18,\n  \"section_plan\": [\n    \"hook: 8 bars\"\n  ],\n  \"style\": [\n    \"indie pop\",\n    \"clear diatonic harmony\",\n    \"singable\"\n  ],\n  \"mood\": [\n    \"hopeful\",\n    \"open\",\n    \"human\"\n  ],\n  \"must_include\": [\n    \"four-bar harmonic question and answer\",\n    \"recognizable two-bar melodic cell\",\n    \"bass supports chord inversions\"\n  ],\n  \"must_avoid\": [\n    \"quoted melodies\",\n    \"constant eighth-note melody\",\n    \"four identical bars\"\n  ],\n  \"instrument_roles\": [\n    \"piano harmony\",\n    \"lead melody\",\n    \"bass\"\n  ],\n  \"delivery\": [\n    \"8 bars\",\n    \"3 tracks\",\n    \"complete note endings\"\n  ],\n  \"score_focus\": [\n    \"harmony\",\n    \"melody\",\n    \"brief match\"\n  ],\n  \"mode_a\": true\n}",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-v4-pro",
+    "reasoning_effort": "high",
+    "response_format": {
+      "type": "json_object"
+    },
+    "stream": false,
+    "temperature": 0.7,
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "response_id": "34636315-aa58-48dc-9239-9f56b59454f6",
+  "content": "{\n  \"title\": \"Open-window song hook\",\n  \"tempo_map\": [\n    {\n      \"bar\": 1,\n      \"bpm\": 108\n    }\n  ],\n  \"key_map\": [\n    {\n      \"bar\": 1,\n      \"key\": \"C\",\n      \"mode\": \"major\"\n    }\n  ],\n  \"sections\": [\n    {\n      \"id\": \"hook\",\n      \"name\": \"Hook\",\n      \"start_bar\": 1,\n      \"num_bars\": 8\n    }\n  ],\n  \"track_plan\": [\n    {\n      \"id\": \"melody\",\n      \"name\": \"Lead Melody\",\n      \"role\": \"melody\",\n      \"register\": {\n        \"low\": 60,\n        \"high\": 84\n      },\n      \"instrument_hint\": \"vocal-like lead synth or piano\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"hook\",\n          \"intent\": \"Singable two-bar cell in bars 1-2, varied in bars 3-4, answered in bars 5-6, cadence landing in bars 7-8; rests between phrases.\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"piano\",\n      \"name\": \"Piano Harmony\",\n      \"role\": \"harmony\",\n      \"register\": {\n        \"low\": 48,\n        \"high\": 76\n      },\n      \"instrument_hint\": \"piano or electric piano\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"hook\",\n          \"intent\": \"Diatonic triads and inversions on beats 1 and 3 with light syncopation; avoid doubling melody pitches exactly.\",\n          \"density\": \"medium\"\n        }\n      ]\n    },\n    {\n      \"id\": \"bass\",\n      \"name\": \"Bass\",\n      \"role\": \"bass\",\n      \"register\": {\n        \"low\": 28,\n        \"high\": 52\n      },\n      \"instrument_hint\": \"electric bass or acoustic bass\",\n      \"section_jobs\": [\n        {\n          \"section_id\": \"hook\",\n          \"intent\": \"Chord roots and inversions on downbeats with occasional pickups; support C - G/B - Am - G - F - C/E - G - C.\",\n          \"density\": \"sparse\"\n        }\n      ]\n    }\n  ],\n  \"motif_strategy\": \"A recognizable two-bar melodic cell is presented in bars 1-2, using stepwise motion around chord tones. Bars 3-4 vary the cell with a new target note to create a question. Bars 5-6 answer with a related contour starting on a different scale degree. Bars 7-8 fragment the cell into a final cadence figure with rests to keep it singable.\",\n  \"harmony_strategy\": \"Diatonic C major, four-bar question (C - G/B - Am - G) followed by four-bar answer (F - C/E - G - C). Use first-inversion chords G/B and C/E to create stepwise bass motion. Cadences: half cadence on G at bar 4, authentic cadence on C at bar 8.\",\n  \"groove_strategy\": \"Medium 4/4 groove at 108 BPM. Piano comps with quarter-note chords and occasional eighth-note pushes. Bass plays roots and inversions on downbeats with a pickup into phrase turns. Melody uses a mix of quarters, eighths, and longer tones, with rests at phrase ends; no constant eighth-note motion.\"\n}",
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 778,
+    "prompt_cache_hit_tokens": 768,
+    "prompt_cache_miss_tokens": 10,
+    "completion_tokens": 3229,
+    "total_tokens": 4007
+  },
+  "latency_ms": 48281
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": "q0-instrument-mapping-v1",
+  "soundfont": "GeneralUser GS v1.471",
+  "mapping_policy": "Map instrument_hint and role to the first matching fixed GM program below. Never choose a better patch based on A/B/C mode.",
+  "roles": {
+    "piano": {"bank": 0, "program": 0, "name": "Acoustic Grand Piano"},
+    "electric piano": {"bank": 0, "program": 4, "name": "Electric Piano 1"},
+    "acoustic guitar": {"bank": 0, "program": 24, "name": "Acoustic Guitar nylon"},
+    "electric guitar": {"bank": 0, "program": 27, "name": "Electric Guitar clean"},
+    "bass": {"bank": 0, "program": 33, "name": "Electric Bass finger"},
+    "strings": {"bank": 0, "program": 48, "name": "String Ensemble 1"},
+    "violin": {"bank": 0, "program": 40, "name": "Violin"},
+    "viola": {"bank": 0, "program": 41, "name": "Viola"},
+    "cello": {"bank": 0, "program": 42, "name": "Cello"},
+    "double bass": {"bank": 0, "program": 43, "name": "Contrabass"},
+    "woodwind": {"bank": 0, "program": 68, "name": "Oboe"},
+    "horn": {"bank": 0, "program": 60, "name": "French Horn"},
+    "pad": {"bank": 0, "program": 89, "name": "Pad warm"},
+    "lead": {"bank": 0, "program": 80, "name": "Lead square"},
+    "texture": {"bank": 0, "program": 99, "name": "Atmosphere"},
+    "percussion": {"bank": 128, "program": 0, "channel": 10, "name": "Standard Drum Kit"}
+  },
+  "fallback": {"bank": 0, "program": 0, "name": "Acoustic Grand Piano"}
+}

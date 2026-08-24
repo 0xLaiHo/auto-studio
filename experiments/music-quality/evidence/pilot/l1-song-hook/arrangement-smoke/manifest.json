@@ -1,0 +1,16 @@
+{
+  "schema_version": "q0-evidence-v1",
+  "generated_at": "2026-08-24T13:00:52.386873851Z",
+  "artifacts": [
+    {
+      "path": "spec.json",
+      "bytes": 22495,
+      "sha256": "567e8acc7b8264b5ed78e0bbadb15f7f8b43e88ced3ea29f9ba40547df12b6de"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 1226,
+      "sha256": "b27fba7ac0b9e04186b95a7d1e8105ee52618a375f46a26716d1208257f37cf8"
+    }
+  ]
+}

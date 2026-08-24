@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-24  
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 内容实验与 Agent Harness Foundation 尚未实施，Tool Registry、通用 Agent Tool loop、Music Project Model、MIDI、Sampler、Audio Engine、Factory Pack 和 VST3 Host 也未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 独立实验已实现真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec 与 Type-1 SMF MIDI，但不属于 production runtime，正式评价仍在进行；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -78,6 +78,7 @@ Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provi
 | TUI `/connect`、`/model`、Thinking、`/exit` | `PASS` | Ratatui reducer/UI 与 Core Connection 合同 |
 | LLM Adapter | `PASS（contract）` | OpenAI/Anthropic/DeepSeek 等协议合同；真实计费需对应 Key |
 | LLM Planning Turn | `PASS（contract）` | typed Plan 与 Approval 已接 production composition root |
+| Q0 实验 Harness | `PASS（experiment only）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/第三轮恢复、strict spec、SMF compiler、formal verifier、blind pack |
 | Inference Transcript/Continuity Vault | `NOT IMPLEMENTED` | 当前没有 durable Turn/Message/ToolCall 类型或 Provider Continuity 存储 |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |
@@ -92,6 +93,42 @@ Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provi
 ### 3.2 Q0 前置 Gate
 
 M3 开工前先按 [Q0 音乐内容可行性 Spike](../planning/2026-08-24-music-quality-spike-design.md) 验证 L1—L4 结构化音乐决定。Q0 只产生 ExperimentalMusicSpec、MIDI 和固定 DAW 评价证据；不实例化 Audio Engine、Factory Pack、VST3，也不把实验 schema 当成 production Tool Interface。Q0 未得到 `GO` 前，M3 保持目标设计状态。
+
+Q0 的当前实例化架构如下。读法是：上半部分负责“让真实模型产生可检查的音乐事实”，下半部分负责“证明证据没有漂移，再交给人听和继续编辑”。
+
+```text
+┌──────────────────────────── 冻结输入 ────────────────────────────┐
+│ corpus-v1 · prompt-v1 · JSON Schema · DeepSeek V4 Pro/high      │
+│ protocol.lock · price snapshot · Bitwig recipe · sound mapping  │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ exact hash / identity
+                               ▼
+┌────────────────────── Q0 Runner（真实网络）──────────────────────┐
+│ Mode A：一次完整 spec                                              │
+│ Mode B：skeleton → arrangement → validation revision              │
+│ Mode C：B spec + 1—2 条真实 Creator feedback                       │
+│                                                                  │
+│ 每个 Provider turn 先原子落盘，再开始下一轮；中断可只恢复 B 第三轮      │
+└──────────────────────────────┬───────────────────────────────────┘
+                               │ visible JSON only
+                               ▼
+┌─────────────── 严格校验与编译 ───────────────┐
+│ deny unknown fields · musical/resource invariants                 │
+│ ExperimentalMusicSpec → Type-1 SMF / 480 PPQ                      │
+│ tempo · time signature · key · marker · track · note · CC         │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+┌──────────────────────── 证据与 Gate ─────────────────────────────┐
+│ run/turn/spec/MIDI + SHA-256 + tokens/cache/latency/cost          │
+│ Formal Verifier：必须精确匹配 4 A + 12 B、模型、Thinking 与 hash      │
+│ Blind Pack：evaluator 目录不含 mode；private map 与评价包分离          │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼
+                  Bitwig import → blind Keep → Creator edit
+                     （当前三项仍需真人可验证证据）
+```
+
+安全边界：API Key 只从环境读取并在 drop 时清零；Provider private reasoning 不进入 turn、Project 或评审包；SoundFont 只被本机 recipe 引用，不复制进仓库。`experiments/music-quality/` 有独立 `[workspace]` 和 lockfile，不能被 production composition root 引用。
 
 ### 3.3 M3 实例化目标
 
@@ -742,8 +779,8 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 
 按依赖顺序实施：
 
-1. 建立可回退 Git baseline；当前仓库没有 commit/identity 时禁止 destructive cleanup；
-2. 执行 Q0 内容可行性 Spike，只有 `GO` 才进入 production M3；
+1. `PASS`：已建立可回退 Git baseline `b9db99c`；继续禁止未审计的 destructive cleanup；
+2. `IN PROGRESS`：执行 Q0 内容可行性 Spike，只有 `GO` 才进入 production M3；
 3. 冻结 ADR-0011、ADR-0012 与新领域词汇；
 4. 冻结旧 `GenerationAdapter/Coordinator`，停止扩展 submit/observe/reconcile，但暂不删除；
 5. 先实现 Harness Foundation：Inference Item/Transcript、Provider continuity Adapter contract/Vault、Approval Grant、Run Budget；
