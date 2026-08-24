@@ -147,6 +147,123 @@ fn resume_b_reuses_two_persisted_turns_and_only_requests_the_revision() {
     assert_eq!(run["turn_count"], 3);
 }
 
+#[test]
+fn resume_b_from_a_persisted_skeleton_does_not_repeat_the_first_turn() {
+    let temp = tempfile::tempdir().expect("temp directory");
+    let output = temp.path().join("run");
+    fs::create_dir_all(&output).expect("run directory");
+    fs::write(output.join("turn-01.json"), prior_turn("skeleton")).expect("persist skeleton turn");
+    let arrangement = provider_response("arrangement-response", valid_spec());
+    let revision = provider_response("revision-response", valid_spec());
+    let (base_url, server) = serve_responses(vec![arrangement, revision]);
+
+    Command::cargo_bin("autostudio-music-quality")
+        .expect("experiment binary")
+        .env("DEEPSEEK_API_KEY", "run-contract-secret")
+        .env("DEEPSEEK_BASE_URL", base_url)
+        .env("DEEPSEEK_MODEL", "deepseek-v4-pro")
+        .args([
+            "resume-b",
+            "--brief-id",
+            "l1-song-hook",
+            "--output-dir",
+            output.to_str().expect("output path"),
+        ])
+        .assert()
+        .success();
+    server.join().expect("fixture server");
+
+    assert!(output.join("turn-02.json").is_file());
+    assert!(output.join("turn-03.json").is_file());
+    let run: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join("run.json")).expect("run record"))
+            .expect("run JSON");
+    assert_eq!(run["status"], "completed");
+    assert_eq!(run["turn_count"], 3);
+}
+
+#[test]
+fn locked_mode_b_uses_one_audited_turn_for_global_resource_budget_repair() {
+    let skeleton = provider_response(
+        "repair-skeleton",
+        r#"{"title":"skeleton","tempo_map":[],"key_map":[],"sections":[],"track_plan":[]}"#,
+    );
+    let arrangement = provider_response("repair-arrangement", valid_spec());
+    let over_budget = resource_over_budget_spec();
+    let revision = provider_response("repair-revision", &over_budget);
+    let repaired = provider_response("repair-final", valid_spec());
+    let (base_url, server) = serve_responses(vec![skeleton, arrangement, revision, repaired]);
+    let temp = tempfile::tempdir().expect("temp directory");
+    let evidence = temp.path().join("formal");
+    let output = evidence.join("mode-b/l1-song-hook");
+    let protocol = temp.path().join("protocol-v3.lock.json");
+    fs::write(
+        &protocol,
+        r#"{
+          "schema_version":"q0-protocol-v3-test",
+          "run_binding_required":true,
+          "provider":{"name":"deepseek","model_id":"deepseek-v4-pro","thinking_level":"high"},
+          "modes":{"a_brief_ids":[],"b_brief_ids":["l1-song-hook"],"c_brief_ids":[]},
+          "mode_b_resource_repair":{"max_turns":1},
+          "gates":{"mode_b_valid_and_compiled_minimum":"1/1"}
+        }"#,
+    )
+    .expect("protocol lock");
+
+    Command::cargo_bin("autostudio-music-quality")
+        .expect("experiment binary")
+        .env("DEEPSEEK_API_KEY", "run-contract-secret")
+        .env("DEEPSEEK_BASE_URL", base_url)
+        .env("DEEPSEEK_MODEL", "deepseek-v4-pro")
+        .args([
+            "run",
+            "--mode",
+            "b",
+            "--brief-id",
+            "l1-song-hook",
+            "--output-dir",
+            output.to_str().expect("output path"),
+            "--protocol-lock",
+            protocol.to_str().expect("protocol path"),
+        ])
+        .assert()
+        .success();
+    server.join().expect("fixture server");
+
+    let run: serde_json::Value =
+        serde_json::from_slice(&fs::read(output.join("run.json")).expect("run record"))
+            .expect("run JSON");
+    assert_eq!(run["status"], "completed");
+    assert_eq!(run["turn_count"], 4);
+    assert!(output.join("turn-04.json").is_file());
+    let binding: serde_json::Value = serde_json::from_slice(
+        &fs::read(output.join("protocol-binding.json")).expect("protocol binding"),
+    )
+    .expect("binding JSON");
+    assert_eq!(binding["protocol_id"], "q0-protocol-v3-test");
+    assert_eq!(binding["mode_b_resource_repair_max_turns"], 1);
+    assert_eq!(binding["mode_b_resource_repair_turns_used"], 1);
+
+    let summary = temp.path().join("formal-summary.json");
+    Command::cargo_bin("autostudio-music-quality")
+        .expect("experiment binary")
+        .args([
+            "verify-formal",
+            "--evidence-root",
+            evidence.to_str().expect("evidence path"),
+            "--output",
+            summary.to_str().expect("summary path"),
+            "--protocol-lock",
+            protocol.to_str().expect("protocol path"),
+        ])
+        .assert()
+        .success();
+    let summary: serde_json::Value =
+        serde_json::from_slice(&fs::read(summary).expect("formal summary")).expect("summary JSON");
+    assert_eq!(summary["mode_b_valid_and_compiled"], 1);
+    assert_eq!(summary["mode_b_device_gate_passed"], true);
+}
+
 fn prior_turn(content: &str) -> Vec<u8> {
     serde_json::to_vec_pretty(&json!({
         "provider": "deepseek",
@@ -167,6 +284,31 @@ fn prior_turn(content: &str) -> Vec<u8> {
         "latency_ms": 10
     }))
     .expect("prior turn JSON")
+}
+
+fn provider_response(id: &str, content: &str) -> serde_json::Value {
+    json!({
+        "id": id,
+        "model": "deepseek-v4-pro",
+        "choices": [{"finish_reason": "stop", "message": {"content": content}}],
+        "usage": {"prompt_tokens": 100, "completion_tokens": 100, "total_tokens": 200}
+    })
+}
+
+fn resource_over_budget_spec() -> String {
+    let mut value: serde_json::Value = serde_json::from_str(valid_spec()).expect("valid fixture");
+    value["tracks"][0]["regions"][0]["cc"] = serde_json::Value::Array(
+        (0..257)
+            .map(|index| {
+                json!({
+                    "beat": f64::from(index % 32),
+                    "controller": 11,
+                    "value": 80
+                })
+            })
+            .collect(),
+    );
+    serde_json::to_string(&value).expect("over-budget fixture")
 }
 
 fn serve_responses(responses: Vec<serde_json::Value>) -> (String, thread::JoinHandle<()>) {

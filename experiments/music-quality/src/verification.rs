@@ -4,10 +4,11 @@ use std::path::{Component, Path};
 
 use serde::{Deserialize, Serialize};
 
+use crate::constants::PROTOCOL_BINDING_FILE;
 use crate::error::ExperimentError;
 use crate::evidence::sha256;
-use crate::provider::ProviderUsage;
-use crate::runner::{ExperimentRun, RunMode};
+use crate::provider::{ProviderTurn, ProviderUsage};
+use crate::runner::{ExperimentRun, ProtocolBindingEvidence, RunMode, resource_budget_diagnostics};
 use crate::spec::ExperimentalMusicSpec;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -28,11 +29,22 @@ pub struct FormalSummary {
 
 #[derive(Debug, Deserialize)]
 struct ProtocolLock {
+    #[serde(default)]
+    schema_version: String,
     provider: FrozenProvider,
     modes: FrozenModes,
     gates: FrozenGates,
     #[serde(default)]
+    run_binding_required: bool,
+    #[serde(default)]
+    mode_b_resource_repair: Option<ModeBResourceRepair>,
+    #[serde(default)]
     input_hashes: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModeBResourceRepair {
+    max_turns: u8,
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,7 +89,27 @@ pub fn verify_formal(
     assets_root: &Path,
     evidence_root: &Path,
 ) -> Result<FormalSummary, ExperimentError> {
-    let protocol: ProtocolLock = read_json(assets_root.join("protocol.lock.json"))?;
+    verify_formal_with_protocol(
+        assets_root,
+        evidence_root,
+        &assets_root.join("protocol.lock.json"),
+    )
+}
+
+/// Verifies formal evidence against an explicit immutable protocol lock.
+///
+/// # Errors
+///
+/// Returns [`ExperimentError`] under the same conditions as [`verify_formal`]
+/// and when a required per-run protocol binding is absent or inconsistent.
+pub fn verify_formal_with_protocol(
+    assets_root: &Path,
+    evidence_root: &Path,
+    protocol_path: &Path,
+) -> Result<FormalSummary, ExperimentError> {
+    let protocol_bytes = fs::read(protocol_path)?;
+    let protocol: ProtocolLock = serde_json::from_slice(&protocol_bytes)?;
+    let protocol_sha256 = sha256(&protocol_bytes);
     verify_frozen_inputs(assets_root, &protocol.input_hashes)?;
     let pricing: Pricing = read_json(
         assets_root
@@ -98,9 +130,87 @@ pub fn verify_formal(
             )));
         }
         verify_artifacts(&path, &run)?;
+        verify_protocol_binding(&path, &run, &protocol, &protocol_sha256)?;
         runs.push(run);
     }
     summarize(&protocol, &pricing, &runs)
+}
+
+fn verify_protocol_binding(
+    path: &Path,
+    run: &ExperimentRun,
+    protocol: &ProtocolLock,
+    protocol_sha256: &str,
+) -> Result<(), ExperimentError> {
+    if !protocol.run_binding_required {
+        return Ok(());
+    }
+    if protocol.schema_version.trim().is_empty() {
+        return Err(ExperimentError::InvalidInput(
+            "bound protocol requires schema_version".to_owned(),
+        ));
+    }
+    if !run
+        .artifacts
+        .iter()
+        .any(|artifact| artifact.path == PROTOCOL_BINDING_FILE)
+    {
+        return Err(ExperimentError::InvalidInput(format!(
+            "missing protocol binding artifact for {}",
+            run.candidate_id
+        )));
+    }
+    let binding: ProtocolBindingEvidence = read_json(path.join(PROTOCOL_BINDING_FILE))?;
+    if binding.protocol_id != protocol.schema_version || binding.protocol_sha256 != protocol_sha256
+    {
+        return Err(ExperimentError::InvalidInput(format!(
+            "protocol binding mismatch for {}",
+            run.candidate_id
+        )));
+    }
+    let configured_max = protocol
+        .mode_b_resource_repair
+        .as_ref()
+        .map_or(0, |repair| repair.max_turns);
+    if run.mode != RunMode::B {
+        if binding.mode_b_resource_repair_turns_used != 0 {
+            return Err(ExperimentError::InvalidInput(format!(
+                "non-Mode-B run used a resource repair turn: {}",
+                run.candidate_id
+            )));
+        }
+        return Ok(());
+    }
+    if binding.mode_b_resource_repair_max_turns != configured_max
+        || binding.mode_b_resource_repair_turns_used > configured_max
+        || usize::from(binding.mode_b_resource_repair_turns_used) + 3 != run.turn_count
+    {
+        return Err(ExperimentError::InvalidInput(format!(
+            "resource repair accounting mismatch for {}",
+            run.candidate_id
+        )));
+    }
+    if binding.mode_b_resource_repair_turns_used == 1 {
+        let turn: ProviderTurn = read_json(path.join("turn-03.json"))?;
+        if resource_budget_diagnostics(&turn.content).is_none() {
+            return Err(ExperimentError::InvalidInput(format!(
+                "resource repair lacked an eligible turn-3 trigger for {}",
+                run.candidate_id
+            )));
+        }
+        if !path.join("turn-04.json").is_file() {
+            return Err(ExperimentError::InvalidInput(format!(
+                "resource repair evidence is missing turn-04 for {}",
+                run.candidate_id
+            )));
+        }
+    } else if path.join("turn-04.json").exists() {
+        return Err(ExperimentError::InvalidInput(format!(
+            "unaccounted resource repair turn for {}",
+            run.candidate_id
+        )));
+    }
+    Ok(())
 }
 
 fn verify_frozen_inputs(

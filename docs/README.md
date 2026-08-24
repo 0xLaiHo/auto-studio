@@ -1,8 +1,8 @@
 # Auto Studio 文档导航
 
-> 基线日期：2026-08-24  
+> 基线日期：2026-08-25
 > 当前阶段：Q0 音乐内容可行性；M3 等待 Q0 `GO`  
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；Q0 机器 Gate 已达到 11/12，真人/DAW Gate 仍为 `LIVE-PENDING`；Durable Harness、本地 production Tool loop、Music Project、Sampler、Audio Engine、Factory Pack、VST3、内容质量、DAW 与分发 Gate 尚未通过。
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线装置已冻结而真实运行仍为 `IN PROGRESS`，真人/DAW Gate 为 `LIVE-PENDING`；Durable Harness、本地 production Tool loop、Music Project、Sampler、Audio Engine、Factory Pack、VST3、内容质量、DAW 与分发 Gate 尚未通过。
 
 ## 权威顺序
 

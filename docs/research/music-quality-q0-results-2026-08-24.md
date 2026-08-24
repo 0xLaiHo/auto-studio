@@ -3,7 +3,23 @@
 > 日期：2026-08-24  
 > 当前结论：`LIVE-PENDING`，不是 `GO`、`REVISE` 或 `NO-GO`  
 > 已完成：工程装置、真实 DeepSeek pilot、正式 Mode A/B、机器 Gate、匿名评审包  
-> 未完成：Bitwig MIDI import、真实 Creator feedback/Mode C、盲听 Keep、actual continued editing
+> 2026-08-25 更新：v2 证据保持不可变；v3 L4 全量重基线装置/协议已冻结，真实 6 个 L4 尚未运行
+> 未完成：v3 L4 真实运行、Bitwig MIDI import、真实 Creator feedback/Mode C、盲听 Keep、actual continued editing
+
+## 0. v3 L4 协议补充
+
+v2 的 11/12 装置门槛成立，但唯一无效项 `l4-orchestral-argument` 没有合法 `spec.json`。Mode C 又要求全部 6 个 L4 以各自 Mode B 为基线，所以不能直接完成冻结的 6 组 B/C 比较。
+
+该问题不通过手工删除 13 个 CC、提高 256 阈值或只重跑失败样本解决。已新增并冻结 `q0-protocol-v3-l4-rebaseline`：
+
+- v2 lock、run 和 summary 不修改，v2 machine Gate 结论保留；
+- 在独立 `evidence/formal-v3-l4/` 中重新运行全部 6 个 L4 Mode B，避免按结果选择重试样本；
+- 第三轮必须先能解析为严格 spec，且唯一错误是全局 768 notes/256 CC 预算超限，才允许一个第 4 轮资源修订；
+- 修订由 LLM 返回完整 spec，不做确定性裁剪、静默删除、人工 JSON 修改或阈值放宽；
+- 每个 run 绑定 protocol SHA-256，保存修订前后完整 turn；中断恢复复用已落盘 turn，不盲目产生重复计费请求；
+- v3 Formal Verifier 要求精确 6 个 L4、6/6 valid + compiled，并拒绝 protocol drift、无 trigger 的修订回合和 artifact hash 不一致。
+
+当前 v3 的代码、fixture 测试、锁和运行脚本已完成，但真实 Provider 运行尚未形成结果，因此仍是 `IN PROGRESS`，不能提前把 6/6 写成 `PASS`。
 
 ## 1. 结论先行
 
@@ -82,10 +98,11 @@ Formal Verifier 的完整聚合：
 
 严格按 [`experiments/music-quality/HUMAN-GATES.md`](../../experiments/music-quality/HUMAN-GATES.md) 完成：
 
-1. 在 Bitwig Studio 6.0.11 实际导入 pilot MIDI，固定 GeneralUser GS mapping，保存、关闭、重开并记录工程 hash/截图；
-2. 对 6 个 L4 Mode B 结果写 1—2 条真实 Creator feedback，运行 Mode C；不能让另一个 LLM代写反馈；
-3. 重新生成含 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
-4. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；
-5. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
+1. 按 v3 lock 在独立目录运行全部 6 个 L4 Mode B，并由 Formal Verifier 得到 6/6；
+2. 在 Bitwig Studio 6.0.11 实际导入 pilot MIDI，固定 GeneralUser GS mapping，保存、关闭、重开并记录工程 hash/截图；
+3. 对 v3 的 6 个 L4 Mode B 结果写 1—2 条真实 Creator feedback，运行 Mode C；不能让另一个 LLM 代写反馈；
+4. 重新生成含 v3 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
+5. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；
+6. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
 
 在这些证据完成之前，诚实的 Q0 状态只能是 `LIVE-PENDING`，不能授权 M3。

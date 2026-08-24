@@ -16,11 +16,12 @@ pub use error::{CompileError, ExperimentError, ProviderError, SpecError};
 pub use evidence::{ArtifactRecord, EvidenceManifest, write_compilation_evidence};
 pub use provider::{DeepSeekClient, ProviderTurn, ProviderUsage};
 pub use runner::{
-    Corpus, ExperimentRun, FrozenBrief, RunMode, default_assets_root, load_corpus,
-    resume_mode_b_revision, run_brief,
+    Corpus, ExperimentRun, FrozenBrief, ProtocolBindingEvidence, RunMode, RunPolicy,
+    default_assets_root, load_corpus, resume_mode_b_revision, resume_mode_b_with_policy, run_brief,
+    run_brief_with_policy,
 };
 pub use spec::{
     ControlChange, ExperimentalMusicSpec, KeyChange, MidiNote, MusicRegion, MusicSection,
     MusicTrack, PitchRegister, TempoChange, TimeSignature,
 };
-pub use verification::{FormalSummary, verify_formal};
+pub use verification::{FormalSummary, verify_formal, verify_formal_with_protocol};

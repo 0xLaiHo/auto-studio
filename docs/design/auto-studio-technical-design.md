@@ -1,8 +1,8 @@
 # Auto Studio 技术设计文档
 
-> 基线日期：2026-08-24  
+> 基线日期：2026-08-25
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 独立实验已完成真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec、Type-1 SMF MIDI 与 11/12 机器 Gate，但不属于 production runtime，真人/DAW Gate 尚未完成；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning Turn 已实现；Q0 v2 独立实验已完成真实 DeepSeek、多轮可恢复生成、严格 ExperimentalMusicSpec、Type-1 SMF MIDI 与 11/12 机器 Gate；Q0 v3 已实现逐 Run 协议绑定、任意已落盘 Mode B 回合恢复、一次受限资源预算修订和严格验证，真实 6 个 L4 重基线尚未运行。Q0 不属于 production runtime，真人/DAW Gate 尚未完成；Agent Harness Foundation、Tool Registry、通用 Agent Tool loop、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -78,7 +78,7 @@ Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provi
 | TUI `/connect`、`/model`、Thinking、`/exit` | `PASS` | Ratatui reducer/UI 与 Core Connection 合同 |
 | LLM Adapter | `PASS（contract）` | OpenAI/Anthropic/DeepSeek 等协议合同；真实计费需对应 Key |
 | LLM Planning Turn | `PASS（contract）` | typed Plan 与 Approval 已接 production composition root |
-| Q0 实验 Harness | `PASS（experiment only）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/第三轮恢复、strict spec、SMF compiler、formal verifier、blind pack |
+| Q0 实验 Harness | `PASS（v2）` / `IN PROGRESS（v3 live）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订、formal verifier 与 fixture Gate 已通过，真实 L4 待运行 |
 | Inference Transcript/Continuity Vault | `NOT IMPLEMENTED` | 当前没有 durable Turn/Message/ToolCall 类型或 Provider Continuity 存储 |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |
@@ -99,16 +99,17 @@ Q0 的当前实例化架构如下。读法是：上半部分负责“让真实�
 ```text
 ┌──────────────────────────── 冻结输入 ────────────────────────────┐
 │ corpus-v1 · prompt-v1 · JSON Schema · DeepSeek V4 Pro/high      │
-│ protocol.lock · price snapshot · Bitwig recipe · sound mapping  │
+│ protocol v2/v3 lock · price snapshot · Bitwig recipe · mapping  │
 └──────────────────────────────┬───────────────────────────────────┘
                                │ exact hash / identity
                                ▼
 ┌────────────────────── Q0 Runner（真实网络）──────────────────────┐
 │ Mode A：一次完整 spec                                              │
 │ Mode B：skeleton → arrangement → validation revision              │
+│ v3 L4：仅全局 note/CC budget 错误时，最多一次完整 spec repair         │
 │ Mode C：B spec + 1—2 条真实 Creator feedback                       │
 │                                                                  │
-│ 每个 Provider turn 先原子落盘，再开始下一轮；中断可只恢复 B 第三轮      │
+│ 每个 Provider turn 先原子落盘；中断从最后已落盘 B turn 继续，不重复调用  │
 └──────────────────────────────┬───────────────────────────────────┘
                                │ visible JSON only
                                ▼
@@ -120,7 +121,7 @@ Q0 的当前实例化架构如下。读法是：上半部分负责“让真实�
                                ▼
 ┌──────────────────────── 证据与 Gate ─────────────────────────────┐
 │ run/turn/spec/MIDI + SHA-256 + tokens/cache/latency/cost          │
-│ Formal Verifier：必须精确匹配 4 A + 12 B、模型、Thinking 与 hash      │
+│ Formal Verifier：v2 精确 4 A + 12 B；v3 精确 6 L4 B + binding        │
 │ Blind Pack：evaluator 目录不含 mode；private map 与评价包分离          │
 └──────────────────────────────┬───────────────────────────────────┘
                                ▼

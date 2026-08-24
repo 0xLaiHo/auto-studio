@@ -1,8 +1,8 @@
 # Auto Studio Roadmap
 
-> 基线日期：2026-08-24  
+> 基线日期：2026-08-25
 > 当前执行 Gate：Q0 音乐内容可行性 Spike  
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 已完成，Mode B 11/12 达到机器装置 Gate；真人/DAW Gate 仍为 `LIVE-PENDING`。M3 production 尚未开工，当前产品仍不能真实生成音乐。
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 已完成，Mode B 11/12 达到机器装置 Gate；因一个 L4 无合法 B 基线，protocol v3 的 6 个 L4 全量重基线装置已经实现并冻结，真实运行仍为 `IN PROGRESS`，真人/DAW Gate 为 `LIVE-PENDING`。M3 production 尚未开工，当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -31,7 +31,7 @@
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
 | Tool Registry/Runtime | `NOT IMPLEMENTED` | ADR/架构图 | 固定 catalog、Policy、ToolExecution |
-| MIDI/Arrangement | `PASS（Q0 experiment）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC 实测 | production Music Project 与 Semantic Tool |
+| MIDI/Arrangement | `PASS（Q0 v2 experiment）` / `IN PROGRESS（Q0 v3 L4）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC 实测；v3 协议绑定与资源预算修订合同通过 | v3 真实 L4、production Music Project 与 Semantic Tool |
 | Offline Audio Engine | `NOT IMPLEMENTED` | `hound` 只用于 WAV 合同 | Render Plan、instrument、mix、analysis |
 | Factory Pack/Sampler | `NOT IMPLEMENTED` | 研究与候选清单 | 许可批准、manifest、sampler、盲听 |
 | VST3 Host | `NOT IMPLEMENTED` | 目标隔离设计 | 目标 OS、SDK Spike、worker、corpus |
@@ -46,7 +46,7 @@
 | M0 Workspace Baseline | Rust workspace、Core、Project、API、基础 TUI | `PASS` |
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
-| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `PASS（machine 11/12）` / `LIVE-PENDING（human/DAW）` |
+| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `PASS（v2 machine 11/12）` / `IN PROGRESS（v3 L4）` / `LIVE-PENDING（human/DAW）` |
 | M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `NOT IMPLEMENTED（等待 Q0 GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
@@ -65,6 +65,7 @@ Q0 不建设 production Audio Engine。完成定义是：
 - [x] 完成当前 workspace 的纳入/忽略与 secret/generated/large-file 审计；
 - [x] 创建 `experiments/music-quality/` 独立 workspace 与 lockfile，不加入 production workspace；
 - [x] 冻结 12 个 Brief、ExperimentalMusicSpec、prompt、评分表和 `protocol.lock.json`；
+- [x] 保持 v2 lock/证据不可变，冻结 `protocol-v3-l4.lock.json`，对全部 6 个 L4 重建可比较 B 基线；
 - [x] 冻结主模型、DAW/version/import recipe 与 instrument mapping；
 - [ ] 第二个不同强模型只在主模型负面时启用，仍需 Credential 与精确 model；
 - [x] 记录音色来源、license/EULA、本地使用权和 hash。
@@ -81,6 +82,8 @@ Q0 不建设 production Audio Engine。完成定义是：
 - [x] 匿名 candidate ID、evaluator package、独立 private mapping 与编辑动作表；
 - [x] Credential、private reasoning 和不允许分发音色不进入 artifact；
 - [x] formal verifier 按 Plan 校验 4 个 A/12 个 B、Provider identity 与 artifact hash。
+- [x] v3 runner 支持逐 Run 协议 SHA-256 绑定、从任意已落盘 Mode B 回合恢复，以及最多一次仅针对全局 note/CC 预算的可审计修订；
+- [x] v3 verifier 拒绝选择性样本、协议漂移、缺失 binding、无合法 trigger 的第 4 回合和 artifact 损坏；
 
 完成定义：Mode B 至少 11/12 可无人工修 JSON 编译并导入，否则只修实验装置，不判断产品前提。
 
@@ -88,6 +91,7 @@ Q0 不建设 production Audio Engine。完成定义是：
 
 - [x] Mode B 跑全部 12 个 Brief；11/12 valid + compiled；
 - [x] Mode A 跑 4 个代表 Brief；4/4 valid + compiled；
+- [ ] 按 v3 在独立目录重新运行全部 6 个 L4 Mode B，要求 6/6 valid + compiled；装置与锁已完成，真实调用尚未启动；
 - [ ] Mode C 跑全部 6 个 L4 Brief，最多两轮 Creator 反馈；
 - [ ] 记录 Keep、Actual continued editing、Time to useful、Edit distance、Structural errors、内容评分与成本；
 - [ ] 主模型未过 L4 门槛时，用第二个不同强模型复核；
@@ -269,7 +273,7 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 ### Gate Q0：内容可行性
 
-- `PASS（machine）/ LIVE-PENDING（human）`：Mode B 11/12 达到装置门槛；Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
+- `PASS（v2 machine）/ IN PROGRESS（v3 L4）/ LIVE-PENDING（human）`：v2 Mode B 11/12 达到装置门槛；v3 6 个 L4 重基线装置已通过本地 Gate、真实调用尚未完成；Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
 - 通过条件：实验装置有效，L4 达到冻结 Keep/Actual continued editing 门槛；负面主模型结果由第二个不同强模型复核。
 
 ### Gate A：产品基线

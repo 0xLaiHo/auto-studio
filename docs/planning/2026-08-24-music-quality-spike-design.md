@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`LIVE-PENDING`；实验装置、真实 pilot 与正式 A/B 机器 Gate 已完成，真人/DAW Gate 尚未完成
+> 状态：`LIVE-PENDING`；v2 真实 pilot 与正式 A/B 机器 Gate 已完成；v3 L4 重基线装置已冻结、真实运行 `IN PROGRESS`；真人/DAW Gate 尚未完成
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -83,7 +83,7 @@ ExperimentalMusicSpec
 | 模式 | 做法 | 覆盖 | 用途 |
 |---|---|---|---|
 | A 一次成型 | 一次请求输出完整 spec | 4 个代表 Brief，跨等级与风格 | 建立粗粒度基线 |
-| B 分阶段 | 骨架 → 轨道/region → 校验修订 | 全部 12 个 Brief | 默认实验路径 |
+| B 分阶段 | 骨架 → 轨道/region → 校验修订；v3 L4 在严格限定的全局资源预算错误下最多增加一次可审计修订 | 全部 12 个 v2 Brief；全部 6 个 v3 L4 重基线 | 默认实验路径 |
 | C Creator 反馈 | 从该 Brief 的 B 结果出发，最多 2 轮文字反馈 | 全部 6 个 L4 Brief | 判断反馈循环的实际价值 |
 
 比较规则：
@@ -92,6 +92,19 @@ ExperimentalMusicSpec
 - A/B/C 尽量匹配总输出 token budget，而不是给某一模式无限上下文；
 - 保存每轮 request/normalized response、usage、延迟、错误和费用；
 - A/B/C 差异只能作为产品与接口设计证据。样本量小、轮次结构不同，不能写成“分阶段导致质量提升”的因果结论。
+
+### 6.1 v3 L4 重基线修订
+
+v2 的 `l4-orchestral-argument` 在第三轮产生 269 个 CC，超过冻结的 256 上限，因此没有合法 B spec，无法进入要求 6 个配对样本的 Mode C。v2 已达到预设 11/12 装置门槛，其证据与结论不撤销；但内容比较必须补充一组新的、内部一致的 L4 基线。
+
+v3 在看到任何 Creator 反馈或盲评分数前冻结以下规则：
+
+1. 在独立 evidence root 重新运行全部 6 个 L4，而不是只重跑已知失败项；
+2. 只有第三轮能严格反序列化，且全部 violation 都是全局 note/CC 预算超限时，才允许第 4 个 Provider 回合；
+3. 第 4 回合必须返回完整 spec；系统不得裁剪事件、扩大阈值或人工修 JSON；
+4. 每个 run 持久化 protocol id/SHA-256、允许/使用修订数以及全部 turn；
+5. v3 进入 Mode C 的前提提高为精确 6/6 valid + compiled；未达到时先报告 `REVISE/INVALID`，不得改分母；
+6. v3 新增调用的冻结上限为 24 次、USD 6.549511112，使 v2 + v3 的 peak 累计预算仍不超过 USD 10。
 
 ## 7. 模型顺序
 
@@ -201,6 +214,9 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [x] 实现按锁定清单校验 Candidate、Provider identity、artifact hash、usage/cost 的 formal verifier；
 - [x] 实现 evaluator-safe 匿名包、独立 private mapping 与评价表；
 - [x] 运行正式 Mode A 4/4 与 Mode B 12/12；Mode B 11/12 valid + compiled，达到装置门槛；
+- [x] 冻结 `protocol-v3-l4.lock.json`、全量 L4 重基线、逐 Run 协议绑定和一次资源预算修订规则；
+- [x] 实现从任意已落盘 Mode B turn 恢复、v3 Formal Verifier 和 fixture 端到端验证；
+- [ ] 在 `evidence/formal-v3-l4/` 运行全部 6 个 L4 Mode B，并达到 6/6 valid + compiled；
 - [ ] 运行真实 Creator feedback Mode C、盲评和 continued-editing session；
 - [ ] 输出 `GO/REVISE/NO-GO/INVALID` 报告；
 - [ ] 只有 `GO` 才把 M3 从目标设计转为 production 实施。
@@ -208,10 +224,12 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 ## 14. 当前可审计证据
 
 - `protocol.lock.json`：冻结 corpus、schema、prompt、模型、Thinking、超时、价格、环境、随机种子与投资阈值；
+- `protocol-v3-l4.lock.json`：保持 v2 不变，为全部 6 个 L4 冻结独立 B/C 基线、资源预算修订、累计预算与逐 Run binding；
 - Mode A pilot：1 个真实调用，11,011 tokens，142,780 ms，严格校验并编译成功；
 - Mode B pilot：3 个真实调用，51,275 tokens，521,949 ms，逐轮 artifact 可恢复，最终严格校验并编译成功；
 - protocol v1 正式装置在 L3/L4 暴露输出截断，按 Gate 判定为 apparatus invalid；原始结果保留，不做人为修 JSON；
 - protocol v2 L4 pilot：3 个真实调用，113,342 tokens，841,105 ms，679 notes / 33 CC，最终严格校验并编译成功；正式 v2 A/B 使用全新目录；
+- protocol v3 L4：apparatus、lock、runner、resume、binding、verifier 与本地 fixture Gate 已完成；真实 Provider evidence 尚未产生；
 - Provider evidence 不持久化 API Key 或 private reasoning；请求固定 `Accept-Encoding: identity`，单次超时 600 秒；
 - Bitwig 进程和 48 kHz PipeWire 初始化已实测，MIDI GUI import 尚未取得可验证证据；
 - pilot 明确排除于正式评分，不能用于填充 11/12、Keep 或 continued-editing 门槛。

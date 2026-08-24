@@ -1,8 +1,8 @@
 # Auto Studio 产品设计文档
 
-> 基线日期：2026-08-24  
+> 基线日期：2026-08-25
 > 产品方向：LLM 驱动的本地专业音乐创作 Agent  
-> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与一次真实 Planning Turn 已实现；Q0 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，真人/DAW Gate 尚未完成；Agent Harness Foundation、本地 production 作曲工具、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未实现，当前产品版本仍不能真实生成音乐。
+> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与一次真实 Planning Turn 已实现；Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 L4 重基线装置已冻结而真实运行尚未完成，真人/DAW Gate 尚未完成；Agent Harness Foundation、本地 production 作曲工具、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未实现，当前产品版本仍不能真实生成音乐。
 
 ## 1. 产品摘要
 

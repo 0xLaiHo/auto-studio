@@ -4,6 +4,11 @@ These steps intentionally cannot be automated or replaced with an LLM
 self-score. Complete them as the Creator/evaluator after formal Mode A and B
 verification succeeds.
 
+The v2 11/12 device Gate remains immutable, but its invalid
+`l4-orchestral-argument` run has no legal base spec. Before requesting Creator
+feedback, `evidence/formal-v3-l4/formal-summary.json` must therefore show an
+exact, protocol-bound 6/6 valid and compiled L4 Mode B rebaseline.
+
 ## 1. Bitwig import smoke
 
 Use the frozen recipe in `environment/daw-environment-v1.json` and the pilot
@@ -29,10 +34,11 @@ feedback. Run:
 experiments/music-quality/target/release/autostudio-music-quality run \
   --mode c \
   --brief-id <l4-brief-id> \
-  --base-spec experiments/music-quality/evidence/formal/mode-b/<l4-brief-id>/spec.json \
+  --base-spec experiments/music-quality/evidence/formal-v3-l4/mode-b/<l4-brief-id>/spec.json \
   --feedback '<creator feedback 1>' \
   --feedback '<optional creator feedback 2>' \
-  --output-dir experiments/music-quality/evidence/formal/mode-c/<l4-brief-id>
+  --output-dir experiments/music-quality/evidence/formal-v3-l4/mode-c/<l4-brief-id> \
+  --protocol-lock experiments/music-quality/protocol-v3-l4.lock.json
 ```
 
 The command rejects empty feedback, more than two feedback rounds and invalid
@@ -44,11 +50,11 @@ After Mode C completes, run:
 
 ```bash
 experiments/music-quality/target/release/autostudio-music-quality prepare-blind \
-  --evidence-root experiments/music-quality/evidence/formal \
-  --output-dir experiments/music-quality/evidence/blind
+  --evidence-root experiments/music-quality/evidence/formal-v3-l4 \
+  --output-dir experiments/music-quality/evidence/blind-v3-l4
 ```
 
-Open only `evidence/blind/evaluator/` while scoring. Do not open
+Open only `evidence/blind-v3-l4/evaluator/` while scoring. Do not open
 `blind-map.private.json` until every score and editing session is closed.
 
 ## 4. Blind Keep and content score

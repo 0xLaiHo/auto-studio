@@ -1,0 +1,118 @@
+{
+  "schema_version": "q0-protocol-v3-l4-rebaseline",
+  "status": "locked-before-provider-runs",
+  "locked_at": "2026-08-25T01:21:19+08:00",
+  "baseline_commit": "11f697e1335ff0bfc5dc4fabe8d5161cc12df893",
+  "run_binding_required": true,
+  "amends": {
+    "protocol": "q0-protocol-v2",
+    "evidence_root": "evidence/formal",
+    "formal_summary_sha256": "5193918780be4ae13a5cc51e4edc7ba32f22a4408c1ec3e052bf4bcb88e8c90d",
+    "preserved_result": "4/4 Mode A and 11/12 Mode B machine device gate PASS",
+    "reason": "one invalid L4 Mode B candidate has no legal base spec, so the frozen six-pair Mode B/Mode C content comparison cannot be completed"
+  },
+  "rebaseline_policy": {
+    "scope": "all six L4 Mode B candidates",
+    "reason": "do not selectively rerun only the observed failure",
+    "v2_evidence_mutation": "forbidden",
+    "human_feedback_before_v3_mode_b": "forbidden"
+  },
+  "provider": {
+    "name": "deepseek",
+    "base_url": "https://api.deepseek.com",
+    "protocol": "openai-chat-completions",
+    "model_id": "deepseek-v4-pro",
+    "thinking_level": "high",
+    "thinking_request": {
+      "thinking": {
+        "type": "enabled"
+      },
+      "reasoning_effort": "high"
+    },
+    "response_format": "json_object",
+    "stream": false,
+    "accept_encoding": "identity",
+    "request_timeout_seconds": 600,
+    "temperature": 0.7,
+    "skeleton_max_tokens": 8192,
+    "full_spec_max_tokens": 65536
+  },
+  "modes": {
+    "a_brief_ids": [],
+    "b_brief_ids": [
+      "l4-song-neon",
+      "l4-song-intimate",
+      "l4-video-chase",
+      "l4-video-emotional",
+      "l4-orchestral-argument",
+      "l4-electronic-microcity"
+    ],
+    "c_brief_ids": [
+      "l4-song-neon",
+      "l4-song-intimate",
+      "l4-video-chase",
+      "l4-video-emotional",
+      "l4-orchestral-argument",
+      "l4-electronic-microcity"
+    ],
+    "c_max_feedback_rounds": 2
+  },
+  "mode_b_resource_repair": {
+    "max_turns": 1,
+    "eligible_trigger": "turn-03 is strict JSON and its only validator failures are global total-notes and/or total-CC-event limits",
+    "ineligible": "malformed JSON, schema drift, musical invariant failure, mixed failure, or already-valid output",
+    "transformation": "LLM returns the complete spec; no deterministic deletion, clipping, threshold increase, or manual JSON edit",
+    "evidence": "turn-03, diagnostics, turn-04 and per-run protocol binding are mandatory"
+  },
+  "blind_seed": "auto-studio-q0-blind-seed-v3-l4-20260825",
+  "investment_limits_frozen_before_results": {
+    "v2_peak_cost_usd": 3.450488888,
+    "cumulative_provider_budget_usd": 10.0,
+    "v3_incremental_provider_budget_usd": 6.549511112,
+    "v3_provider_calls_max": 24,
+    "v3_parallelism_default": 1,
+    "v3_parallelism_max": 3
+  },
+  "spec_resource_limits": {
+    "total_notes_max": 768,
+    "total_cc_events_max": 256,
+    "threshold_change_from_v2": "none"
+  },
+  "gates": {
+    "mode_b_valid_and_compiled_minimum": "6/6",
+    "l4_mode_c_keep_minimum": "4/6",
+    "l4_mode_c_continued_editing_minimum": "3/6",
+    "l4_feedback_non_degradation_minimum": "4/6",
+    "severe_structural_errors_must_not_affect_majority_of_l4": true
+  },
+  "input_hashes": {
+    "Cargo.toml": "74ede68b13d6ef9dabddccbf32acec56282d619363fcc3544cc8134fbc1fdd31",
+    "Cargo.lock": "dcf7fd766f1745273b7caf3b2384ed475c6f512ab0e2c94a2525395fc6b8f227",
+    "corpus/corpus-v1.json": "81dda3b9c4fb9ac8c26353a12a186e03567cc63001431ad626c05c31b726659f",
+    "schema/experimental-music-spec.schema.json": "09e95138f75efba7d5da4eb01bcdafed81b4284bec76a41fbf47236cd8812c2e",
+    "prompts/system-v1.md": "33f3bd16e9685977c642f50176c11988cf9a9a28563bb269d35a6d9207cbc1d7",
+    "prompts/mode-b-skeleton-v1.md": "69ec39d3a0a9bc2a9be2e734a6faae9c759a32d0357538df1b09989e1e6d8e14",
+    "prompts/mode-b-arrange-v1.md": "6177e91b2b1469346bcd858c6eee58900aa0b2c2ab2e95678a2721791a923582",
+    "prompts/mode-b-revise-v1.md": "15a487c9c00d81e3ee65018e8d652c0557041a6443ecc969982dbd5448cc5ad8",
+    "prompts/mode-b-resource-repair-v1.md": "c586179b4684ec0ffb8ecf4842ca5ecea0c98c37fab6e43b6879ae0bdbb7fba6",
+    "prompts/mode-c-feedback-v1.md": "3250c452de381e99b38cafe31bc487d69a644563f247b4b864e50a2782a792c9",
+    "evaluation/rubric-v1.json": "2314d2f6856f3fc291ec89314276611ea29eaf3ec9560776bd9088e7193d50c5",
+    "evaluation/continued-editing-template.csv": "653f2623f07576dc50b62ee8570ce0e4799457cf347e810b62bfd70e3f429a2c",
+    "environment/daw-environment-v1.json": "ea5ad62935289712ded7e54e8c9c0ce8bdd4f28820880b70705b265cd5bae8a0",
+    "environment/deepseek-pricing-v1.json": "66339a63e3218fc24b37e94d80c12adaaf4543f829fd287f9540656ff06198b9",
+    "environment/instrument-mapping-v1.json": "c7b483d27f3ef3b745dbe8c7bfdb6a8868816f0bd630796f451400c9732d1fa5",
+    "environment/local-use-license-v1.json": "c176597a1638a52709629f995be6163b22a07f2e6791786691eca61d641b5e78",
+    "src/lib.rs": "29531ae169ee777fc38386a0750ecdc0baa73949a835b838077aa0f7159275f1",
+    "src/constants.rs": "73c6bc51d0c1df7cbbc80bfd96542b628efcd4d1aadbe6f868374e8c89dbd2ad",
+    "src/error.rs": "4ae7d02a6b12790e8bd9ea34432beec76cf4536de3fecc9e34724ecfe0a470c5",
+    "src/provider.rs": "b2ba0253eb2d420758b400dfd7daa90084ca1a7c15e04969bc9c2b5477d8a57d",
+    "src/spec.rs": "f52a88df263e0889336adb4edf1877d86789a09221fffb985bc19a93b170266a",
+    "src/compiler.rs": "699f8b06c34e4f18aa6b60b17134509b708ec0fe15361a13e065ebe555f3fd55",
+    "src/evidence.rs": "b7a7ca4fcf9a2aa761180ff5b5c7508ad0f034e96459a8f7d3850394f7807de3",
+    "src/runner.rs": "f9e0409823e610191a718a33804edab213692308b9bf6d909bb3bfdf15b8dcba",
+    "src/verification.rs": "91a82f8ed08cc2d709c17dc96bc20cbc754deb61e28cea1c54a3e8e4693181aa",
+    "src/blind.rs": "3cc5a9a95bc26ea3a9c4142ddaec0e57d775c9a628bbed1287daf9732edb7128",
+    "src/main.rs": "f70972e40f0d8ca6320cf7ab33280ee4769def280c9098cbc45158f6e3368393",
+    "scripts/run-l4-rebaseline-v3.sh": "7b36fc8bbf0f1b6d31e479258ac71ef654379dc84ccf62318ddf40abab37f6ef"
+  }
+}
