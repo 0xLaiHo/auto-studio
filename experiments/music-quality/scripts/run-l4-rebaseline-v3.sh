@@ -32,9 +32,9 @@ if [[ ! -f "${protocol_lock}" ]]; then
   exit 2
 fi
 
-if [[ ! -x "${binary}" ]]; then
-  cargo build --release --manifest-path "${experiment_root}/Cargo.toml"
-fi
+# The protocol hashes the apparatus sources, so a pre-existing release binary
+# is never trusted to represent the current checkout.
+cargo build --release --locked --manifest-path "${experiment_root}/Cargo.toml"
 
 l4_briefs=(
   l4-song-neon
@@ -57,16 +57,22 @@ run_one() {
   fi
 
   if [[ -f "${output_dir}/turn-01.json" ]]; then
-    "${binary}" resume-b \
+    if ! "${binary}" resume-b \
       --brief-id "${brief_id}" \
       --output-dir "${output_dir}" \
-      --protocol-lock "${protocol_lock}" >"${log_file}" 2>&1
+      --protocol-lock "${protocol_lock}" >"${log_file}" 2>&1; then
+      echo "failed: mode=b brief=${brief_id}; inspect ${log_file}" >&2
+      return 1
+    fi
   else
-    "${binary}" run \
+    if ! "${binary}" run \
       --mode b \
       --brief-id "${brief_id}" \
       --output-dir "${output_dir}" \
-      --protocol-lock "${protocol_lock}" >"${log_file}" 2>&1
+      --protocol-lock "${protocol_lock}" >"${log_file}" 2>&1; then
+      echo "failed: mode=b brief=${brief_id}; inspect ${log_file}" >&2
+      return 1
+    fi
   fi
   echo "finished: mode=b brief=${brief_id}"
 }

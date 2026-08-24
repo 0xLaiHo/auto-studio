@@ -1,7 +1,7 @@
 {
   "schema_version": "q0-protocol-v3-l4-rebaseline",
   "status": "locked-before-provider-runs",
-  "locked_at": "2026-08-25T01:21:19+08:00",
+  "locked_at": "2026-08-25T01:29:40+08:00",
   "baseline_commit": "11f697e1335ff0bfc5dc4fabe8d5161cc12df893",
   "run_binding_required": true,
   "amends": {
@@ -113,6 +113,6 @@
     "src/verification.rs": "91a82f8ed08cc2d709c17dc96bc20cbc754deb61e28cea1c54a3e8e4693181aa",
     "src/blind.rs": "3cc5a9a95bc26ea3a9c4142ddaec0e57d775c9a628bbed1287daf9732edb7128",
     "src/main.rs": "f70972e40f0d8ca6320cf7ab33280ee4769def280c9098cbc45158f6e3368393",
-    "scripts/run-l4-rebaseline-v3.sh": "7b36fc8bbf0f1b6d31e479258ac71ef654379dc84ccf62318ddf40abab37f6ef"
+    "scripts/run-l4-rebaseline-v3.sh": "6ea9303401a9fbcc7dfac0d57ba43dc5023972b2ea9bc581c49c7c5a7199f07c"
   }
 }
