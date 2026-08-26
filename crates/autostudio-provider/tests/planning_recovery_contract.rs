@@ -239,6 +239,7 @@ impl Fixture {
                 },
                 provider_binding: binding(&tools),
                 continuity_reference: None,
+                continuity_overhead_tokens: 0,
                 tools,
                 token_budget: TokenBudgetPlan::unknown(4_096, 1_024),
             })

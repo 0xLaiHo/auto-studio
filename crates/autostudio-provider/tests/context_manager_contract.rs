@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use autostudio_core::agent::{AgentRunId, InferenceUsage};
 use autostudio_core::compaction::{StructuredRunSummary, StructuredRunSummaryDraft};
+use autostudio_core::constants::CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES;
 use autostudio_core::context::{
     CanonicalMessage, CanonicalToolDefinition, ContextEventStore, ContextStoreError,
     InferenceFinishReason, InferenceItemDraft, InferenceTurnId, ProviderBinding, TokenBudgetPlan,
     VisibleMessageRole,
 };
+use autostudio_core::context_surface::{ContextPressure, ContextSpillBlob};
+use autostudio_core::project::ProjectService;
 use autostudio_core::provider::{ThinkingControl, ThinkingLevel};
 use autostudio_provider::context::{
     CommitCompaction, CompletedToolResult, ContextManager, PrepareContext, RecordInferenceTurn,
@@ -171,6 +174,195 @@ fn tool_results_cannot_be_recorded_without_a_matching_pending_request() {
         error,
         autostudio_core::context::ContextError::InconsistentJournal(_)
     ));
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn large_tool_result_is_spilled_atomically_and_survives_project_backup() {
+    const TAIL_SENTINEL: &str = "FULL_RESULT_TAIL_SENTINEL";
+
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let package = temp.path().join("spill.autostudio");
+    let backups = temp.path().join("backups");
+    let store =
+        Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("context store"));
+    let projects = ProjectService::new(store.clone());
+    projects.create_project("Spill contract").expect("project");
+    let manager = ContextManager::new(store.clone());
+    let run_id = AgentRunId::new();
+    let first_turn_id = InferenceTurnId::new();
+    let first = manager
+        .prepare_turn(prepare(
+            run_id.clone(),
+            first_turn_id.clone(),
+            1,
+            "Inspect a large local analysis result",
+        ))
+        .expect("first Context");
+    let recorded = manager
+        .record_turn(RecordInferenceTurn {
+            run_id: run_id.clone(),
+            turn_id: first_turn_id,
+            context_id: first.manifest().context_id().clone(),
+            expected_journal_revision: first.journal_revision(),
+            items: vec![
+                InferenceItemDraft::ToolRequest {
+                    call_id: "spill-call-1".to_owned(),
+                    name: "project_add_midi_notes".to_owned(),
+                    arguments_json: r#"{"track":"piano"}"#.to_owned(),
+                    descriptor_fingerprint: empty_digest(),
+                },
+                InferenceItemDraft::Finish {
+                    reason: InferenceFinishReason::Completed,
+                    detail: None,
+                },
+            ],
+        })
+        .expect("Tool Request");
+    let large_result = format!(
+        "safe-preview|{}|{TAIL_SENTINEL}",
+        "x".repeat(CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES + 1_024)
+    );
+    manager
+        .record_tool_results(RecordToolResults {
+            run_id: run_id.clone(),
+            expected_journal_revision: recorded.journal_revision,
+            results: vec![CompletedToolResult {
+                call_id: "spill-call-1".to_owned(),
+                name: "project_add_midi_notes".to_owned(),
+                content: large_result.clone(),
+                is_error: false,
+                execution_id: Some("spill-execution-1".to_owned()),
+            }],
+        })
+        .expect("large Tool Result");
+
+    let second = manager
+        .prepare_turn(prepare(
+            run_id.clone(),
+            InferenceTurnId::new(),
+            2,
+            "Continue from the bounded result",
+        ))
+        .expect("spilled Context");
+    let metrics = second
+        .manifest()
+        .surface_metrics()
+        .expect("surface metrics");
+    assert_eq!(metrics.spills().len(), 1);
+    assert_eq!(
+        metrics.prepared_footprint().pressure(),
+        ContextPressure::Normal
+    );
+    assert!(
+        metrics.initial_footprint().message_bytes() > metrics.prepared_footprint().message_bytes()
+    );
+    let spill_reference = &metrics.spills()[0];
+    let model_result = second
+        .messages()
+        .iter()
+        .find_map(|message| match message {
+            CanonicalMessage::Tool { content, .. } => Some(content),
+            _ => None,
+        })
+        .expect("model-visible Tool Result");
+    assert!(model_result.contains("auto_studio_spilled_tool_result"));
+    assert!(model_result.contains(spill_reference.content_hash()));
+    assert!(!model_result.contains(TAIL_SENTINEL));
+
+    let stored = store
+        .context_spill(spill_reference.content_hash())
+        .expect("spill lookup")
+        .expect("stored spill");
+    assert_eq!(stored.content(), large_result);
+    let projection = manager.inspect_run(&run_id).expect("full Transcript");
+    assert!(projection.items().iter().any(|item| matches!(
+        item.payload(),
+        InferenceItemDraft::ToolResult { content, .. } if content.contains(TAIL_SENTINEL)
+    )));
+
+    let sink =
+        autostudio_storage::ProjectPackageBackup::new(&package, &backups).expect("backup sink");
+    let receipt = projects.backup_project(0, &sink).expect("backup Project");
+    let receipt = serde_json::to_value(receipt).expect("backup receipt");
+    let backup_package = backups.join(receipt["backupName"].as_str().expect("backup name"));
+    let backup_store = autostudio_storage::SqliteProjectStore::open(&backup_package)
+        .expect("backup context store");
+    let backed_up = backup_store
+        .context_spill(spill_reference.content_hash())
+        .expect("backup spill lookup")
+        .expect("backed up spill");
+    assert_eq!(backed_up, stored);
+}
+
+#[test]
+fn hard_context_pressure_is_rejected_before_any_manifest_is_committed() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("pressure.autostudio"))
+            .expect("context store"),
+    );
+    let manager = ContextManager::new(store);
+    let run_id = AgentRunId::new();
+    let mut request = prepare(
+        run_id.clone(),
+        InferenceTurnId::new(),
+        1,
+        &"x".repeat(4_000),
+    );
+    request.token_budget = TokenBudgetPlan::known(1_000, 100, 50).expect("small known budget");
+
+    let error = manager
+        .prepare_turn(request)
+        .expect_err("hard pressure must stop before inference");
+    assert!(matches!(
+        error,
+        autostudio_core::context::ContextError::CompactionRequired { .. }
+    ));
+    let projection = manager.inspect_run(&run_id).expect("empty projection");
+    assert_eq!(projection.journal_revision(), 0);
+    assert!(projection.items().is_empty());
+    assert!(projection.manifests().is_empty());
+}
+
+#[test]
+fn context_revision_conflict_rolls_back_spill_blob_with_events() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("atomic-spill.autostudio"))
+            .expect("context store"),
+    );
+    let manager = ContextManager::new(store.clone());
+    let run_id = AgentRunId::new();
+    let prepared = manager
+        .prepare_turn(prepare(
+            run_id.clone(),
+            InferenceTurnId::new(),
+            1,
+            "Establish a non-zero Context revision",
+        ))
+        .expect("prepared Context");
+    assert_eq!(prepared.journal_revision(), 2);
+
+    let spill = ContextSpillBlob::new("must roll back with the stale append".to_owned())
+        .expect("valid spill blob");
+    let error = store
+        .append_context_events_with_spills(&run_id, 0, &[], std::slice::from_ref(&spill))
+        .expect_err("stale Context append must fail atomically");
+    assert!(matches!(
+        error,
+        ContextStoreError::RevisionConflict {
+            expected: 0,
+            actual: 2
+        }
+    ));
+    assert!(
+        store
+            .context_spill(spill.content_hash())
+            .expect("spill lookup")
+            .is_none(),
+        "a rejected Context append must not leave an orphan spill blob"
+    );
 }
 
 #[test]
@@ -400,6 +592,7 @@ fn prepare(
             tool_catalog_fingerprint: fingerprint_tool_catalog(&tools),
         },
         continuity_reference: None,
+        continuity_overhead_tokens: 0,
         tools,
         token_budget: TokenBudgetPlan::known(32_768, 4_096, 1_024).expect("valid token budget"),
     }

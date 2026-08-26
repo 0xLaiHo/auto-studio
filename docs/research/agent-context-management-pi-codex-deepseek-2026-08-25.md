@@ -3,7 +3,7 @@
 > 类型：Research，不定义发布资格
 > 日期：2026-08-25
 > 源码快照：Pi `c5ad7c1`、OpenAI Codex `d52478c`、DeepSeek Harness `b150a55`
-> 结论状态：研究基线；截至 2026-08-26，CM-0/CM-1/CM-2 Planning slice 已实现，CM-3 checkpoint foundation 正在实施，CM-4 仍未实现
+> 结论状态：研究基线；截至 2026-08-26，CM-0/CM-1/CM-2 Planning slice 已实现，CM-3 checkpoint + footprint/pressure + Tool Result spill 已实现，自动 summary/overflow recovery 尚未实现，CM-4 仍未实现
 
 ## 1. 结论
 
@@ -26,7 +26,7 @@ Auto Studio 不应完整复制其中任一实现，最合适的是一套分层�
 - 没有 durable `Turn`、`Message`、`ToolCall`、`ToolResult`、`ContextSnapshot`、`CompactionCheckpoint` 或 `ProviderContinuity` 实现；
 - 因此当前不是“上下文策略需要优化”，而是 agent tool loop 的上下文地基尚未实现。
 
-截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。compaction checkpoint、长期 Run retrieval、Approval Grant、Run Budget 与通用 ToolExecution 仍只是规格，不能报告为已交付能力。
+截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。CM-3 已实现 checkpoint foundation、deterministic footprint/pressure 与大 Tool Result spill；自动 summary/cut、overflow recovery、长期 Run retrieval、Approval Grant、Run Budget 与通用 ToolExecution 仍只是规格，不能报告为已交付能力。
 
 ## 3. 三者对比
 
@@ -317,9 +317,9 @@ Provider private reasoning、signed block、response id 和 opaque compaction it
 - checkpoint transaction、有效缩短验证和一次 overflow recovery；
 - 多次 compaction、crash、超长单 turn 和 orphan tool pair 测试。
 
-实施状态（2026-08-26）：checkpoint foundation 已实现，但完整 CM-3 尚未完成。`CompactionCheckpoint` 使用固定结构摘要，绑定 Run、source journal revision、被替代的连续 item 前缀、首个保留 item 与稳定 content hash；随机 identity 和创建时间不影响相同事实的 hash。checkpoint 通过现有 append-only Context Event journal 单事件 CAS 原子提交，不建立第二份事实表。replay 校验 checkpoint 的 run/revision/hash/cut，保留完整 Transcript，并让下一轮 `ContextManifest` 绑定最新 checkpoint，以 untrusted summary + kept raw tail 形成 current surface。测试覆盖进程重启、两次推进 compaction、非推进拒绝、Tool Request/Result 不可拆分，以及 OpenAI Chat/Responses/Anthropic Messages 都不把 summary 提升为 system/policy。
+实施状态（2026-08-26）：checkpoint foundation 与第一段 pressure/spill policy 已实现，但完整 CM-3 尚未完成。`CompactionCheckpoint` 使用固定结构摘要，绑定 Run、source journal revision、被替代的连续 item 前缀、首个保留 item 与稳定 content hash；随机 identity 和创建时间不影响相同事实的 hash。checkpoint 通过现有 append-only Context Event journal 单事件 CAS 原子提交，不建立第二份事实表。replay 校验 checkpoint 的 run/revision/hash/cut，保留完整 Transcript，并让下一轮 `ContextManifest` 绑定最新 checkpoint，以 untrusted summary + kept raw tail 形成 current surface。`prepare_turn` 会对 canonical input 生成版本化 footprint，将 Adapter 报告的 opaque continuity allowance 纳入估算；已知输入预算按 75% soft、90% hard、超预算 overflow 分级，hard/overflow 在调用 Provider 前返回 `CompactionRequired`。超过 16 KiB 的 Tool Result 确定性变为 512 字符预览 + source item/hash/原始字节数引用；完整内容仍在 Transcript，并以 content-addressed blob 与 Manifest/Event 同事务提交。测试覆盖进程重启、两次推进 compaction、非推进拒绝、Tool Request/Result 不可拆分、三协议 summary trust boundary、footprint 稳定性、spill hash/tamper、stale revision 回滚与 Project backup。
 
-仍缺：deterministic spill/prune、真实 token pressure、bounded summary 生成策略、压缩前后有效缩短证明、未闭合 compaction attempt 的 crash 语义、超长单 turn，以及只有 surface generation 实际推进时才允许的一次 overflow recovery。因此当前状态是 `IN PROGRESS`，不能标记 CM-3 PASS。
+仍缺：自动 summary/cut、除大 Tool Result 外的 deterministic prune、Provider-specific 精确 tokenizer 校准、端到端有效压缩 Gate、未闭合 compaction attempt 的 crash 语义、超长单 turn，以及只有 surface generation 实际推进时才允许的一次 overflow recovery。因此当前状态是 `IN PROGRESS`，不能标记 CM-3 PASS。
 
 ### CM-4：Long-Run Context Retrieval（必做）
 
@@ -364,6 +364,6 @@ CM-4 至少实现：
 
 ## 12. 结论性建议
 
-CM-0、CM-1 与 CM-2 的 Planning slice 已完成；CM-3 checkpoint foundation 已落地。下一步是在同一 Context Module 内完成 **CM-3 的自动 pressure、spill/prune、summary、有效缩短与单次 overflow recovery**，随后立即实现必做的 **CM-4 Long-Run Retrieval**；二者必须基于现有 durable Transcript、ContextManifest 和 Continuity binding，不能把摘要或索引升级成第二份工程事实。
+CM-0、CM-1 与 CM-2 的 Planning slice 已完成；CM-3 checkpoint、deterministic footprint/pressure 与大 Tool Result spill 已落地。下一步是在同一 Context Module 内完成 **CM-3 的自动 summary/cut、通用 prune、有效压缩 Gate、crash 语义与单次 overflow recovery**，随后立即实现必做的 **CM-4 Long-Run Retrieval**；二者必须基于现有 durable Transcript、ContextManifest 和 Continuity binding，不能把摘要或索引升级成第二份工程事实。
 
 CM-4 不能从产品范围删除，也不能等上线后才决定是否需要。第一版以可重建的本地全文/结构化检索为主，不把“长 Run 必须可持续”误解成“必须立即建设跨项目向量记忆平台”。

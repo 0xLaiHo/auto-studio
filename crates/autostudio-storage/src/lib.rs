@@ -13,6 +13,7 @@ use autostudio_core::agent::AgentRunId;
 use autostudio_core::context::{
     ContextEvent, ContextEventEnvelope, ContextEventStore, ContextStoreError,
 };
+use autostudio_core::context_surface::ContextSpillBlob;
 use autostudio_core::project::{
     Project, ProjectBackupDraft, ProjectBackupSink, ProjectEvent, ProjectEventEnvelope,
     ProjectStore, ProjectStoreError,
@@ -289,6 +290,7 @@ impl ContextEventStore for SqliteProjectStore {
                 run_id: run_id.clone(),
                 expected_revision,
                 events: events.to_vec(),
+                spills: Vec::new(),
                 response: response_sender,
             })
             .map_err(|_| context_actor_stopped())?;
@@ -305,6 +307,44 @@ impl ContextEventStore for SqliteProjectStore {
         self.context_sender()?
             .send(Command::ContextEvents {
                 run_id: run_id.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| context_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| context_actor_stopped())?
+    }
+
+    fn append_context_events_with_spills(
+        &self,
+        run_id: &AgentRunId,
+        expected_revision: u64,
+        events: &[ContextEvent],
+        spills: &[ContextSpillBlob],
+    ) -> Result<u64, ContextStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.context_sender()?
+            .send(Command::AppendContextEvents {
+                run_id: run_id.clone(),
+                expected_revision,
+                events: events.to_vec(),
+                spills: spills.to_vec(),
+                response: response_sender,
+            })
+            .map_err(|_| context_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| context_actor_stopped())?
+    }
+
+    fn context_spill(
+        &self,
+        content_hash: &str,
+    ) -> Result<Option<ContextSpillBlob>, ContextStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.context_sender()?
+            .send(Command::ContextSpill {
+                content_hash: content_hash.to_owned(),
                 response: response_sender,
             })
             .map_err(|_| context_actor_stopped())?;
@@ -346,11 +386,16 @@ enum Command {
         run_id: AgentRunId,
         expected_revision: u64,
         events: Vec<ContextEvent>,
+        spills: Vec<ContextSpillBlob>,
         response: SyncSender<Result<u64, ContextStoreError>>,
     },
     ContextEvents {
         run_id: AgentRunId,
         response: SyncSender<Result<Vec<ContextEventEnvelope>, ContextStoreError>>,
+    },
+    ContextSpill {
+        content_hash: String,
+        response: SyncSender<Result<Option<ContextSpillBlob>, ContextStoreError>>,
     },
 }
 
@@ -386,6 +431,7 @@ fn run_actor(connection: &Connection, receiver: &Receiver<Command>) {
                 run_id,
                 expected_revision,
                 events,
+                spills,
                 response,
             } => {
                 let _ = response.send(append_context_events(
@@ -393,10 +439,17 @@ fn run_actor(connection: &Connection, receiver: &Receiver<Command>) {
                     &run_id,
                     expected_revision,
                     &events,
+                    &spills,
                 ));
             }
             Command::ContextEvents { run_id, response } => {
                 let _ = response.send(select_context_events(connection, &run_id));
+            }
+            Command::ContextSpill {
+                content_hash,
+                response,
+            } => {
+                let _ = response.send(select_context_spill(connection, &content_hash));
             }
         }
     }
@@ -444,6 +497,12 @@ fn migrate(connection: &Connection) -> Result<(), ProjectPackageError> {
                  event_json TEXT NOT NULL,
                  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                  PRIMARY KEY (run_id, sequence)
+             );
+             CREATE TABLE IF NOT EXISTS inference_context_spills (
+                 content_hash TEXT PRIMARY KEY,
+                 byte_count INTEGER NOT NULL CHECK (byte_count > 0),
+                 content TEXT NOT NULL,
+                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
              );",
         )
         .map_err(ProjectPackageError::Migrate)
@@ -652,11 +711,63 @@ fn append_context_events(
     run_id: &AgentRunId,
     expected_revision: u64,
     events: &[ContextEvent],
+    spills: &[ContextSpillBlob],
 ) -> Result<u64, ContextStoreError> {
-    let run_id = run_id.as_str();
     let transaction = connection
         .unchecked_transaction()
         .map_err(|error| context_unavailable(&error))?;
+    insert_context_spills(&transaction, spills)?;
+    let next_revision =
+        append_context_events_in_transaction(&transaction, run_id, expected_revision, events)?;
+    transaction
+        .commit()
+        .map_err(|error| context_unavailable(&error))?;
+    Ok(next_revision)
+}
+
+fn insert_context_spills(
+    transaction: &rusqlite::Transaction<'_>,
+    spills: &[ContextSpillBlob],
+) -> Result<(), ContextStoreError> {
+    for spill in spills {
+        spill
+            .validate()
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+        let byte_count = i64::try_from(spill.byte_count()).map_err(|_| {
+            ContextStoreError::Unavailable("context spill exceeds SQLite range".to_owned())
+        })?;
+        transaction
+            .execute(
+                "INSERT INTO inference_context_spills (content_hash, byte_count, content)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(content_hash) DO NOTHING",
+                params![spill.content_hash(), byte_count, spill.content()],
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        let stored = transaction
+            .query_row(
+                "SELECT byte_count, content FROM inference_context_spills
+                 WHERE content_hash = ?1",
+                [spill.content_hash()],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        if stored != (byte_count, spill.content().to_owned()) {
+            return Err(ContextStoreError::Corrupt(
+                "content-addressed Context spill collision".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn append_context_events_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    run_id: &AgentRunId,
+    expected_revision: u64,
+    events: &[ContextEvent],
+) -> Result<u64, ContextStoreError> {
+    let run_id = run_id.as_str();
     let stored_revision = transaction
         .query_row(
             "SELECT revision FROM inference_context_streams WHERE run_id = ?1",
@@ -737,9 +848,6 @@ fn append_context_events(
             actual: actual_revision,
         });
     }
-    transaction
-        .commit()
-        .map_err(|error| context_unavailable(&error))?;
     Ok(next_revision)
 }
 
@@ -768,6 +876,35 @@ fn select_context_events(
         events.push(ContextEventEnvelope::new(sequence, event));
     }
     Ok(events)
+}
+
+fn select_context_spill(
+    connection: &Connection,
+    content_hash: &str,
+) -> Result<Option<ContextSpillBlob>, ContextStoreError> {
+    let stored = connection
+        .query_row(
+            "SELECT byte_count, content FROM inference_context_spills
+             WHERE content_hash = ?1",
+            [content_hash],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| context_unavailable(&error))?;
+    let Some((byte_count, content)) = stored else {
+        return Ok(None);
+    };
+    let spill = ContextSpillBlob::new(content)
+        .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+    let expected_bytes = usize::try_from(byte_count).map_err(|_| {
+        ContextStoreError::Corrupt("stored Context spill byte count is invalid".to_owned())
+    })?;
+    if spill.byte_count() != expected_bytes || spill.content_hash() != content_hash {
+        return Err(ContextStoreError::Corrupt(
+            "stored Context spill does not match its identity".to_owned(),
+        ));
+    }
+    Ok(Some(spill))
 }
 
 fn select_revision(connection: &Connection) -> Result<u64, ProjectStoreError> {

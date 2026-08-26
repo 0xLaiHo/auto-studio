@@ -32,6 +32,15 @@ pub enum ContextError {
     InvalidClock,
     #[error("context serialization failed: {0}")]
     Serialization(String),
+    #[error(
+        "context compaction is required before inference: estimated {estimated_tokens} input tokens, budget {input_budget_tokens}"
+    )]
+    CompactionRequired {
+        estimated_tokens: u64,
+        input_budget_tokens: u64,
+    },
+    #[error(transparent)]
+    Surface(#[from] ContextSurfaceError),
     #[error(transparent)]
     Store(#[from] ContextStoreError),
 }
@@ -57,6 +66,22 @@ pub enum CompactionError {
     #[error("Compaction content hash does not match its source facts")]
     ContentHashMismatch,
     #[error("Compaction serialization failed: {0}")]
+    Serialization(String),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ContextSurfaceError {
+    #[error("Context Surface footprint is internally inconsistent")]
+    InvalidFootprint,
+    #[error("Context Surface spill content must not be empty")]
+    EmptySpillContent,
+    #[error("Context Surface spill reference is invalid")]
+    InvalidSpillReference,
+    #[error("Context Surface spill content hash does not match its bytes")]
+    SpillHashMismatch,
+    #[error("Context Surface footprint exceeds the supported numeric range")]
+    FootprintOverflow,
+    #[error("Context Surface serialization failed: {0}")]
     Serialization(String),
 }
 

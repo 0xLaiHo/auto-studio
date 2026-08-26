@@ -50,6 +50,7 @@ pub fn inference_request(
                 tool_catalog_fingerprint: fingerprint_tool_catalog(&tools),
             },
             continuity_reference: None,
+            continuity_overhead_tokens: 0,
             tools,
             token_budget: TokenBudgetPlan::unknown(
                 u64::from(PLAN_MAX_OUTPUT_TOKENS),

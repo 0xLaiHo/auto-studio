@@ -5,10 +5,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use autostudio_core::agent::AgentRunId;
 use autostudio_core::compaction::{CompactionCheckpoint, StructuredRunSummary};
+use autostudio_core::constants::{
+    CONTEXT_TOOL_RESULT_PREVIEW_CHARS, CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES,
+};
 use autostudio_core::context::{
     CanonicalMessage, CanonicalToolCall, CanonicalToolDefinition, ContextError, ContextEvent,
     ContextEventStore, ContextId, ContextManifest, InferenceItem, InferenceItemDraft,
     InferenceTurnId, PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
+};
+use autostudio_core::context_surface::{
+    ContextFootprint, ContextPressure, ContextSpillBlob, ContextSurfaceMetrics,
+    ToolResultSpillReference,
 };
 use autostudio_core::continuity::ContinuityReference;
 use serde::Serialize;
@@ -24,6 +31,7 @@ pub struct PrepareContext {
     pub new_user_messages: Vec<String>,
     pub provider_binding: ProviderBinding,
     pub continuity_reference: Option<ContinuityReference>,
+    pub continuity_overhead_tokens: u64,
     pub tools: Vec<CanonicalToolDefinition>,
     pub token_budget: TokenBudgetPlan,
 }
@@ -184,7 +192,11 @@ impl ContextManager {
         all_items.extend(items.iter().cloned());
         let checkpoint = state.checkpoints.last();
         let surface_items = current_surface_items(&all_items, checkpoint)?;
-        let messages = project_messages(surface_items, checkpoint)?;
+        let PreparedSurfaceArtifacts {
+            messages,
+            spills,
+            metrics: surface_metrics,
+        } = prepare_surface(&request, surface_items, checkpoint)?;
         let included_item_ids = surface_items.iter().map(|item| item.id().clone()).collect();
         let transcript_revision = state
             .journal_revision
@@ -198,6 +210,7 @@ impl ContextManager {
             tools: &request.tools,
             provider_binding: &request.provider_binding,
             compaction_checkpoint_hash: checkpoint.map(CompactionCheckpoint::content_hash),
+            surface_metrics: &surface_metrics,
             continuity_reference: request.continuity_reference.as_ref(),
             token_budget: &request.token_budget,
         })?;
@@ -213,6 +226,7 @@ impl ContextManager {
             request.tools.clone(),
             request.provider_binding,
             checkpoint.map(|checkpoint| checkpoint.id().clone()),
+            Some(surface_metrics),
             request.continuity_reference,
             request.token_budget,
             content_hash,
@@ -225,9 +239,12 @@ impl ContextManager {
         events.push(ContextEvent::ContextPrepared {
             manifest: Box::new(manifest.clone()),
         });
-        let journal_revision =
-            self.store
-                .append_context_events(&request.run_id, state.journal_revision, &events)?;
+        let journal_revision = self.store.append_context_events_with_spills(
+            &request.run_id,
+            state.journal_revision,
+            &events,
+            &spills,
+        )?;
         Ok(PreparedContext::new(manifest, messages, journal_revision))
     }
 
@@ -769,6 +786,7 @@ fn validate_compaction_cut(
 fn project_messages(
     items: &[InferenceItem],
     checkpoint: Option<&CompactionCheckpoint>,
+    spills: &[ToolResultSpillReference],
 ) -> Result<Vec<CanonicalMessage>, ContextError> {
     let mut messages = Vec::new();
     if let Some(checkpoint) = checkpoint {
@@ -841,10 +859,14 @@ fn project_messages(
                 ..
             } => {
                 assistant_turn = None;
+                let content = spills
+                    .iter()
+                    .find(|spill| spill.item_id() == item.id())
+                    .map_or_else(|| Ok(content.clone()), model_visible_spill_reference)?;
                 messages.push(CanonicalMessage::Tool {
                     call_id: call_id.clone(),
                     name: name.clone(),
-                    content: content.clone(),
+                    content,
                     is_error: *is_error,
                 });
             }
@@ -852,6 +874,104 @@ fn project_messages(
         }
     }
     Ok(messages)
+}
+
+struct PreparedSurfaceArtifacts {
+    messages: Vec<CanonicalMessage>,
+    spills: Vec<ContextSpillBlob>,
+    metrics: ContextSurfaceMetrics,
+}
+
+fn prepare_surface(
+    request: &PrepareContext,
+    items: &[InferenceItem],
+    checkpoint: Option<&CompactionCheckpoint>,
+) -> Result<PreparedSurfaceArtifacts, ContextError> {
+    let initial_messages = project_messages(items, checkpoint, &[])?;
+    let initial_footprint = ContextFootprint::measure(
+        &request.instructions,
+        &initial_messages,
+        &request.tools,
+        request.continuity_overhead_tokens,
+        &request.token_budget,
+    )?;
+    let (spills, spill_references) = plan_tool_result_spills(items)?;
+    let messages = if spill_references.is_empty() {
+        initial_messages
+    } else {
+        project_messages(items, checkpoint, &spill_references)?
+    };
+    let prepared_footprint = ContextFootprint::measure(
+        &request.instructions,
+        &messages,
+        &request.tools,
+        request.continuity_overhead_tokens,
+        &request.token_budget,
+    )?;
+    reject_hard_pressure(&prepared_footprint)?;
+    Ok(PreparedSurfaceArtifacts {
+        messages,
+        spills,
+        metrics: ContextSurfaceMetrics::new(
+            initial_footprint,
+            prepared_footprint,
+            spill_references,
+        ),
+    })
+}
+
+fn plan_tool_result_spills(
+    items: &[InferenceItem],
+) -> Result<(Vec<ContextSpillBlob>, Vec<ToolResultSpillReference>), ContextError> {
+    let mut blobs = Vec::new();
+    let mut references = Vec::new();
+    for item in items {
+        let InferenceItemDraft::ToolResult { content, .. } = item.payload() else {
+            continue;
+        };
+        if content.len() <= CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES {
+            continue;
+        }
+        let blob = ContextSpillBlob::new(content.clone())?;
+        let preview = content
+            .chars()
+            .take(CONTEXT_TOOL_RESULT_PREVIEW_CHARS)
+            .collect();
+        let reference = ToolResultSpillReference::new(item.id().clone(), &blob, preview)?;
+        blobs.push(blob);
+        references.push(reference);
+    }
+    Ok((blobs, references))
+}
+
+fn model_visible_spill_reference(spill: &ToolResultSpillReference) -> Result<String, ContextError> {
+    serde_json::to_string(&serde_json::json!({
+        "type": "auto_studio_spilled_tool_result",
+        "sourceItemId": spill.item_id().as_str(),
+        "contentHash": spill.content_hash(),
+        "originalBytes": spill.original_bytes(),
+        "preview": spill.retained_preview(),
+        "recovery": {
+            "kind": "inference_item",
+            "itemId": spill.item_id().as_str(),
+        },
+    }))
+    .map_err(|error| ContextError::Serialization(error.to_string()))
+}
+
+fn reject_hard_pressure(footprint: &ContextFootprint) -> Result<(), ContextError> {
+    if matches!(
+        footprint.pressure(),
+        ContextPressure::Hard | ContextPressure::Overflow
+    ) {
+        return Err(ContextError::CompactionRequired {
+            estimated_tokens: footprint.estimated_input_tokens(),
+            input_budget_tokens: footprint
+                .input_budget_tokens()
+                .expect("hard pressure requires a known input budget"),
+        });
+    }
+    Ok(())
 }
 
 fn validate_record_binding<'a>(
@@ -1029,6 +1149,7 @@ struct ContextHashInput<'a> {
     tools: &'a [CanonicalToolDefinition],
     provider_binding: &'a ProviderBinding,
     compaction_checkpoint_hash: Option<&'a str>,
+    surface_metrics: &'a ContextSurfaceMetrics,
     continuity_reference: Option<&'a ContinuityReference>,
     token_budget: &'a TokenBudgetPlan,
 }

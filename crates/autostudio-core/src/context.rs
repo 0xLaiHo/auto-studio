@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::agent::{AgentRunId, InferenceUsage};
 use crate::compaction::{CompactionCheckpoint, CompactionId};
 use crate::constants::MAX_PROVIDER_TOOL_NAME_CHARS;
+use crate::context_surface::{ContextSpillBlob, ContextSurfaceMetrics};
 use crate::continuity::ContinuityReference;
 pub use crate::error::{ContextError, ContextStoreError};
 use crate::provider::{ThinkingControl, ThinkingLevel};
@@ -420,6 +421,8 @@ pub struct ContextManifest {
     #[serde(default)]
     compaction_checkpoint: Option<CompactionId>,
     #[serde(default)]
+    surface_metrics: Option<ContextSurfaceMetrics>,
+    #[serde(default)]
     continuity_reference: Option<ContinuityReference>,
     token_budget: TokenBudgetPlan,
     content_hash: String,
@@ -444,6 +447,7 @@ impl ContextManifest {
         tools: Vec<CanonicalToolDefinition>,
         provider_binding: ProviderBinding,
         compaction_checkpoint: Option<CompactionId>,
+        surface_metrics: Option<ContextSurfaceMetrics>,
         continuity_reference: Option<ContinuityReference>,
         token_budget: TokenBudgetPlan,
         content_hash: String,
@@ -461,6 +465,7 @@ impl ContextManifest {
             tools,
             provider_binding,
             compaction_checkpoint,
+            surface_metrics,
             continuity_reference,
             token_budget,
             content_hash,
@@ -497,6 +502,11 @@ impl ContextManifest {
     #[must_use]
     pub const fn compaction_checkpoint(&self) -> Option<&CompactionId> {
         self.compaction_checkpoint.as_ref()
+    }
+
+    #[must_use]
+    pub const fn surface_metrics(&self) -> Option<&ContextSurfaceMetrics> {
+        self.surface_metrics.as_ref()
     }
 
     #[must_use]
@@ -562,6 +572,20 @@ impl ContextManifest {
             tool.validate()?;
         }
         self.provider_binding.validate()?;
+        if let Some(metrics) = &self.surface_metrics {
+            metrics.validate()?;
+            let mut spill_items = std::collections::HashSet::new();
+            for spill in metrics.spills() {
+                if !self.included_item_ids.contains(spill.item_id())
+                    || !spill_items.insert(spill.item_id())
+                {
+                    return Err(ContextError::InconsistentJournal(
+                        "Context Surface spill must reference one included item exactly once"
+                            .to_owned(),
+                    ));
+                }
+            }
+        }
         if let Some(reference) = &self.continuity_reference {
             reference
                 .validate()
@@ -644,6 +668,43 @@ pub trait ContextEventStore: Send + Sync {
         &self,
         run_id: &AgentRunId,
     ) -> Result<Vec<ContextEventEnvelope>, ContextStoreError>;
+
+    /// Atomically stores immutable spill blobs and appends the Context events
+    /// that reference them under the same journal compare-and-swap.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContextStoreError`] for conflicts, invalid blobs, corruption,
+    /// or unavailable storage.
+    fn append_context_events_with_spills(
+        &self,
+        run_id: &AgentRunId,
+        expected_revision: u64,
+        events: &[ContextEvent],
+        spills: &[ContextSpillBlob],
+    ) -> Result<u64, ContextStoreError> {
+        if spills.is_empty() {
+            self.append_context_events(run_id, expected_revision, events)
+        } else {
+            Err(ContextStoreError::Unavailable(
+                "context spill storage is unavailable".to_owned(),
+            ))
+        }
+    }
+
+    /// Returns one verified content-addressed spill blob.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContextStoreError`] for corrupt or unavailable storage.
+    fn context_spill(
+        &self,
+        _content_hash: &str,
+    ) -> Result<Option<ContextSpillBlob>, ContextStoreError> {
+        Err(ContextStoreError::Unavailable(
+            "context spill storage is unavailable".to_owned(),
+        ))
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

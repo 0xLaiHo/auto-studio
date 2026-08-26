@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use autostudio_core::agent::AgentRunId;
+use autostudio_core::constants::CONTEXT_ESTIMATED_BYTES_PER_TOKEN;
 use autostudio_core::context::InferenceTurnId;
 use autostudio_core::continuity::{ContinuityBinding, ContinuityReference, ContinuityStateId};
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
@@ -82,6 +83,21 @@ impl ProviderContinuityState {
     #[must_use]
     pub const fn format(&self) -> ContinuityFormat {
         self.format
+    }
+
+    /// Returns a conservative deterministic allowance for replaying this opaque
+    /// payload in the next Provider request without exposing its bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContinuityVaultError::FileTooLarge`] if the size cannot be represented.
+    pub fn estimated_input_tokens(&self) -> Result<u64, ContinuityVaultError> {
+        let bytes =
+            u64::try_from(self.payload.len()).map_err(|_| ContinuityVaultError::FileTooLarge)?;
+        bytes
+            .checked_add(CONTEXT_ESTIMATED_BYTES_PER_TOKEN - 1)
+            .map(|value| value / CONTEXT_ESTIMATED_BYTES_PER_TOKEN)
+            .ok_or(ContinuityVaultError::FileTooLarge)
     }
 
     pub(crate) fn json(&self) -> Result<Value, ContinuityVaultError> {

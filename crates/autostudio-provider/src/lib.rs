@@ -299,6 +299,11 @@ impl AgentPlanner {
             &continuity_binding,
             continuity::FileContinuityVault::now_unix_millis()?,
         )?;
+        let continuity_overhead_tokens = loaded_continuity
+            .as_ref()
+            .map(|loaded| loaded.state.estimated_input_tokens())
+            .transpose()?
+            .unwrap_or(0);
         let continuity_reference = loaded_continuity
             .as_ref()
             .map(|loaded| loaded.reference.clone());
@@ -323,6 +328,7 @@ impl AgentPlanner {
             },
             provider_binding,
             continuity_reference,
+            continuity_overhead_tokens,
             tools,
             token_budget: TokenBudgetPlan::unknown(
                 u64::from(constants::PLAN_MAX_OUTPUT_TOKENS),

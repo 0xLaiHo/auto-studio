@@ -183,6 +183,12 @@ _Avoid_: Prompt Cache、Project Snapshot、Provider Continuity State
 **Context Surface（上下文表面）**：Context Manager 从完整 Inference Transcript、最新 Compaction Checkpoint、当前 Project facts 与本轮输入派生出的有界模型视图。它可以由结构化摘要和最近原文 tail 组成，可在重启后重建，但不是 Project 或 Transcript 的第二份事实源。
 _Avoid_: Chat History、Project Facts、Mutable Prompt Buffer
 
+**Request Footprint（请求占用）**：某个 Context Surface 在发送给 Provider 前，对 canonical instructions、messages、Tool schema 与 Provider Adapter 给出的 opaque continuity allowance 所做的确定性大小记录。它用于审计压力与决定是否必须 compaction，不冒充 Provider 的精确 tokenizer 计费结果。
+_Avoid_: Exact Token Bill、Context Window Size、Usage
+
+**Context Spill（上下文外置）**：把过大的 Tool Result 从当前模型视图替换为有界预览、source item id、原始字节数和内容 hash 引用；完整内容仍作为本地 content-addressed blob 保存，并可从完整 Transcript/引用恢复。Spill 只缩小 Context Surface，不删除 Tool Result，也不是媒体 Asset。
+_Avoid_: Transcript Truncation、Asset、Lossy Delete
+
 **Compaction Checkpoint（压缩检查点）**：Run 内不可变的 Context Event，记录由结构化摘要替代的连续 Transcript 前缀、首个保留条目、源 journal revision 与内容 hash。它只改变后续 Context Surface，不删除或改写完整 Inference Transcript，也不包含 Provider private reasoning。
 _Avoid_: Transcript Rewrite、Project Snapshot、Provider Continuity State
 
