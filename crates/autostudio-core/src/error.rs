@@ -18,6 +18,8 @@ pub enum ContextError {
     EmptyField(&'static str),
     #[error("context JSON field '{0}' is invalid")]
     InvalidJson(&'static str),
+    #[error("model-visible Tool name must match ^[a-zA-Z0-9_-]{{1,64}}$")]
+    InvalidToolName,
     #[error("context digest is invalid")]
     InvalidDigest,
     #[error("context token budget is invalid")]
@@ -32,6 +34,20 @@ pub enum ContextError {
     Serialization(String),
     #[error(transparent)]
     Store(#[from] ContextStoreError),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ContinuityError {
+    #[error("Provider Continuity identity is invalid")]
+    InvalidId,
+    #[error("Provider Continuity field '{0}' must not be empty")]
+    EmptyField(&'static str),
+    #[error("Provider Continuity digest is invalid")]
+    InvalidDigest,
+    #[error("Provider Continuity expiry must be later than creation")]
+    InvalidExpiry,
+    #[error("Provider Continuity serialization failed: {0}")]
+    Serialization(String),
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]

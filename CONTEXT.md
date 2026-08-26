@@ -248,6 +248,12 @@ _Avoid_: Token Chunk、Provider JSON、Agent Step
 **Provider Continuity State（供应商连续性状态）**：为继续同一条 Provider/Model/Protocol 推理链而保存的、Provider Adapter 所拥有的 opaque payload 或引用，例如 OpenAI response/reasoning item 或 Anthropic signed thinking block。它只在 Agent Run 内存在，Creator 不可见，不进入 Project、Event、日志、compaction 或 Export，终态语义提交后删除。  
 _Avoid_: Inference Transcript、Private Reasoning Log、Project Snapshot、Cross-provider Context
 
+**Continuity Reference（连续性引用）**：可写入 Context Manifest 的非秘密收据，记录 state identity、source turn、binding hash 和有效期，但不包含 Provider payload、private reasoning 或 Vault path。
+_Avoid_: Provider Continuity State、Credential、Project Fact
+
+**Continuity Vault（连续性保险库）**：位于 Project Package 外、按 Run 保存加密 Provider Continuity State 的短生命周期本地存储。它只向精确 binding 匹配的 Adapter 返回 payload，并负责 TTL、错配/损坏清理与终态 purge。
+_Avoid_: Project Store、Inference Transcript、Long-term Memory
+
 **Unknown Consumption（消耗未知）**：LLM Inference Turn 可能已产生 token 费用，但本地尚不能确认完整 usage。它不表示 Music Project 已改变。  
 _Avoid_: Tool Completed、Project Mutation
 

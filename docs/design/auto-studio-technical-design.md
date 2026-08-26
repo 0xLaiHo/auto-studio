@@ -1,8 +1,8 @@
 # Auto Studio 技术设计文档
 
-> 基线日期：2026-08-25
+> 基线日期：2026-08-26
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0/CM-1 已把 Run/Turn/Item identity、durable Inference Transcript、Context Manifest、三种协议的 SSE assembler、完整 ToolRequest/ToolResult、每步 replay 与 Planning resume 接入 production 路径。固定链路先执行真实只读 `project.describe`，下一轮才允许 `submit_creative_plan`；仅有 `ContextPrepared` 而无 Provider 输出的中断不会自动重提。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。Provider Continuity Vault、compaction/长期 Run、Approval Grant、Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0/CM-1/CM-2 已把 Run/Turn/Item identity、durable Inference Transcript、Context Manifest、三种协议的 SSE assembler、完整 ToolRequest/ToolResult、每步 replay、Planning resume 与 Project 外加密 Continuity Vault 接入 production 路径。固定链路先执行真实只读 `project_describe`，再接受 `submit_creative_plan`；仅有 `ContextPrepared` 而无 Provider 输出的中断不会自动重提。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live，包括跨 Turn replay 与终态 Vault purge。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。compaction/长期 Run、Approval Grant、Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -65,7 +65,7 @@ Creator
 
 Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provider Adapter 把 opaque continuity 写入 Project 外的 Continuity Vault。两者不能互相替代。`BYOK LLM` 是唯一跨出设备的必需连接；图中没有 Music Provider、远端音乐 Job 或 prompt-to-WAV fallback。
 
-### 2.3 当前 CM-1 实例化架构图
+### 2.3 当前 CM-2 实例化架构图
 
 下面这张图只画已经进入 production Planning 路径的代码，不把目标模块伪装为现状。非技术读法是：每走一步，系统都先翻开“工程事实”和“工作记录”，再决定下一步；Provider 只给出工具请求，本地 Core 负责执行和落盘。
 
@@ -84,8 +84,12 @@ flowchart LR
     Wire --> Assembler[Provider-neutral stream assembler]
     Assembler -->|完整 canonical Turn| Context
 
+    Planner -->|精确 binding load / store / purge| Vault[(Project 外 Continuity Vault\nXChaCha20-Poly1305 + TTL)]
+    Vault -->|opaque state 仅交给兼容 Adapter| Planner
+    Context -->|Manifest 仅保存非秘密 reference| SQLite
+
     Planner --> FixedTools[固定 Planning Tool Module]
-    FixedTools --> Describe[project.describe\n真实本地只读]
+    FixedTools --> Describe[project_describe\n真实本地只读]
     Describe --> Project
     FixedTools --> Submit[submit_creative_plan\n校验 terminal plan]
     FixedTools -->|完整 ToolResult| Context
@@ -94,11 +98,11 @@ flowchart LR
 
     classDef pending fill:#2b2238,stroke:#ff4fd8,color:#ffffff;
     classDef durable fill:#102b38,stroke:#39ffdf,color:#ffffff;
-    class SQLite,Project durable;
+    class SQLite,Project,Vault durable;
     class Adapter,Wire,Assembler,FixedTools,Describe,Submit pending;
 ```
 
-图中没有 Continuity Vault、compaction、Music Project、Audio Engine 或通用 Tool Runtime，因为它们尚未实现。`project.describe` 和 `submit_creative_plan` 是 CM-1 的固定内部 Tool Module，只证明“多轮、耐久、可恢复”这条 Harness 纵切；它不替代 M3-C 的版本化 Registry、Policy、Grant、Budget 与 durable ToolExecution。
+图中的 Vault 与 Project SQLite 是两个存储域：SQLite 只保存可审计 Transcript 和不含 payload 的 `ContinuityReference`；Provider 私密 payload 只进入应用私有 Vault，并在终态语义提交前完成清理。图中仍没有 compaction、Music Project、Audio Engine 或通用 Tool Runtime，因为它们尚未实现。`project_describe` 和 `submit_creative_plan` 是 CM-1/CM-2 的固定内部 Tool Module，只证明“多轮、耐久、可恢复、私密连续性隔离”这条 Harness 纵切；它不替代 M3-C 的版本化 Registry、Policy、Grant、Budget 与 durable ToolExecution。
 
 ## 3. 当前实例化架构与目标架构
 
@@ -111,15 +115,15 @@ flowchart LR
 | Rust workspace 与独立 Core | `PASS` | Axum Core、版本化本机 API、discovery/session |
 | Project/SQLite/revision/event/outbox | `PASS` | Project 创建、打开、提交、备份与恢复测试 |
 | TUI `/connect`、`/model`、Thinking、`/exit` | `PASS` | Ratatui reducer/UI 与 Core Connection 合同 |
-| LLM Adapter | `PASS（contract + DeepSeek live）` | OpenAI/Anthropic/DeepSeek 等协议合同；2026-08-25 默认 `deepseek-v4-flash` 真实流式 Tool Call smoke 通过，其他 exact model 仍需对应 Key 资格验证 |
-| LLM Planning | `PASS（CM-1 contract）` | SSE canonical Turn；`project.describe → submit_creative_plan` 两轮链路；typed Plan 与 Approval 已接 production composition root |
+| LLM Adapter | `PASS（contract + DeepSeek/OpenAI live）` | OpenAI/Anthropic/DeepSeek 等协议合同；2026-08-25 `deepseek-v4-flash` 真实流式 Tool Call smoke；2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live |
+| LLM Planning | `PASS（CM-1 contract）` | SSE canonical Turn；`project_describe → submit_creative_plan` 两轮链路；typed Plan 与 Approval 已接 production composition root |
 | Q0 实验 Harness | `PASS（v2/v3/portable machine）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订与 formal verifier 通过；Portable v1 增加 InstrumentAssignment、CC0/CC32/Program Change 和 assignment manifest |
 | Inference Transcript/Context Manifest | `PASS（CM-1 contract）` | Run/Turn/Item、完整 Visible/Tool/Usage/Finish、SQLite append/CAS、精确 Manifest、三协议 stream assembler、完整 pair 校验、重启 replay；compaction/长期 Run 属于 CM-3/CM-4 |
-| Agent Run lifecycle | `PASS（CM-1 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；Provider Continuity 属于 CM-2 |
-| Provider Continuity Vault | `NOT IMPLEMENTED` | 尚未捕获/加密/绑定/清理 OpenAI reasoning item 或 Anthropic signed thinking block |
+| Agent Run lifecycle | `PASS（CM-1/CM-2 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；终态前清理 continuity |
+| Provider Continuity Vault | `PASS（CM-2 contract + OpenAI live）` / `LIVE-PENDING（Anthropic / OS Vault）` | OpenAI Responses reasoning/function item、Anthropic signed thinking/tool-use block；XChaCha20-Poly1305、独立密钥、精确 binding、TTL、启动/周期 janitor、错配/损坏清理、终态 purge 与 sentinel 隔离测试；`gpt-5-mini` 实测完成 2 Turn、777 input/385 output tokens 和终态 purge |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |
-| 固定 Planning Tool loop | `PASS（CM-1 contract）` | 内部 `project.describe` 与 `submit_creative_plan`，有真实本地只读执行、完整 Request/Result 与有界循环 |
+| 固定 Planning Tool loop | `PASS（CM-1 contract）` | 内部 `project_describe` 与 `submit_creative_plan`，有真实本地只读执行、完整 Request/Result 与有界循环 |
 | 通用 Tool Registry/ToolExecution | `NOT IMPLEMENTED` | 尚无版本化 catalog、Policy/Grant/Budget、通用执行状态机或 Music Project Tool |
 | MIDI | `PASS（Q0 experiment）` / `NOT IMPLEMENTED（production）` | Q0 可确定输出 Type-1 SMF 与可审计乐器意图；production Music Project/Tool/Export 尚不存在 |
 | Sampler/Factory Pack | `NOT IMPLEMENTED` | production workspace 未引入对应运行模块；GeneralUser GS 仅获批本地 Q0 评价，不可视为 Factory Pack |
@@ -266,7 +270,7 @@ pub enum InferenceItem {
 }
 ```
 
-每个 item 带 `item_id`、`run_id`、`turn_id`、单调 sequence、时间与内容 hash。partial text/tool JSON 只存在于 `StreamingTurnAssembler` 内存缓冲；完成事件到达、Tool identity 完整且参数可解析为 JSON 后，才会产生 canonical ToolRequest。OpenAI Chat、OpenAI Responses、Anthropic Messages 分别只负责把厂商 SSE event 映射成统一 delta；private reasoning/thinking/signature event 没有 Transcript variant，会被忽略而不是误持久化。Transcript 可供 Creator 审计和 Context 重建，但不能直接改变 Project。
+每个 item 带 `item_id`、`run_id`、`turn_id`、单调 sequence、时间与内容 hash。partial text/tool JSON 只存在于 `StreamingTurnAssembler` 内存缓冲；完成事件到达、Tool identity 完整且参数可解析为 JSON 后，才会产生 canonical ToolRequest。OpenAI Chat、OpenAI Responses、Anthropic Messages 分别只负责把厂商 SSE event 映射成统一 delta；private reasoning/thinking/signature 没有 Transcript variant。支持协议连续性的完整 opaque item/block 会交给 Adapter-owned Continuity State，其他私密 delta 被忽略，二者都不会变成可见消息。Transcript 可供 Creator 审计和 Context 重建，但不能直接改变 Project。
 
 CM-1 的当前实例化把 Context Module 收进四个窄 Interface：
 
@@ -288,34 +292,40 @@ ContextManager::inspect_run(run_id) -> ContextProjection
 3. 只有 `ContextPrepared`、没有任何 Provider output：返回 `InterruptedTurn`，Run 以 `inference_interrupted` 失败，不自动重提可能已经计费的请求；
 4. 其余状态：根据耐久 transcript 选择本轮唯一 Tool schema，准备新 Manifest，再调用 Provider。
 
-固定阶段先只开放 `project.describe`。它真实读取当前 Project id、name、revision、Brief、Run/Candidate 数和 Selection 状态；成功 Result 落盘后，下一轮才只开放 `submit_creative_plan`。后者校验 visible summary、generation prompt、1—900 秒时长和 1—4 个 Candidate，再写 success/error ToolResult。这个顺序迫使真实 LLM 至少消费一次本地工程事实，也让测试能证明 Tool Result 确实进入下一轮 Provider 输入。
+固定阶段始终提供同一份稳定 catalog：`project_describe` 与 `submit_creative_plan`。前者真实读取当前 Project id、name、revision、Brief、Run/Candidate 数和 Selection 状态；后者只有在成功的 describe Result 已落盘后才接受计划，否则返回结构化 Tool error。它校验 visible summary、generation prompt、1—900 秒时长和 1—4 个 Candidate，再写 success/error ToolResult。固定 catalog 避免每轮 tool fingerprint 漂移导致 continuity 无谓失效，同时仍由 Core 强制“先读事实、后交计划”的顺序。
+
+所有 `CanonicalToolDefinition.name` 都必须满足跨 Provider 的可移植子集 `^[a-zA-Z0-9_-]{1,64}$`。领域 Registry 未来可以保留独立的命名空间 identity，但发送给模型的名称不能直接使用带 `.` 的内部路径；这一约束在进入 Provider 前由 Core 校验，避免把本地命名错误变成一次可计费 HTTP 请求。
 
 Project Run 与 Transcript 使用同一个 `AgentRunId`。完整生命周期是：
 
 1. 在旧 Project revision 上提交 `agent_run.started`，Run 状态为 `planning`、`plan = None`；
 2. 使用这个已经可见的 `AgentRunId` 和新 Project revision 准备、持久化 `ContextManifest`；
 3. 只有 manifest 成功后调用 Provider；完整 Turn、ToolRequest、ToolResult 分批按 CAS revision 追加；
-4. 每一步重新派生，直到 terminal Tool Result 可用，再用单独事务附加 typed Plan 并转为 `awaiting_approval`；
+4. 每一步重新派生，直到 terminal Tool Result 可用；先清理 Run continuity，再用单独事务附加 typed Plan 并转为 `awaiting_approval`，因此清理失败不会被误报为成功 Plan；
 5. Provider 拒绝、不可用、无效响应、ambiguous interruption 或 Context/Harness 失败时，用单独事务附加结构化 failure 并转为 `failed`；
 6. `failed` 是终态，因此相同 Brief 可以开始一个新 Run；旧 Run 与 Transcript 保留审计关系，不复用失败尝试。
 
-恢复入口是 `POST /v1/agent-runs/{runId}/resume`，TUI `/recover` 与 Desktop 的“从工程记录恢复规划”调用同一 Core Interface。CM-1 的限制同样明确：固定 Planning Tool Module 不是通用 Registry；本地执行尚无独立 durable `AgentStepId/ToolExecution` 状态机；OpenAI reasoning item 与 Anthropic signed thinking block 也尚未进入 Continuity Vault。因此 CM-1 可以恢复语义 transcript 和幂等只读步骤，但不能宣称已完成 CM-2 的同一 Provider 私有推理链延续，也不能承担 Music Project 写入工具。
+恢复入口是 `POST /v1/agent-runs/{runId}/resume`，TUI `/recover` 与 Desktop 的“从工程记录恢复规划”调用同一 Core Interface。CM-2 之后，兼容的 OpenAI Responses/Anthropic Messages Turn 还能从 Vault 取回原链所需 opaque state；OpenAI-compatible Chat/DeepSeek 没有这个私密连续性合同，只能从 canonical Transcript 开始新 Turn。固定 Planning Tool Module 仍不是通用 Registry，本地执行也尚无独立 durable `AgentStepId/ToolExecution` 状态机，因此当前能力不能承担 Music Project 写入工具或长 Run。
 
 #### 4.3.2 Provider Continuity State
 
-Provider Continuity State 解决“继续同一 tool-use chain”，而不是解释或展示模型思考。OpenAI Adapter 可以保存 response/reasoning item reference，Anthropic Adapter 可以保存 signed thinking blocks；精确 payload 由 Adapter 决定并保持 opaque。
+Provider Continuity State 解决“继续同一 tool-use chain”，而不是解释或展示模型思考。当前 OpenAI Responses Adapter 保存完成的 reasoning/function output items；Anthropic Messages Adapter 保存完整 thinking/redacted-thinking/text/tool-use content blocks。精确 payload 由 Adapter 决定并保持 opaque；OpenAI-compatible Chat 不接受 Continuity State。
 
 ```rust
 pub trait ContinuityVault {
-    async fn store(&self, binding: ContinuityBinding, sealed: SealedBytes)
-        -> Result<ContinuityRef, VaultError>;
-    async fn load(&self, reference: &ContinuityRef, expected: &ContinuityBinding)
-        -> Result<SealedBytes, VaultError>;
-    async fn purge_run(&self, run_id: RunId) -> Result<(), VaultError>;
+    fn load(&self, binding: &ContinuityBinding, now_ms: u64)
+        -> Result<Option<LoadedContinuity>, ContinuityVaultError>;
+    fn store(&self, binding: &ContinuityBinding, source_turn: &InferenceTurnId,
+        state: &ProviderContinuityState, now_ms: u64)
+        -> Result<ContinuityReference, ContinuityVaultError>;
+    fn purge_run(&self, run_id: &AgentRunId) -> Result<(), ContinuityVaultError>;
+    fn purge_expired(&self, now_ms: u64) -> Result<usize, ContinuityVaultError>;
 }
 ```
 
-`ContinuityBinding` 至少包含 run/provider/model/protocol/tool-catalog fingerprint 与 format revision。Vault 在 Project Package 外使用独立加密密钥；payload 不进入 Project/Event/log/SSE/backup/export/compaction。Provider/Model/Protocol 切换使不兼容状态失效；Run 终态完成语义提交后 purge。
+`ContinuityBinding` 当前包含 run、provider、model、protocol、Thinking Level/control/budget、capability revision、mapping revision、tool-catalog fingerprint 与 binding format revision。`FileContinuityVault` 使用 XChaCha20-Poly1305，每次写入随机 24-byte nonce，以完整 envelope metadata 作为 AAD；每个 Run 只保留一个原子替换的最新密文。默认 TTL 为 7 天，Core 启动立即清理一次，之后每小时运行 janitor。错配、过期、损坏密文和未知 schema 都失败关闭并删除相应 entry。
+
+Vault 根目录与 Project Package 分离；production composition root 会同时做词法与解析后路径校验，拒绝 Vault 或 key 位于工程内部以及符号链接回工程的路径。Unix 下目录为 `0700`，密钥/密文为 `0600`。当前密钥是应用私有根目录中的独立 32-byte 本地文件，这足以证明工程隔离和加密合同，但还不是发布级 OS Credential Vault。Context SQLite 只保存 `ContinuityReference`（state id、source turn id、binding hash、created/expires），payload 不进入 Project/Event/log/SSE/backup/export/compaction。Provider/Model/Protocol/Thinking/能力映射/Tool catalog 任一切换都会失效旧状态。Planning 成功提交前先 purge；失败路径也尝试 purge。OpenAI `gpt-5-mini` 已完成真实模型输出、跨 Turn continuation 和终态 purge，因而 OpenAI Continuity live 可标记 PASS；Anthropic exact-model live 与 OS secure storage 仍是发布前 Gate。
 
 ### 4.4 Tool Runtime Module
 
@@ -483,7 +493,7 @@ implementation_kind
 
 | Tool | 作用 | 副作用 |
 |---|---|---|
-| `project.describe` | 读取精简工程事实 | 无 |
+| `project_describe` | 读取精简工程事实 | 无 |
 | `arrangement.set_structure` | 设置段落和小节范围 | Project mutation |
 | `tempo.set_map` | 设置 BPM/拍号 | Project mutation |
 | `track.create_instrument` | 创建乐器轨 | Project mutation |
@@ -572,7 +582,7 @@ Candidate
 
 音频 callback、render worker 和插件 worker 不直接写数据库。
 
-Provider Continuity State 不写入 Project SQLite。`ContinuityVault` 位于 Project Package 外，使用独立密钥和目录/OS secure storage reference；SQLite 只保存不含 payload 的 `ContinuityRef`、binding hash、状态和清理结果。
+Provider Continuity payload 不写入 Project SQLite。`ContinuityVault` 位于 Project Package 外并使用独立密钥；SQLite 的 `ContextManifest` 只保存不含 payload 的 `ContinuityReference` 与 binding hash。当前开发密钥是权限收紧的本地文件，目标 OS secure storage 尚未完成。
 
 ### 8.2 Tool 幂等
 
@@ -801,8 +811,8 @@ Client 先获取 Snapshot，再从 `asOfSequence` 连接 SSE。断线后重新�
 | crate | M3 职责 |
 |---|---|
 | `autostudio-core` | Music Project domain、Agent Run、Inference item、Tool descriptor/request/result、Grant/Budget、Policy、application Interface |
-| `autostudio-provider` | 仅 LLM Connection、Catalog、Thinking、stream assembly 与 continuity-aware 协议 Adapter；删除 production music generation 职责 |
-| `autostudio-storage` | 已实现 Project SQLite、Event/outbox 与 Run-scoped Transcript；后续增加 Grant/Budget、ToolExecution、Music Snapshot；Project 外实现 Continuity Vault |
+| `autostudio-provider` | LLM Connection、Catalog、Thinking、stream assembly、continuity-aware 协议 Adapter 与 Project 外 `FileContinuityVault`；后续删除 production music generation 职责 |
+| `autostudio-storage` | 已实现 Project SQLite、Event/outbox 与 Run-scoped Transcript/Manifest；后续增加 Grant/Budget、ToolExecution、Music Snapshot；不保存 Continuity payload |
 | `autostudio-media` | staged asset、WAV、离线 render/analysis 的初始实现 |
 | `autostudio-api` | Core HTTP/SSE、session/discovery 与 DTO |
 
@@ -922,18 +932,19 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 按依赖顺序实施：
 
 1. `PASS`：已建立可回退 Git baseline `b9db99c`；继续禁止未审计的 destructive cleanup；
-2. `IN PROGRESS`：执行 Q0 内容可行性 Spike，只有 `GO` 才进入 production M3；
+2. `IN PROGRESS`：执行 Q0 内容可行性 Spike；Harness Foundation 可并行，只有 `GO` 才进入 production Music Project/Audio Engine 纵切；
 3. 冻结 ADR-0011、ADR-0012 与新领域词汇；
 4. 冻结旧 `GenerationAdapter/Coordinator`，停止扩展 submit/observe/reconcile，但暂不删除；
-5. `PASS（CM-1 planning slice）`：Inference Item/Transcript、Context Manifest、canonical request、SSE assembler、完整 Tool pair、每步 restart replay 与 Planning resume 已实现；下一步是 Provider continuity Adapter contract/Vault、compaction/长期 Run、Approval Grant、Run Budget；
-6. 在 `autostudio-core` 建立 Music Project commands、Tool Descriptor/Request/Result 与 RunProjection；
-7. 在 storage 增加 Music Project/Transcript/Grant/Budget/ToolExecution/Snapshot migration 与 non-terminal query；
-8. 实现固定本地 Tool Registry 与两种真实 Tool Adapter：Project/MIDI 与 Render/Analysis；
-9. `PASS（固定 Planning slice）`：LLM Planning 已扩展为 `project.describe → submit_creative_plan` 有界 Tool loop；Music Project 阶段再迁移到通用 Tool Runtime；
-10. 以最小内置音源完成离线 render，再接 Factory Pack/Sampler；
-11. 把 Candidate 从 Audio-only 升级为 Project Snapshot，并让新纵切通过 production composition root；
-12. 用端到端、恢复和架构守护测试证明新路径后，再删除 Generation 状态/API 与误导命名，把仍需的 WAV fixture 移入 test support；
-13. Factory 质量 corpus 通过后进入 VST3 隔离 Host。
+5. `PASS（CM-1 planning slice）`：Inference Item/Transcript、Context Manifest、canonical request、SSE assembler、完整 Tool pair、每步 restart replay 与 Planning resume 已实现；
+6. `PASS（CM-2 planning slice）`：OpenAI Responses/Anthropic Messages continuity capture/replay、Project 外加密 Vault、binding、TTL、janitor、错配/损坏处理、终态 purge 与 secret-sentinel 隔离合同已实现；下一步是 CM-3 compaction，再进入必做的 CM-4 长 Run retrieval；
+7. 在 `autostudio-core` 建立 Music Project commands、Tool Descriptor/Request/Result 与 RunProjection；
+8. 在 storage 增加 Music Project/Transcript/Grant/Budget/ToolExecution/Snapshot migration 与 non-terminal query；
+9. 实现固定本地 Tool Registry 与两种真实 Tool Adapter：Project/MIDI 与 Render/Analysis；
+10. `PASS（固定 Planning slice）`：LLM Planning 已扩展为 `project_describe → submit_creative_plan` 有界 Tool loop；Music Project 阶段再迁移到通用 Tool Runtime；
+11. 以最小内置音源完成离线 render，再接 Factory Pack/Sampler；
+12. 把 Candidate 从 Audio-only 升级为 Project Snapshot，并让新纵切通过 production composition root；
+13. 用端到端、恢复和架构守护测试证明新路径后，再删除 Generation 状态/API 与误导命名，把仍需的 WAV fixture 移入 test support；
+14. Factory 质量 corpus 通过后进入 VST3 隔离 Host。
 
 迁移期间不能把旧 Fixture 接回 production 来保持演示“能发声”。如果本地音乐 Tool 未准备好，产品应明确显示 `local music runtime not available`。
 

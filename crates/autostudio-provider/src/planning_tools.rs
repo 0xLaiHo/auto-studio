@@ -40,22 +40,23 @@ struct ProjectFacts<'a> {
 }
 
 pub(crate) fn catalog(
-    projection: &ContextProjection,
+    _projection: &ContextProjection,
 ) -> Result<Vec<CanonicalToolDefinition>, PlanningToolError> {
-    let described = successful_result(projection, PROJECT_DESCRIBE_TOOL_NAME).is_some();
-    let tool = if described {
-        definition(PLAN_TOOL_NAME, PLAN_TOOL_DESCRIPTION, PLAN_SCHEMA_JSON)?
-    } else {
+    Ok(vec![
         definition(
             PROJECT_DESCRIBE_TOOL_NAME,
             PROJECT_DESCRIBE_TOOL_DESCRIPTION,
             EMPTY_OBJECT_SCHEMA_JSON,
-        )?
-    };
-    Ok(vec![tool])
+        )?,
+        definition(PLAN_TOOL_NAME, PLAN_TOOL_DESCRIPTION, PLAN_SCHEMA_JSON)?,
+    ])
 }
 
-pub(crate) fn execute(project: &Project, request: &PendingToolRequest) -> CompletedToolResult {
+pub(crate) fn execute(
+    project: &Project,
+    projection: &ContextProjection,
+    request: &PendingToolRequest,
+) -> CompletedToolResult {
     let execution_id = Some(Uuid::new_v4().to_string());
     match request.name.as_str() {
         PROJECT_DESCRIBE_TOOL_NAME => {
@@ -92,6 +93,18 @@ pub(crate) fn execute(project: &Project, request: &PendingToolRequest) -> Comple
                     is_error: true,
                     execution_id,
                 },
+            }
+        }
+        PLAN_TOOL_NAME if successful_result(projection, PROJECT_DESCRIBE_TOOL_NAME).is_none() => {
+            CompletedToolResult {
+                call_id: request.call_id.clone(),
+                name: request.name.clone(),
+                content: format!(
+                    "{{\"accepted\":false,\"error\":{}}}",
+                    json_string("project_describe must complete before plan submission")
+                ),
+                is_error: true,
+                execution_id,
             }
         }
         PLAN_TOOL_NAME => match parse_plan_arguments(&request.arguments_json) {
@@ -260,7 +273,7 @@ fn parse_empty_arguments(value: &str) -> Result<(), PlanningToolError> {
         Ok(())
     } else {
         Err(PlanningToolError::InvalidArguments(
-            "project.describe does not accept arguments".to_owned(),
+            "project_describe does not accept arguments".to_owned(),
         ))
     }
 }

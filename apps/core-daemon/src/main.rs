@@ -13,8 +13,12 @@ use autostudio_core::project::ProjectService;
 use autostudio_core::provider::{LlmConnectionControl, LlmModelCatalogState};
 use autostudio_media::ProjectMedia;
 use autostudio_provider::connection::{ConnectionInferenceAdapter, FileLlmConnectionManager};
-use autostudio_provider::constants::{ENV_LLM_CONNECTION_FILE, ENV_LLM_PROVIDER};
-use autostudio_provider::{AgentPlanner, LocalCreativeRuntime};
+use autostudio_provider::constants::{
+    CONTINUITY_JANITOR_INTERVAL, DEFAULT_CONTINUITY_TTL_MILLIS, ENV_CONTINUITY_KEY_FILE,
+    ENV_CONTINUITY_ROOT, ENV_LLM_CONNECTION_FILE, ENV_LLM_PROVIDER,
+};
+use autostudio_provider::continuity::{ContinuityVault, FileContinuityVault};
+use autostudio_provider::{AgentPlanner, ContinuityVaultError, LocalCreativeRuntime};
 use autostudio_storage::{ProjectPackageBackup, SqliteProjectStore};
 use tokio::net::TcpListener;
 use uuid::Uuid;
@@ -71,7 +75,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         PathBuf::from,
     );
     let connections = Arc::new(FileLlmConnectionManager::new(
-        connection_path,
+        connection_path.clone(),
         Some(llm_provider),
     ));
     if connections.status().is_ok_and(|status| {
@@ -86,8 +90,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let _ = connections.refresh_model_catalog().await;
         });
     }
+    let continuity = continuity_vault(&project_package, &connection_path)?;
     let inference = ConnectionInferenceAdapter::new(connections.clone());
-    let planner = AgentPlanner::new(projects.clone(), contexts, Arc::new(inference));
+    let planner = AgentPlanner::with_continuity_vault(
+        projects.clone(),
+        contexts,
+        Arc::new(inference),
+        continuity,
+    );
     let media = Arc::new(ProjectMedia::new(&project_package, &staging)?);
     let backup = Arc::new(ProjectPackageBackup::new(&project_package, &backup_root)?);
     let runtime = Arc::new(LocalCreativeRuntime::planning_only(planner));
@@ -116,6 +126,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_graceful_shutdown(shutdown_signal(parent_heartbeat))
         .await?;
     Ok(())
+}
+
+fn continuity_vault(
+    project_package: &std::path::Path,
+    connection_path: &std::path::Path,
+) -> Result<Arc<FileContinuityVault>, ContinuityVaultError> {
+    let private_root = connection_path
+        .parent()
+        .unwrap_or(project_package)
+        .to_path_buf();
+    let continuity_root = env::var_os(ENV_CONTINUITY_ROOT)
+        .map_or_else(|| private_root.join("continuity"), PathBuf::from);
+    let continuity_key = env::var_os(ENV_CONTINUITY_KEY_FILE)
+        .map_or_else(|| private_root.join("continuity.key"), PathBuf::from);
+    let continuity = Arc::new(FileContinuityVault::open_for_project(
+        continuity_root,
+        continuity_key,
+        project_package,
+        DEFAULT_CONTINUITY_TTL_MILLIS,
+    )?);
+    continuity.purge_expired(FileContinuityVault::now_unix_millis()?)?;
+    let janitor = Arc::clone(&continuity);
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(CONTINUITY_JANITOR_INTERVAL).await;
+            if let Ok(now) = FileContinuityVault::now_unix_millis() {
+                let _ = janitor.purge_expired(now);
+            }
+        }
+    });
+    Ok(continuity)
 }
 
 async fn shutdown_signal(parent_heartbeat: Option<PathBuf>) {

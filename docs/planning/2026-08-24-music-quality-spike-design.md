@@ -9,7 +9,7 @@
 
 [ADR-0011](../adr/0011-llm-authored-local-music.md) 把产品方向改为“LLM 通过本地语义工具创作可编辑音乐”。这个方向成立需要一个尚未验证的核心前提：通用 LLM 能产生值得创作者保留并继续编辑的结构、和声、旋律、节奏与配器决定。
 
-Q0 开工时，production 代码只证明一次 typed Planning Turn；截至 2026-08-25，CM-1 已补齐 SSE assembler、完整 Tool pair、固定 `project.describe → submit_creative_plan` 多轮规划与恢复，但仍没有 Music Project 写入 Tool、MIDI、Sampler 或 Audio Engine。`experiments/music-quality/` 的独立试验纵切不改变 production 的 planning-only 状态。若先完成完整本地引擎再验证音乐决策质量，仍会把最昂贵的技术投入放在最大的不确定性之前。
+Q0 开工时，production 代码只证明一次 typed Planning Turn；截至 2026-08-26，CM-1 已补齐 SSE assembler、完整 Tool pair、固定 `project_describe → submit_creative_plan` 多轮规划与恢复，CM-2 又补齐 Project 外加密 Continuity Vault，但仍没有 Music Project 写入 Tool、MIDI、Sampler 或 Audio Engine。`experiments/music-quality/` 的独立试验纵切不改变 production 的 planning-only 状态。若先完成完整本地引擎再验证音乐决策质量，仍会把最昂贵的技术投入放在最大的不确定性之前。
 
 ## 2. 要回答的决策问题
 

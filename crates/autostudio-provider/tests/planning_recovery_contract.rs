@@ -238,6 +238,7 @@ impl Fixture {
                     Vec::new()
                 },
                 provider_binding: binding(&tools),
+                continuity_reference: None,
                 tools,
                 token_budget: TokenBudgetPlan::unknown(4_096, 1_024),
             })
@@ -264,7 +265,25 @@ impl InferenceAdapter for CountingInference {
 
     fn infer(&self, request: InferenceTurnRequest) -> InferenceFuture<'_> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        let tool = request.prepared.tools()[0].clone();
+        let described = request.prepared.messages().iter().any(|message| {
+            matches!(message, autostudio_core::context::CanonicalMessage::Tool {
+                name,
+                is_error: false,
+                ..
+            } if name == PROJECT_DESCRIBE_TOOL_NAME)
+        });
+        let expected = if described {
+            PLAN_TOOL_NAME
+        } else {
+            PROJECT_DESCRIBE_TOOL_NAME
+        };
+        let tool = request
+            .prepared
+            .tools()
+            .iter()
+            .find(|tool| tool.name == expected)
+            .expect("expected recovery Tool")
+            .clone();
         Box::pin(async move {
             Ok(InferenceOutcome {
                 provider: descriptor(),
@@ -281,6 +300,7 @@ impl InferenceAdapter for CountingInference {
                     currency: None,
                 },
                 response_id: Some("next-response".to_owned()),
+                continuity: None,
             })
         })
     }

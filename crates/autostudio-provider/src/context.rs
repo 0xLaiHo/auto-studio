@@ -9,6 +9,7 @@ use autostudio_core::context::{
     ContextEventStore, ContextId, ContextManifest, InferenceItem, InferenceItemDraft,
     InferenceTurnId, PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
+use autostudio_core::continuity::ContinuityReference;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -21,6 +22,7 @@ pub struct PrepareContext {
     pub instructions: String,
     pub new_user_messages: Vec<String>,
     pub provider_binding: ProviderBinding,
+    pub continuity_reference: Option<ContinuityReference>,
     pub tools: Vec<CanonicalToolDefinition>,
     pub token_budget: TokenBudgetPlan,
 }
@@ -171,6 +173,7 @@ impl ContextManager {
             messages: &messages,
             tools: &request.tools,
             provider_binding: &request.provider_binding,
+            continuity_reference: request.continuity_reference.as_ref(),
             token_budget: &request.token_budget,
         })?;
         let manifest = ContextManifest::new(
@@ -184,6 +187,7 @@ impl ContextManager {
             request.instructions.clone(),
             request.tools.clone(),
             request.provider_binding,
+            request.continuity_reference,
             request.token_budget,
             content_hash,
         )?;
@@ -772,5 +776,6 @@ struct ContextHashInput<'a> {
     messages: &'a [CanonicalMessage],
     tools: &'a [CanonicalToolDefinition],
     provider_binding: &'a ProviderBinding,
+    continuity_reference: Option<&'a ContinuityReference>,
     token_budget: &'a TokenBudgetPlan,
 }

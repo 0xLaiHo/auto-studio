@@ -465,6 +465,11 @@ impl HttpInferenceAdapter {
         &self,
         request: &InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
+        if request.continuity.is_some() {
+            return Err(AdapterError::ContinuityUnavailable(
+                "OpenAI-compatible Chat Completions has no private continuity contract".to_owned(),
+            ));
+        }
         let endpoint = endpoint(&self.config.base_url, CHAT_COMPLETIONS_PATH)?;
         let messages = openai_chat_messages(request);
         let tools = openai_chat_tools(request)?;
@@ -501,6 +506,7 @@ impl HttpInferenceAdapter {
             tool_calls: assembled.tool_calls,
             usage: assembled.usage,
             response_id: assembled.response_id,
+            continuity: assembled.continuity,
         })
     }
 
@@ -509,7 +515,7 @@ impl HttpInferenceAdapter {
         request: &InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
         let endpoint = endpoint(&self.config.base_url, OPENAI_RESPONSES_PATH)?;
-        let input = openai_responses_input(request);
+        let input = openai_responses_input(request)?;
         let tools = openai_responses_tools(request)?;
         let mut body = json!({
             "model": self.config.model,
@@ -543,6 +549,7 @@ impl HttpInferenceAdapter {
             tool_calls: assembled.tool_calls,
             usage: assembled.usage,
             response_id: assembled.response_id,
+            continuity: assembled.continuity,
         })
     }
 
@@ -590,6 +597,7 @@ impl HttpInferenceAdapter {
             tool_calls: assembled.tool_calls,
             usage: assembled.usage,
             response_id: assembled.response_id,
+            continuity: assembled.continuity,
         })
     }
 }
@@ -685,8 +693,13 @@ fn openai_chat_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, Adapt
         .collect()
 }
 
-fn openai_responses_input(request: &InferenceTurnRequest) -> Vec<Value> {
+fn openai_responses_input(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
     let mut input = Vec::new();
+    let continuity = continuity_json(
+        request,
+        crate::continuity::ContinuityFormat::OpenAiResponses,
+    )?;
+    let mut continuity_used = false;
     for message in request.prepared.messages() {
         match message {
             CanonicalMessage::User { content } => {
@@ -696,6 +709,21 @@ fn openai_responses_input(request: &InferenceTurnRequest) -> Vec<Value> {
                 content,
                 tool_calls,
             } => {
+                if !continuity_used
+                    && continuity.as_ref().is_some_and(|items| {
+                        continuity_matches_tool_calls(items, "function_call", tool_calls)
+                    })
+                {
+                    input.extend(
+                        continuity
+                            .as_ref()
+                            .expect("matched OpenAI Continuity")
+                            .iter()
+                            .cloned(),
+                    );
+                    continuity_used = true;
+                    continue;
+                }
                 if let Some(content) = content {
                     input.push(json!({"role": "assistant", "content": content}));
                 }
@@ -717,7 +745,12 @@ fn openai_responses_input(request: &InferenceTurnRequest) -> Vec<Value> {
             })),
         }
     }
-    input
+    if continuity.is_some() && !continuity_used {
+        return Err(AdapterError::ContinuityUnavailable(
+            "OpenAI Responses state does not match a canonical Tool Request".to_owned(),
+        ));
+    }
+    Ok(input)
 }
 
 fn openai_responses_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
@@ -741,6 +774,11 @@ fn openai_responses_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, 
 
 fn anthropic_messages(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
     let mut messages = Vec::new();
+    let continuity = continuity_json(
+        request,
+        crate::continuity::ContinuityFormat::AnthropicMessages,
+    )?;
+    let mut continuity_used = false;
     for message in request.prepared.messages() {
         match message {
             CanonicalMessage::User { content } => {
@@ -750,6 +788,18 @@ fn anthropic_messages(request: &InferenceTurnRequest) -> Result<Vec<Value>, Adap
                 content,
                 tool_calls,
             } => {
+                if !continuity_used
+                    && continuity.as_ref().is_some_and(|blocks| {
+                        continuity_matches_tool_calls(blocks, "tool_use", tool_calls)
+                    })
+                {
+                    messages.push(json!({
+                        "role": "assistant",
+                        "content": continuity.as_ref().expect("matched Anthropic Continuity")
+                    }));
+                    continuity_used = true;
+                    continue;
+                }
                 let mut blocks = Vec::new();
                 if let Some(content) = content {
                     blocks.push(json!({"type": "text", "text": content}));
@@ -782,7 +832,59 @@ fn anthropic_messages(request: &InferenceTurnRequest) -> Result<Vec<Value>, Adap
             })),
         }
     }
+    if continuity.is_some() && !continuity_used {
+        return Err(AdapterError::ContinuityUnavailable(
+            "Anthropic Messages state does not match a canonical Tool Request".to_owned(),
+        ));
+    }
     Ok(messages)
+}
+
+fn continuity_json(
+    request: &InferenceTurnRequest,
+    expected: crate::continuity::ContinuityFormat,
+) -> Result<Option<Vec<Value>>, AdapterError> {
+    let Some(state) = &request.continuity else {
+        return Ok(None);
+    };
+    if state.format() != expected {
+        return Err(AdapterError::ContinuityUnavailable(format!(
+            "state format {:?} cannot be replayed by {:?}",
+            state.format(),
+            expected
+        )));
+    }
+    let value = state
+        .json()
+        .map_err(|error| AdapterError::ContinuityUnavailable(error.to_string()))?;
+    value.as_array().cloned().map(Some).ok_or_else(|| {
+        AdapterError::ContinuityUnavailable("state payload is not an array".to_owned())
+    })
+}
+
+fn continuity_matches_tool_calls(
+    items: &[Value],
+    item_type: &str,
+    calls: &[autostudio_core::context::CanonicalToolCall],
+) -> bool {
+    if calls.is_empty() {
+        return false;
+    }
+    let provider_ids = items
+        .iter()
+        .filter(|item| item.get("type").and_then(Value::as_str) == Some(item_type))
+        .filter_map(|item| {
+            item.get(if item_type == "tool_use" {
+                "id"
+            } else {
+                "call_id"
+            })
+            .and_then(Value::as_str)
+        })
+        .collect::<Vec<_>>();
+    calls
+        .iter()
+        .all(|call| provider_ids.contains(&call.call_id.as_str()))
 }
 
 fn anthropic_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {

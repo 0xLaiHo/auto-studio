@@ -49,6 +49,7 @@ pub fn inference_request(
                 mapping_revision: "provider-contract-mapping/1".to_owned(),
                 tool_catalog_fingerprint: fingerprint_tool_catalog(&tools),
             },
+            continuity_reference: None,
             tools,
             token_budget: TokenBudgetPlan::unknown(
                 u64::from(PLAN_MAX_OUTPUT_TOKENS),
@@ -56,5 +57,8 @@ pub fn inference_request(
             ),
         })
         .expect("prepare Provider contract Context");
-    InferenceTurnRequest { prepared }
+    InferenceTurnRequest {
+        prepared,
+        continuity: None,
+    }
 }

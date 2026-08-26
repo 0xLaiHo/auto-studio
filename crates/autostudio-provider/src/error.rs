@@ -1,4 +1,5 @@
 use autostudio_core::context::ContextError;
+use autostudio_core::continuity::ContinuityError;
 use autostudio_core::project::ProjectError;
 use thiserror::Error;
 
@@ -20,6 +21,8 @@ pub enum AgentPlannerError {
     Adapter(#[from] AdapterError),
     #[error(transparent)]
     Context(#[from] ContextError),
+    #[error(transparent)]
+    Continuity(#[from] ContinuityVaultError),
     #[error(transparent)]
     Project(#[from] ProjectError),
     #[error(transparent)]
@@ -46,6 +49,34 @@ pub enum AdapterError {
     InvalidResponse(String),
     #[error("Provider is unavailable: {0}")]
     Unavailable(String),
+    #[error("Provider Continuity is unavailable: {0}")]
+    ContinuityUnavailable(String),
+}
+
+#[derive(Debug, Error)]
+pub enum ContinuityVaultError {
+    #[error("Provider Continuity path must have a parent directory")]
+    MissingParent,
+    #[error("Provider Continuity storage must remain outside the Project Package")]
+    InsideProject,
+    #[error("Provider Continuity storage has insecure permissions")]
+    InsecurePermissions,
+    #[error("Provider Continuity entry is too large")]
+    FileTooLarge,
+    #[error("Provider Continuity entry uses an unsupported schema")]
+    UnsupportedSchema,
+    #[error("Provider Continuity entry is corrupt")]
+    Corrupt,
+    #[error("Provider Continuity cryptography failed")]
+    Crypto,
+    #[error("Provider Continuity clock is invalid")]
+    InvalidClock,
+    #[error(transparent)]
+    Domain(#[from] ContinuityError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Error)]

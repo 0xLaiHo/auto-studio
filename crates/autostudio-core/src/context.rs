@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::agent::{AgentRunId, InferenceUsage};
+use crate::constants::MAX_PROVIDER_TOOL_NAME_CHARS;
+use crate::continuity::ContinuityReference;
 pub use crate::error::{ContextError, ContextStoreError};
 use crate::provider::{ThinkingControl, ThinkingLevel};
 
@@ -120,6 +122,13 @@ impl CanonicalToolDefinition {
     /// Returns [`ContextError`] for empty fields, invalid JSON, or fingerprint.
     pub fn validate(&self) -> Result<(), ContextError> {
         require_text(&self.name, "tool.name")?;
+        if self.name.chars().count() > MAX_PROVIDER_TOOL_NAME_CHARS
+            || !self.name.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '-')
+            })
+        {
+            return Err(ContextError::InvalidToolName);
+        }
         require_text(&self.description, "tool.description")?;
         serde_json::from_str::<serde_json::Value>(&self.input_schema_json)
             .map_err(|_| ContextError::InvalidJson("tool.input_schema_json"))?;
@@ -404,6 +413,8 @@ pub struct ContextManifest {
     instructions: String,
     tools: Vec<CanonicalToolDefinition>,
     provider_binding: ProviderBinding,
+    #[serde(default)]
+    continuity_reference: Option<ContinuityReference>,
     token_budget: TokenBudgetPlan,
     content_hash: String,
 }
@@ -426,6 +437,7 @@ impl ContextManifest {
         instructions: String,
         tools: Vec<CanonicalToolDefinition>,
         provider_binding: ProviderBinding,
+        continuity_reference: Option<ContinuityReference>,
         token_budget: TokenBudgetPlan,
         content_hash: String,
     ) -> Result<Self, ContextError> {
@@ -441,6 +453,7 @@ impl ContextManifest {
             instructions,
             tools,
             provider_binding,
+            continuity_reference,
             token_budget,
             content_hash,
         };
@@ -471,6 +484,11 @@ impl ContextManifest {
     #[must_use]
     pub const fn provider_binding(&self) -> &ProviderBinding {
         &self.provider_binding
+    }
+
+    #[must_use]
+    pub const fn continuity_reference(&self) -> Option<&ContinuityReference> {
+        self.continuity_reference.as_ref()
     }
 
     #[must_use]
@@ -531,6 +549,11 @@ impl ContextManifest {
             tool.validate()?;
         }
         self.provider_binding.validate()?;
+        if let Some(reference) = &self.continuity_reference {
+            reference
+                .validate()
+                .map_err(|error| ContextError::InconsistentJournal(error.to_string()))?;
+        }
         self.token_budget.validate()?;
         require_digest(&self.content_hash)
     }

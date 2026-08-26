@@ -3,7 +3,7 @@
 > 类型：Research，不定义发布资格
 > 日期：2026-08-25
 > 源码快照：Pi `c5ad7c1`、OpenAI Codex `d52478c`、DeepSeek Harness `b150a55`
-> 结论状态：架构建议；Auto Studio 对应实现仍为 `NOT IMPLEMENTED`
+> 结论状态：研究基线；截至 2026-08-26，CM-0/CM-1/CM-2 Planning slice 已实现，CM-3/CM-4 仍未实现
 
 ## 1. 结论
 
@@ -17,16 +17,16 @@ Auto Studio 不应完整复制其中任一实现，最合适的是一套分层�
 
 一句话概括：**完整事实留在本地，模型只看可重建的有界投影；摘要只替换模型视野，不改写历史，更不能改写音乐工程。**
 
-## 2. 当前代码落差
+## 2. 调研时的代码落差与当前进展
 
-当前实现还没有真正的上下文管理：
+以下是 2026-08-25 调研开始时的代码落差：
 
 - [`InferenceRequest`](../../crates/autostudio-provider/src/lib.rs) 只有 `brief` 与 `context_revision`；
 - [`brief_prompt()`](../../crates/autostudio-provider/src/llm.rs) 只把 Project revision 和 Creative Brief JSON 拼成一次请求；
 - 没有 durable `Turn`、`Message`、`ToolCall`、`ToolResult`、`ContextSnapshot`、`CompactionCheckpoint` 或 `ProviderContinuity` 实现；
 - 因此当前不是“上下文策略需要优化”，而是 agent tool loop 的上下文地基尚未实现。
 
-设计文档已经定义 Inference Transcript、Context Snapshot 和 Continuity Vault，但目前只是规格，不应把它们报告为已交付能力。
+截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。compaction checkpoint、长期 Run retrieval、Approval Grant、Run Budget 与通用 ToolExecution 仍只是规格，不能报告为已交付能力。
 
 ## 3. 三者对比
 
@@ -300,13 +300,15 @@ Provider private reasoning、signed block、response id 和 opaque compaction it
 - `prepare_turn()` 组装 Project facts、recent tail 和 tool schemas；
 - 每个 step 从 durable state 重新派生，不依赖 UI 或内存消息数组。
 
-实施状态（2026-08-25）：`CM-1 Planning slice` 已完成。首次 Provider 调用前先提交可见 `planning` Run；OpenAI Chat/Responses 与 Anthropic Messages 统一走 SSE assembler；`project.describe → submit_creative_plan` 的完整 Request/Result 配对耐久化；每一步只从 Project 与 Transcript 重新派生；待执行本地 Tool 和已完成 Plan 可恢复，仅有 `ContextPrepared` 而无 Provider 输出时以 `inference_interrupted` 安全失败且不重提。默认 `deepseek-v4-flash` 已通过一次真实计费流式 Tool Call smoke；该模型开启 thinking 时由 Adapter 使用 `tool_choice=auto`，Core 仍执行 tool identity、fingerprint 与参数校验。这里的 Tool Module 是固定纵切，不等于 M3-C 通用 Tool Registry/ToolExecution；CM-2 Continuity、CM-3 compaction 与 CM-4 长 Run 仍未实现。
+实施状态（2026-08-25）：`CM-1 Planning slice` 已完成。首次 Provider 调用前先提交可见 `planning` Run；OpenAI Chat/Responses 与 Anthropic Messages 统一走 SSE assembler；`project_describe → submit_creative_plan` 的完整 Request/Result 配对耐久化；每一步只从 Project 与 Transcript 重新派生；待执行本地 Tool 和已完成 Plan 可恢复，仅有 `ContextPrepared` 而无 Provider 输出时以 `inference_interrupted` 安全失败且不重提。默认 `deepseek-v4-flash` 已通过一次真实计费流式 Tool Call smoke；该模型开启 thinking 时由 Adapter 使用 `tool_choice=auto`，Core 仍执行 tool identity、fingerprint 与参数校验。这里的 Tool Module 是固定纵切，不等于 M3-C 通用 Tool Registry/ToolExecution。
 
 ### CM-2：Continuity Vault
 
 - OpenAI、Anthropic、DeepSeek adapter binding；
 - 加密、TTL、purge、model/provider/tool-catalog 失效；
 - Provider 切换 fallback 测试。
+
+实施状态（2026-08-26）：`CM-2 Planning slice` 已完成。OpenAI Responses 捕获完整 reasoning/function output item，Anthropic Messages 捕获完整 signed thinking/tool-use content block；同一 binding 的下一轮由对应 Adapter 原样回传。`FileContinuityVault` 在 Project Package 外使用 XChaCha20-Poly1305、独立本地密钥、随机 nonce、AAD、7 天 TTL、启动清理与每小时 janitor。binding 覆盖 run/provider/model/protocol/thinking/capability/mapping/tool catalog；错配、过期、未知 schema 和损坏密文会失败关闭并删除。测试证明 sentinel 不进入 Project SQLite、Context Event、backup 或 Debug，终态 purge 失败不会提交成功 Plan。`gpt-5-mini` 已通过两轮真实 Responses Continuity Planning 测试；Anthropic exact-model live 与 OS Credential Vault 仍为 `LIVE-PENDING`。OpenAI-compatible Chat/DeepSeek 继续依赖 canonical Transcript，不伪装成原生私密连续性恢复。
 
 ### CM-3：Compaction
 
@@ -358,6 +360,6 @@ CM-4 至少实现：
 
 ## 12. 结论性建议
 
-下一步不是先调 prompt，而是先完成 **CM-0 + CM-1**：建立 durable Transcript、ContextManifest 和真正的 multi-turn Tool loop。没有这层，后续的 Tool Registry、MCP、Approval、音乐工具和 Provider thinking continuity 都无法形成可恢复闭环。
+CM-0、CM-1 与 CM-2 的 Planning slice 已完成。下一步是 **CM-3 Compaction**，随后立即实现必做的 **CM-4 Long-Run Retrieval**；二者必须基于现有 durable Transcript、ContextManifest 和 Continuity binding，不能把摘要或索引升级成第二份工程事实。
 
-完成 CM-1 后依次实现 Continuity Vault、compaction 和 Long-Run Retrieval。CM-4 可以排在基础 durability 与 compaction 之后，但不能从产品范围删除，也不能等上线后才决定是否需要。第一版以可重建的本地全文/结构化检索为主，不把“长 Run 必须可持续”误解成“必须立即建设跨项目向量记忆平台”。
+CM-4 不能从产品范围删除，也不能等上线后才决定是否需要。第一版以可重建的本地全文/结构化检索为主，不把“长 Run 必须可持续”误解成“必须立即建设跨项目向量记忆平台”。

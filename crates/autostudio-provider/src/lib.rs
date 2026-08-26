@@ -3,6 +3,7 @@
 pub mod connection;
 pub mod constants;
 pub mod context;
+pub mod continuity;
 mod error;
 pub mod llm;
 mod planning_tools;
@@ -27,10 +28,13 @@ use autostudio_core::agent::{
     AgentDecision, AgentRunFailureDraft, AgentRunFailureKind, AgentRunId, AgentRunStatus,
     GenerationAttemptDraft, GenerationIntent, GenerationJobDraft, InferenceUsage,
 };
+#[cfg(any(test, debug_assertions))]
+use autostudio_core::context::CanonicalMessage;
 use autostudio_core::context::{
-    CanonicalMessage, ContextId, InferenceFinishReason, InferenceItemDraft, InferenceTurnId,
-    PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
+    ContextId, InferenceFinishReason, InferenceItemDraft, InferenceTurnId, PreparedContext,
+    ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
+use autostudio_core::continuity::ContinuityBinding;
 use autostudio_core::production::{
     CandidateDraft, GeneratedAssetSink, ProvenanceRecord, RightsDeclaration,
 };
@@ -41,8 +45,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use error::{
-    AdapterError, AgentPlannerError, ConnectionStoreError, GenerationCoordinatorError,
-    ProviderConfigError,
+    AdapterError, AgentPlannerError, ConnectionStoreError, ContinuityVaultError,
+    GenerationCoordinatorError, ProviderConfigError,
 };
 
 pub type InferenceFuture<'a> =
@@ -67,20 +71,20 @@ pub struct InferenceProviderDescriptor {
     pub protocol: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug)]
 pub struct InferenceTurnRequest {
     pub prepared: PreparedContext,
+    pub continuity: Option<continuity::ProviderContinuityState>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug)]
 pub struct InferenceOutcome {
     pub provider: InferenceProviderDescriptor,
     pub visible_text: Option<String>,
     pub tool_calls: Vec<autostudio_core::context::CanonicalToolCall>,
     pub usage: Usage,
     pub response_id: Option<String>,
+    pub continuity: Option<continuity::ProviderContinuityState>,
 }
 
 pub type Usage = InferenceUsage;
@@ -89,6 +93,7 @@ pub struct AgentPlanner {
     projects: Arc<ProjectService>,
     contexts: Arc<context::ContextManager>,
     inference: Arc<dyn InferenceAdapter>,
+    continuity: Arc<dyn continuity::ContinuityVault>,
 }
 
 struct PreparedPlanningTurn {
@@ -96,20 +101,39 @@ struct PreparedPlanningTurn {
     turn_id: InferenceTurnId,
     context_id: ContextId,
     journal_revision: u64,
+    continuity_binding: ContinuityBinding,
     request: InferenceTurnRequest,
 }
 
 impl AgentPlanner {
+    /// Creates a planner without private continuity for deterministic debug/test fixtures.
+    #[cfg(any(test, debug_assertions))]
     #[must_use]
     pub fn new(
         projects: Arc<ProjectService>,
         contexts: Arc<context::ContextManager>,
         inference: Arc<dyn InferenceAdapter>,
     ) -> Self {
+        Self::with_continuity_vault(
+            projects,
+            contexts,
+            inference,
+            Arc::new(continuity::DisabledContinuityVault),
+        )
+    }
+
+    #[must_use]
+    pub fn with_continuity_vault(
+        projects: Arc<ProjectService>,
+        contexts: Arc<context::ContextManager>,
+        inference: Arc<dyn InferenceAdapter>,
+        continuity: Arc<dyn continuity::ContinuityVault>,
+    ) -> Self {
         Self {
             projects,
             contexts,
             inference,
+            continuity,
         }
     }
 
@@ -206,10 +230,14 @@ impl AgentPlanner {
             }
             let projection = self.contexts.inspect_run(&run_id)?;
             if let Some(plan) = planning_tools::completed_plan(&projection)? {
-                return self
+                // A successful terminal semantic commit must never outlive private
+                // Provider state that the Harness failed to delete.
+                self.continuity.purge_run(&run_id)?;
+                let project = self
                     .projects
                     .record_agent_plan(project.revision(), &run_id, plan)
-                    .map_err(Into::into);
+                    .map_err(AgentPlannerError::from)?;
+                return Ok(project);
             }
             if projection.prepared_turn_without_output().is_some() {
                 return Err(AgentPlannerError::InterruptedTurn);
@@ -218,7 +246,7 @@ impl AgentPlanner {
                 let results = projection
                     .pending_tools()
                     .iter()
-                    .map(|request| planning_tools::execute(&project, request))
+                    .map(|request| planning_tools::execute(&project, &projection, request))
                     .collect();
                 self.contexts
                     .record_tool_results(context::RecordToolResults {
@@ -265,6 +293,15 @@ impl AgentPlanner {
             mapping_revision: descriptor.mapping_revision.clone(),
             tool_catalog_fingerprint: context::fingerprint_tool_catalog(&tools),
         };
+        let continuity_binding = ContinuityBinding::new(run_id.clone(), provider_binding.clone())
+            .map_err(ContinuityVaultError::from)?;
+        let loaded_continuity = self.continuity.load(
+            &continuity_binding,
+            continuity::FileContinuityVault::now_unix_millis()?,
+        )?;
+        let continuity_reference = loaded_continuity
+            .as_ref()
+            .map(|loaded| loaded.reference.clone());
         let brief_message = serde_json::to_string(&brief)
             .map_err(|error| AdapterError::InvalidResponse(error.to_string()))?;
         let instructions = format!(
@@ -285,6 +322,7 @@ impl AgentPlanner {
                 Vec::new()
             },
             provider_binding,
+            continuity_reference,
             tools,
             token_budget: TokenBudgetPlan::unknown(
                 u64::from(constants::PLAN_MAX_OUTPUT_TOKENS),
@@ -298,7 +336,11 @@ impl AgentPlanner {
             turn_id,
             context_id,
             journal_revision,
-            request: InferenceTurnRequest { prepared },
+            continuity_binding,
+            request: InferenceTurnRequest {
+                prepared,
+                continuity: loaded_continuity.map(|loaded| loaded.state),
+            },
         })
     }
 
@@ -389,11 +431,19 @@ impl AgentPlanner {
         });
         self.contexts.record_turn(context::RecordInferenceTurn {
             run_id: turn.run_id.clone(),
-            turn_id: turn.turn_id,
+            turn_id: turn.turn_id.clone(),
             context_id: turn.context_id,
             expected_journal_revision: turn.journal_revision,
             items,
         })?;
+        if let Some(state) = &outcome.continuity {
+            self.continuity.store(
+                &turn.continuity_binding,
+                &turn.turn_id,
+                state,
+                continuity::FileContinuityVault::now_unix_millis()?,
+            )?;
+        }
         Ok(())
     }
 
@@ -412,6 +462,7 @@ impl AgentPlanner {
             self.projects
                 .fail_agent_run(project.revision(), run_id, planning_failure(error))?;
         }
+        self.continuity.purge_run(run_id)?;
         Ok(())
     }
 }
@@ -469,9 +520,23 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
                         "deterministic fixture requires a Creative Brief message".to_owned(),
                     )
                 })?;
-            let tool = request.prepared.tools().first().ok_or_else(|| {
-                AdapterError::InvalidResponse("fixture requires a Tool".to_owned())
-            })?;
+            let described = request.prepared.messages().iter().any(|message| {
+                matches!(message, CanonicalMessage::Tool { name, is_error: false, .. }
+                    if name == constants::PROJECT_DESCRIBE_TOOL_NAME)
+            });
+            let expected_tool = if described {
+                constants::PLAN_TOOL_NAME
+            } else {
+                constants::PROJECT_DESCRIBE_TOOL_NAME
+            };
+            let tool = request
+                .prepared
+                .tools()
+                .iter()
+                .find(|tool| tool.name == expected_tool)
+                .ok_or_else(|| {
+                    AdapterError::InvalidResponse("fixture requires the planning Tool".to_owned())
+                })?;
             let arguments_json = if tool.name == constants::PROJECT_DESCRIBE_TOOL_NAME {
                 "{}".to_owned()
             } else {
@@ -498,6 +563,7 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
                     currency: None,
                 },
                 response_id: Some("deterministic-response".to_owned()),
+                continuity: None,
             })
         })
     }
@@ -507,7 +573,9 @@ fn finish_reason_for_error(error: &AdapterError) -> InferenceFinishReason {
     match error {
         AdapterError::Rejected(_) => InferenceFinishReason::ProviderRejected,
         AdapterError::UnknownOutcome(_) => InferenceFinishReason::UnknownConsumption,
-        AdapterError::InvalidResponse(_) => InferenceFinishReason::InvalidResponse,
+        AdapterError::InvalidResponse(_) | AdapterError::ContinuityUnavailable(_) => {
+            InferenceFinishReason::InvalidResponse
+        }
         AdapterError::Unavailable(_) => InferenceFinishReason::ProviderUnavailable,
     }
 }
@@ -521,10 +589,13 @@ fn planning_failure(error: &AgentPlannerError) -> AgentRunFailureDraft {
             AgentRunFailureKind::InvalidProviderResponse
         }
         AgentPlannerError::Adapter(
-            AdapterError::Unavailable(_) | AdapterError::UnknownOutcome(_),
+            AdapterError::Unavailable(_)
+            | AdapterError::UnknownOutcome(_)
+            | AdapterError::ContinuityUnavailable(_),
         ) => AgentRunFailureKind::ProviderUnavailable,
         AgentPlannerError::InterruptedTurn => AgentRunFailureKind::InferenceInterrupted,
         AgentPlannerError::Context(_)
+        | AgentPlannerError::Continuity(_)
         | AgentPlannerError::Project(_)
         | AgentPlannerError::MissingBrief
         | AgentPlannerError::RunNotFound
@@ -1194,6 +1265,9 @@ fn runtime_planner_error(error: AgentPlannerError) -> CreativeRuntimeError {
         }
         AgentPlannerError::Adapter(error) => runtime_adapter_error(error),
         AgentPlannerError::Context(error) => CreativeRuntimeError::Unavailable(error.to_string()),
+        AgentPlannerError::Continuity(error) => {
+            CreativeRuntimeError::Unavailable(error.to_string())
+        }
         AgentPlannerError::Project(error) => CreativeRuntimeError::Project(error),
         AgentPlannerError::RunNotFound | AgentPlannerError::RunNotPlanning => {
             CreativeRuntimeError::Rejected(error.to_string())
@@ -1252,7 +1326,9 @@ fn adapter_failure(error: &AdapterError) -> AgentRunFailureDraft {
         AdapterError::UnknownOutcome(_) | AdapterError::InvalidResponse(_) => {
             AgentRunFailureKind::InvalidProviderResponse
         }
-        AdapterError::Unavailable(_) => AgentRunFailureKind::ProviderUnavailable,
+        AdapterError::Unavailable(_) | AdapterError::ContinuityUnavailable(_) => {
+            AgentRunFailureKind::ProviderUnavailable
+        }
     };
     AgentRunFailureDraft {
         kind,
@@ -1265,6 +1341,8 @@ fn runtime_adapter_error(error: AdapterError) -> CreativeRuntimeError {
         AdapterError::UnknownOutcome(message) => CreativeRuntimeError::UnknownOutcome(message),
         AdapterError::Rejected(message) => CreativeRuntimeError::Rejected(message),
         AdapterError::InvalidResponse(error) => CreativeRuntimeError::Unavailable(error),
-        AdapterError::Unavailable(message) => CreativeRuntimeError::Unavailable(message),
+        AdapterError::Unavailable(message) | AdapterError::ContinuityUnavailable(message) => {
+            CreativeRuntimeError::Unavailable(message)
+        }
     }
 }

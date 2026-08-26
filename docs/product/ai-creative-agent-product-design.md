@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-25
 > 产品方向：LLM 驱动的本地专业音乐创作 Agent  
-> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与真实 Planning 已实现；M3-A CM-0/CM-1 已落地 durable Transcript、Context Manifest、三协议 SSE assembler、完整 ToolRequest/ToolResult、固定 `project.describe → submit_creative_plan` 多轮链路与 Planning 恢复。它证明 Agent Harness 能可靠调用真实本地只读工具，但还没有 continuity、compaction/长期 Run、Grant/Budget、通用 Tool Runtime 或本地作曲工具。Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，Portable Handoff v1 已能生成乐器分配清单与带 Bank/Program 的 Type-1 MIDI；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 的精确版本实测仍为 `not_run`。真人内容 Gate、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未完成，当前产品版本仍不能真实生成音乐。
+> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与真实 Planning 已实现；M3-A CM-0/CM-1/CM-2 已落地 durable Transcript、Context Manifest、三协议 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复与 Project 外加密 Continuity Vault。OpenAI Responses reasoning item 与 Anthropic signed thinking block 会按精确 Provider binding 延续，但不进入工程、聊天或备份。它证明 Agent Harness 能可靠调用真实本地只读工具并保护 Provider 私密连续性状态，但还没有 compaction/长期 Run、Grant/Budget、通用 Tool Runtime 或本地作曲工具。Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，Portable Handoff v1 已能生成乐器分配清单与带 Bank/Program 的 Type-1 MIDI；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 的精确版本实测仍为 `not_run`。真人内容 Gate、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未完成，当前产品版本仍不能真实生成音乐。
 
 ## 1. 产品摘要
 
@@ -165,7 +165,7 @@ LLM 输出可见计划，例如：
 
 Agent 通过 Semantic Tool 修改工程，例如：
 
-- `project.describe`
+- `project_describe`
 - `arrangement.set_structure`
 - `tempo.set_map`
 - `track.create_instrument`

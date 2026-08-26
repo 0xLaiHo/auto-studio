@@ -6,16 +6,16 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 
 ## 当前状态
 
-截至 2026-08-25：
+截至 2026-08-26：
 
 - `PASS`：独立 Rust Core、本机认证 API、SQLite Project/revision/event/outbox/backup；
 - `PASS`：`autostudio` Ratatui 入口、`/connect`、模型目录、`/model`、Thinking Level、`/exit`；
-- `PASS（contract + DeepSeek live）`：OpenAI Chat、OpenAI Responses、Anthropic Messages（含 DeepSeek/Kimi 兼容端点）统一使用 SSE streaming，partial text/tool JSON 只在内存组装，完整 Turn 才可落盘；2026-08-25 已用 `deepseek-v4-flash` 通过一次真实计费 Tool Call smoke；
-- `PASS（M3-A CM-0/CM-1 planning slice）`：Run/Turn/Item identity、durable Inference Transcript、Context Manifest、canonical Provider request、完整 ToolRequest/ToolResult、SQLite CAS 与重启 replay 已进入 production Planning 路径；固定的 `project.describe → submit_creative_plan` 多轮链路会让每一步从 Project/Transcript 重新派生，并可通过 Core API、TUI 与 Desktop 恢复；
+- `PASS（contract + DeepSeek/OpenAI live）`：OpenAI Chat、OpenAI Responses、Anthropic Messages（含 DeepSeek/Kimi 兼容端点）统一使用 SSE streaming，partial text/tool JSON 只在内存组装，完整 Turn 才可落盘；2026-08-25 `deepseek-v4-flash` 真实 Tool Call smoke 通过，2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live 通过；
+- `PASS（M3-A CM-0/CM-1/CM-2 planning slice）`：Run/Turn/Item identity、durable Inference Transcript、Context Manifest、canonical Provider request、完整 ToolRequest/ToolResult、SQLite CAS 与重启 replay 已进入 production Planning 路径；固定的 `project_describe → submit_creative_plan` 多轮链路会让每一步从 Project/Transcript 重新派生，并可通过 Core API、TUI 与 Desktop 恢复；OpenAI Responses reasoning item 与 Anthropic signed thinking block 只进入 Project 外的加密 Continuity Vault，按精确 Provider binding 复用并在 Run 终态清理；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
 - `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
-- `NOT IMPLEMENTED（production）`：Provider Continuity Vault、compaction/长期 Run 检索、Approval Grant/Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
+- `NOT IMPLEMENTED（production）`：compaction/长期 Run 检索、Approval Grant/Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
 
@@ -74,7 +74,11 @@ cargo run -p autostudio-tui --bin autostudio
 - `AUTOSTUDIO_PROJECT_PACKAGE`
 - `AUTOSTUDIO_DISCOVERY_FILE`
 - `AUTOSTUDIO_LLM_CONNECTION_FILE`
+- `AUTOSTUDIO_CONTINUITY_ROOT`
+- `AUTOSTUDIO_CONTINUITY_KEY_FILE`
 - `AUTOSTUDIO_CORE_BINARY`
+
+Continuity Vault 默认与 LLM Connection 位于同一应用私有根目录，但不在 Project Package 内；Core 会拒绝把 Vault 或 key 指向工程内部（包括经符号链接解析后落入工程的路径）。当前开发实现使用独立 `0600` 本地密钥和 XChaCha20-Poly1305；正式发布仍需迁移到目标 OS Credential Vault。
 
 ## LLM Provider
 

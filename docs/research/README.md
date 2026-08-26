@@ -4,7 +4,7 @@ Research 保存“在特定日期、基于特定来源得出的证据”，不�
 
 ## 当前 M3 直接输入
 
-- [Pi、Codex、DeepSeek Harness 上下文管理对比](agent-context-management-pi-codex-deepseek-2026-08-25.md)：用于 durable Transcript、derived context surface、Context Manifest、Provider Continuity Vault、compaction 与必做的 Long-Run Retrieval 实施切片；对应代码仍为 `NOT IMPLEMENTED`。
+- [Pi、Codex、DeepSeek Harness 上下文管理对比](agent-context-management-pi-codex-deepseek-2026-08-25.md)：用于 durable Transcript、derived context surface、Context Manifest、Provider Continuity Vault、compaction 与必做的 Long-Run Retrieval 实施切片；CM-0/CM-1/CM-2 Planning slice 已实现，CM-3/CM-4 未实现。
 - [Agent Run Harness 源码模式与落地建议](agent/agent-run-harness-patterns-2026-08-23.md)：稳定 identity、accepted/completed 分离、Approval、checkpoint、projection、恢复和有界唤醒仍可复用；其中 Music Provider Job/Unknown Outcome 部分已被新方向删除。
 - [Pi Provider 设计](pi-agent-provider-adapter-design-2026-08-21.md)：用于 LLM Inference Module 与 Provider Adapter seam。
 - [Provider 与 TUI 实施基线](provider/provider-and-tui-implementation-baseline-2026-08-21.md)：用于 LLM wire contract、Connection、目录和错误语义。

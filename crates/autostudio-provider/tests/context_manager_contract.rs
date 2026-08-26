@@ -46,7 +46,7 @@ fn context_survives_reopen_and_reconstructs_a_second_turn_without_private_reason
                 },
                 InferenceItemDraft::ToolRequest {
                     call_id: "call-1".to_owned(),
-                    name: "project.add_midi_notes".to_owned(),
+                    name: "project_add_midi_notes".to_owned(),
                     arguments_json: r#"{"track":"piano"}"#.to_owned(),
                     descriptor_fingerprint,
                 },
@@ -72,7 +72,7 @@ fn context_survives_reopen_and_reconstructs_a_second_turn_without_private_reason
             expected_journal_revision: recorded.journal_revision,
             results: vec![CompletedToolResult {
                 call_id: "call-1".to_owned(),
-                name: "project.add_midi_notes".to_owned(),
+                name: "project_add_midi_notes".to_owned(),
                 content: r#"{"notesAdded":16}"#.to_owned(),
                 is_error: false,
                 execution_id: Some("execution-1".to_owned()),
@@ -159,7 +159,7 @@ fn tool_results_cannot_be_recorded_without_a_matching_pending_request() {
             expected_journal_revision: prepared.journal_revision(),
             results: vec![CompletedToolResult {
                 call_id: "orphan-call".to_owned(),
-                name: "project.add_midi_notes".to_owned(),
+                name: "project_add_midi_notes".to_owned(),
                 content: "{\"ok\":true}".to_owned(),
                 is_error: false,
                 execution_id: Some("orphan-execution".to_owned()),
@@ -180,7 +180,7 @@ fn prepare(
 ) -> PrepareContext {
     let tools =
         vec![CanonicalToolDefinition::new(
-        "project.add_midi_notes",
+        "project_add_midi_notes",
         "Add MIDI notes to one Project track",
         r#"{"type":"object","properties":{"track":{"type":"string"}},"required":["track"]}"#,
         empty_digest(),
@@ -204,6 +204,7 @@ fn prepare(
             mapping_revision: "test-mapping/1".to_owned(),
             tool_catalog_fingerprint: fingerprint_tool_catalog(&tools),
         },
+        continuity_reference: None,
         tools,
         token_budget: TokenBudgetPlan::known(32_768, 4_096, 1_024).expect("valid token budget"),
     }

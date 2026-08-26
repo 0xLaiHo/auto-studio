@@ -14,6 +14,8 @@ pub const PROTOCOL_ANTHROPIC_MESSAGES: &str = "anthropic_messages";
 
 pub const ENV_LLM_PROVIDER: &str = "AUTOSTUDIO_LLM_PROVIDER";
 pub const ENV_LLM_CONNECTION_FILE: &str = "AUTOSTUDIO_LLM_CONNECTION_FILE";
+pub const ENV_CONTINUITY_ROOT: &str = "AUTOSTUDIO_CONTINUITY_ROOT";
+pub const ENV_CONTINUITY_KEY_FILE: &str = "AUTOSTUDIO_CONTINUITY_KEY_FILE";
 pub const ENV_DEEPSEEK_API_KEY: &str = "DEEPSEEK_API_KEY";
 pub const ENV_DEEPSEEK_BASE_URL: &str = "DEEPSEEK_BASE_URL";
 pub const ENV_DEEPSEEK_MODEL: &str = "DEEPSEEK_MODEL";
@@ -51,7 +53,7 @@ pub const ANTHROPIC_MODELS_PATH: &str = "v1/models?limit=1000";
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 pub const PLAN_TOOL_NAME: &str = "submit_creative_plan";
 pub const PLAN_TOOL_DESCRIPTION: &str = "Submit the creator-visible music generation plan";
-pub const PROJECT_DESCRIBE_TOOL_NAME: &str = "project.describe";
+pub const PROJECT_DESCRIBE_TOOL_NAME: &str = "project_describe";
 pub const PROJECT_DESCRIBE_TOOL_DESCRIPTION: &str =
     "Read the current authoritative Project facts before planning";
 pub const EMPTY_OBJECT_SCHEMA_JSON: &str =
@@ -67,7 +69,7 @@ pub const PLAN_SCHEMA_JSON: &str = r#"{
   },
   "required":["visibleSummary","generationPrompt","durationSeconds","candidateCount"]
 }"#;
-pub const PLAN_SYSTEM_PROMPT: &str = "You are the planning model inside Auto Studio. Use the one Tool supplied for the current step. First read authoritative Project facts with project.describe. Then submit one concise, creator-visible music generation plan with submit_creative_plan. Preserve the brief's intent, keep duration between 1 and 900 seconds, and request between 1 and 4 candidates. Do not reveal private chain-of-thought.";
+pub const PLAN_SYSTEM_PROMPT: &str = "You are the planning model inside Auto Studio. Use the supplied typed Tools. First read authoritative Project facts with project_describe. Then submit one concise, creator-visible music generation plan with submit_creative_plan. Preserve the brief's intent, keep duration between 1 and 900 seconds, and request between 1 and 4 candidates. Do not reveal private chain-of-thought.";
 
 pub const PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
 pub const MAX_PROVIDER_ERROR_CHARS: usize = 1_024;
@@ -82,3 +84,11 @@ pub const LLM_CONNECTION_SCHEMA_V2: &str = "autostudio.llm-connection/2";
 pub const LLM_CONNECTION_SCHEMA_V3: &str = "autostudio.llm-connection/3";
 pub const LLM_CONNECTION_SCHEMA: &str = "autostudio.llm-connection/4";
 pub const MAX_LLM_CONNECTION_FILE_BYTES: u64 = 1_024 * 1_024;
+pub const CONTINUITY_VAULT_SCHEMA: &str = "autostudio.continuity-vault/1";
+pub const CONTINUITY_OPENAI_RESPONSES_FORMAT: &str = "openai.responses-output/1";
+pub const CONTINUITY_ANTHROPIC_MESSAGES_FORMAT: &str = "anthropic.messages-content/1";
+pub const DEFAULT_CONTINUITY_TTL_MILLIS: u64 = 7 * 24 * 60 * 60 * 1_000;
+pub const CONTINUITY_JANITOR_INTERVAL: Duration = Duration::from_hours(1);
+pub const MAX_CONTINUITY_FILE_BYTES: u64 = 16 * 1_024 * 1_024;
+pub const CONTINUITY_KEY_BYTES: usize = 32;
+pub const CONTINUITY_NONCE_BYTES: usize = 24;

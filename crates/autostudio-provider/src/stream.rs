@@ -7,6 +7,8 @@ use autostudio_core::context::CanonicalToolCall;
 use serde_json::Value;
 
 use crate::AdapterError;
+use crate::constants::MAX_PROVIDER_ERROR_CHARS;
+use crate::continuity::{ContinuityFormat, ProviderContinuityState};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SseEvent {
@@ -100,15 +102,29 @@ pub enum InferenceDelta {
     },
     Usage(InferenceUsage),
     ResponseId(String),
+    OpenAiOutputItem {
+        slot: u64,
+        item: Value,
+    },
+    AnthropicBlockStart {
+        slot: u64,
+        block: Value,
+    },
+    AnthropicBlockFieldDelta {
+        slot: u64,
+        field: String,
+        delta: String,
+    },
     Completed,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AssembledInferenceTurn {
     pub visible_text: Option<String>,
     pub tool_calls: Vec<CanonicalToolCall>,
     pub usage: InferenceUsage,
     pub response_id: Option<String>,
+    pub continuity: Option<ProviderContinuityState>,
 }
 
 #[derive(Default)]
@@ -119,11 +135,19 @@ struct PartialToolCall {
 }
 
 #[derive(Default)]
+struct PartialAnthropicBlock {
+    block: Value,
+    input_json: String,
+}
+
+#[derive(Default)]
 pub struct StreamingTurnAssembler {
     visible_text: String,
     tool_calls: BTreeMap<u64, PartialToolCall>,
     usage: InferenceUsage,
     response_id: Option<String>,
+    openai_output_items: BTreeMap<u64, Value>,
+    anthropic_blocks: BTreeMap<u64, PartialAnthropicBlock>,
     completed: bool,
 }
 
@@ -156,6 +180,31 @@ impl StreamingTurnAssembler {
                     self.response_id = Some(response_id);
                 }
             }
+            InferenceDelta::OpenAiOutputItem { slot, item } => {
+                self.openai_output_items.insert(slot, item);
+            }
+            InferenceDelta::AnthropicBlockStart { slot, block } => {
+                self.anthropic_blocks.insert(
+                    slot,
+                    PartialAnthropicBlock {
+                        block,
+                        input_json: String::new(),
+                    },
+                );
+            }
+            InferenceDelta::AnthropicBlockFieldDelta { slot, field, delta } => {
+                let partial = self.anthropic_blocks.entry(slot).or_default();
+                if field == "input" {
+                    partial.input_json.push_str(&delta);
+                } else if let Some(object) = partial.block.as_object_mut() {
+                    let target = object
+                        .entry(field)
+                        .or_insert_with(|| Value::String(String::new()));
+                    if let Value::String(target) = target {
+                        target.push_str(&delta);
+                    }
+                }
+            }
             InferenceDelta::Completed => self.completed = true,
         }
     }
@@ -172,6 +221,7 @@ impl StreamingTurnAssembler {
                 "Provider stream ended before a completion event".to_owned(),
             ));
         }
+        let continuity = self.assemble_continuity()?;
         let mut calls = Vec::with_capacity(self.tool_calls.len());
         for partial in self.tool_calls.into_values() {
             if partial.call_id.trim().is_empty() || partial.name.trim().is_empty() {
@@ -212,7 +262,50 @@ impl StreamingTurnAssembler {
             tool_calls: calls,
             usage: self.usage,
             response_id: self.response_id,
+            continuity,
         })
+    }
+
+    fn assemble_continuity(&self) -> Result<Option<ProviderContinuityState>, AdapterError> {
+        if !self.openai_output_items.is_empty() && !self.anthropic_blocks.is_empty() {
+            return Err(AdapterError::InvalidResponse(
+                "Provider stream mixed incompatible Continuity protocols".to_owned(),
+            ));
+        }
+        if !self.openai_output_items.is_empty() {
+            let items = Value::Array(self.openai_output_items.values().cloned().collect());
+            return ProviderContinuityState::from_json(ContinuityFormat::OpenAiResponses, &items)
+                .map(Some)
+                .map_err(|error| AdapterError::InvalidResponse(error.to_string()));
+        }
+        if self.anthropic_blocks.is_empty() {
+            return Ok(None);
+        }
+        let mut blocks = Vec::with_capacity(self.anthropic_blocks.len());
+        for partial in self.anthropic_blocks.values() {
+            let mut block = partial.block.clone();
+            if !partial.input_json.is_empty() {
+                let input =
+                    serde_json::from_str::<Value>(&partial.input_json).map_err(|error| {
+                        AdapterError::InvalidResponse(format!(
+                            "Anthropic Tool input is incomplete: {error}"
+                        ))
+                    })?;
+                let object = block.as_object_mut().ok_or_else(|| {
+                    AdapterError::InvalidResponse(
+                        "Anthropic Continuity block is not an object".to_owned(),
+                    )
+                })?;
+                object.insert("input".to_owned(), input);
+            }
+            blocks.push(block);
+        }
+        ProviderContinuityState::from_json(
+            ContinuityFormat::AnthropicMessages,
+            &Value::Array(blocks),
+        )
+        .map(Some)
+        .map_err(|error| AdapterError::InvalidResponse(error.to_string()))
     }
 }
 
@@ -325,6 +418,17 @@ pub fn openai_responses_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, 
                 });
             }
         }
+        "response.output_item.done" => {
+            if let Some(item) = value.get("item").filter(|item| item.is_object()) {
+                deltas.push(InferenceDelta::OpenAiOutputItem {
+                    slot: value
+                        .get("output_index")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0),
+                    item: item.clone(),
+                });
+            }
+        }
         "response.function_call_arguments.delta" => {
             deltas.push(InferenceDelta::ToolCall {
                 slot: value
@@ -349,17 +453,34 @@ pub fn openai_responses_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, 
             deltas.push(InferenceDelta::Completed);
         }
         "response.failed" | "error" => {
-            return Err(AdapterError::InvalidResponse(
-                "OpenAI Responses stream reported failure".to_owned(),
-            ));
+            return Err(AdapterError::InvalidResponse(openai_failure_detail(&value)));
         }
         _ => {}
     }
     Ok(deltas)
 }
 
-/// Maps one `Anthropic` Messages SSE event while intentionally ignoring thinking
-/// and signature deltas.
+fn openai_failure_detail(value: &Value) -> String {
+    let code = value
+        .pointer("/response/error/code")
+        .or_else(|| value.pointer("/error/code"))
+        .or_else(|| value.get("code"))
+        .and_then(Value::as_str);
+    let message = value
+        .pointer("/response/error/message")
+        .or_else(|| value.pointer("/error/message"))
+        .or_else(|| value.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or("OpenAI Responses stream reported failure");
+    let detail = code.map_or_else(
+        || message.to_owned(),
+        |code| format!("OpenAI Responses {code}: {message}"),
+    );
+    detail.chars().take(MAX_PROVIDER_ERROR_CHARS).collect()
+}
+
+/// Maps one `Anthropic` Messages SSE event while keeping private thinking and
+/// signature fields only in Provider continuity deltas.
 ///
 /// # Errors
 ///
@@ -387,34 +508,8 @@ pub fn anthropic_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, Adapter
                 }));
             }
         }
-        "content_block_start" => {
-            let block = value.get("content_block").unwrap_or(&Value::Null);
-            if block.get("type").and_then(Value::as_str) == Some("tool_use") {
-                deltas.push(InferenceDelta::ToolCall {
-                    slot: value.get("index").and_then(Value::as_u64).unwrap_or(0),
-                    call_id: block.get("id").and_then(Value::as_str).map(str::to_owned),
-                    name_delta: block.get("name").and_then(Value::as_str).map(str::to_owned),
-                    arguments_delta: None,
-                });
-            }
-        }
-        "content_block_delta" => match value.pointer("/delta/type").and_then(Value::as_str) {
-            Some("text_delta") => {
-                if let Some(text) = value.pointer("/delta/text").and_then(Value::as_str) {
-                    deltas.push(InferenceDelta::VisibleText(text.to_owned()));
-                }
-            }
-            Some("input_json_delta") => deltas.push(InferenceDelta::ToolCall {
-                slot: value.get("index").and_then(Value::as_u64).unwrap_or(0),
-                call_id: None,
-                name_delta: None,
-                arguments_delta: value
-                    .pointer("/delta/partial_json")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned),
-            }),
-            _ => {}
-        },
+        "content_block_start" => anthropic_block_start(&value, &mut deltas),
+        "content_block_delta" => anthropic_block_delta(&value, &mut deltas),
         "message_delta" => {
             if let Some(output) = value
                 .pointer("/usage/output_tokens")
@@ -435,6 +530,83 @@ pub fn anthropic_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, Adapter
         _ => {}
     }
     Ok(deltas)
+}
+
+fn anthropic_block_start(value: &Value, deltas: &mut Vec<InferenceDelta>) {
+    let block = value.get("content_block").unwrap_or(&Value::Null);
+    let slot = value.get("index").and_then(Value::as_u64).unwrap_or(0);
+    if block.is_object() {
+        deltas.push(InferenceDelta::AnthropicBlockStart {
+            slot,
+            block: block.clone(),
+        });
+    }
+    if block.get("type").and_then(Value::as_str) == Some("tool_use") {
+        deltas.push(InferenceDelta::ToolCall {
+            slot,
+            call_id: block.get("id").and_then(Value::as_str).map(str::to_owned),
+            name_delta: block.get("name").and_then(Value::as_str).map(str::to_owned),
+            arguments_delta: None,
+        });
+    }
+}
+
+fn anthropic_block_delta(value: &Value, deltas: &mut Vec<InferenceDelta>) {
+    let slot = value.get("index").and_then(Value::as_u64).unwrap_or(0);
+    match value.pointer("/delta/type").and_then(Value::as_str) {
+        Some("text_delta") => {
+            if let Some(text) = value.pointer("/delta/text").and_then(Value::as_str) {
+                deltas.push(InferenceDelta::VisibleText(text.to_owned()));
+                deltas.push(InferenceDelta::AnthropicBlockFieldDelta {
+                    slot,
+                    field: "text".to_owned(),
+                    delta: text.to_owned(),
+                });
+            }
+        }
+        Some("input_json_delta") => {
+            let delta = value
+                .pointer("/delta/partial_json")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            deltas.push(InferenceDelta::ToolCall {
+                slot,
+                call_id: None,
+                name_delta: None,
+                arguments_delta: delta.clone(),
+            });
+            if let Some(delta) = delta {
+                deltas.push(InferenceDelta::AnthropicBlockFieldDelta {
+                    slot,
+                    field: "input".to_owned(),
+                    delta,
+                });
+            }
+        }
+        Some("thinking_delta") => {
+            push_anthropic_string_field(value, slot, "/delta/thinking", "thinking", deltas);
+        }
+        Some("signature_delta") => {
+            push_anthropic_string_field(value, slot, "/delta/signature", "signature", deltas);
+        }
+        _ => {}
+    }
+}
+
+fn push_anthropic_string_field(
+    value: &Value,
+    slot: u64,
+    pointer: &str,
+    field: &str,
+    deltas: &mut Vec<InferenceDelta>,
+) {
+    if let Some(delta) = value.pointer(pointer).and_then(Value::as_str) {
+        deltas.push(InferenceDelta::AnthropicBlockFieldDelta {
+            slot,
+            field: field.to_owned(),
+            delta: delta.to_owned(),
+        });
+    }
 }
 
 fn parse_event_json(event: &SseEvent) -> Result<Value, AdapterError> {
@@ -524,7 +696,7 @@ mod tests {
         assembler.push(InferenceDelta::ToolCall {
             slot: 0,
             call_id: Some("call-1".to_owned()),
-            name_delta: Some("project.describe".to_owned()),
+            name_delta: Some("project_describe".to_owned()),
             arguments_delta: Some("{".to_owned()),
         });
         assembler.push(InferenceDelta::Completed);
@@ -532,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    fn responses_and_anthropic_private_reasoning_deltas_are_ignored() {
+    fn private_reasoning_is_never_visible_but_signed_anthropic_state_is_captured() {
         let responses = SseEvent {
             event: Some("response.reasoning_summary_text.delta".to_owned()),
             data: r#"{"type":"response.reasoning_summary_text.delta","delta":"private"}"#
@@ -547,10 +719,31 @@ mod tests {
             event: Some("content_block_delta".to_owned()),
             data: r#"{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"private"}}"#.to_owned(),
         };
+        let deltas = anthropic_deltas(&anthropic).expect("thinking event");
+        assert_eq!(deltas.len(), 1);
+        assert!(matches!(
+            &deltas[0],
+            InferenceDelta::AnthropicBlockFieldDelta { field, delta, .. }
+                if field == "thinking" && delta == "private"
+        ));
         assert!(
-            anthropic_deltas(&anthropic)
-                .expect("thinking event")
-                .is_empty()
+            !deltas
+                .iter()
+                .any(|delta| matches!(delta, InferenceDelta::VisibleText(_)))
+        );
+    }
+
+    #[test]
+    fn responses_failure_preserves_safe_provider_diagnostics() {
+        let event = SseEvent {
+            event: Some("response.failed".to_owned()),
+            data: r#"{"type":"response.failed","response":{"error":{"code":"model_error","message":"The model could not produce a valid tool call"}}}"#.to_owned(),
+        };
+
+        let error = openai_responses_deltas(&event).expect_err("failed response");
+        assert_eq!(
+            error.to_string(),
+            "Provider response is invalid: OpenAI Responses model_error: The model could not produce a valid tool call"
         );
     }
 }

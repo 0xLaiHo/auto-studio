@@ -1,12 +1,14 @@
 use std::sync::mpsc;
 
+use autostudio_core::context::{CanonicalMessage, PreparedContext};
 use autostudio_core::project::{CreativeBriefDraft, ProjectService};
 use autostudio_core::provider::ThinkingLevel;
 use autostudio_provider::constants::{
     PROTOCOL_ANTHROPIC_MESSAGES, PROTOCOL_OPENAI_CHAT_COMPLETIONS, PROTOCOL_OPENAI_RESPONSES,
 };
+use autostudio_provider::continuity::{ContinuityFormat, ProviderContinuityState};
 use autostudio_provider::llm::{HttpInferenceAdapter, LlmProtocol, LlmProviderConfig};
-use autostudio_provider::{InferenceAdapter, InferenceTurnRequest};
+use autostudio_provider::{InferenceAdapter, InferenceOutcome, InferenceTurnRequest};
 use axum::body::Body;
 use axum::http::HeaderMap;
 use axum::http::header;
@@ -16,6 +18,9 @@ use axum::{Json, Router};
 use serde_json::{Value, json};
 
 mod support;
+
+const OPENAI_CONTINUITY_SENTINEL: &str = "OPENAI_ENCRYPTED_REASONING_CM2";
+const ANTHROPIC_CONTINUITY_SENTINEL: &str = "ANTHROPIC_SIGNED_THINKING_CM2";
 
 #[tokio::test]
 async fn deepseek_chat_contract_sends_bearer_auth_and_parses_plan() {
@@ -85,6 +90,13 @@ async fn openai_responses_contract_streams_strict_tool_calls() {
     assert_eq!(body["include"][0], "reasoning.encrypted_content");
     assert_eq!(adapter.descriptor().protocol, PROTOCOL_OPENAI_RESPONSES);
     assert_eq!(outcome.usage.output_tokens, Some(9));
+    assert_eq!(
+        outcome
+            .continuity
+            .as_ref()
+            .map(ProviderContinuityState::format),
+        Some(ContinuityFormat::OpenAiResponses)
+    );
 }
 
 #[tokio::test]
@@ -126,6 +138,93 @@ async fn anthropic_messages_contract_forces_the_typed_plan_tool() {
     assert_eq!(body["output_config"]["effort"], "high");
     assert_eq!(adapter.descriptor().protocol, PROTOCOL_ANTHROPIC_MESSAGES);
     assert_eq!(outcome.response_id.as_deref(), Some("msg_123"));
+    assert_eq!(
+        outcome
+            .continuity
+            .as_ref()
+            .map(ProviderContinuityState::format),
+        Some(ContinuityFormat::AnthropicMessages)
+    );
+}
+
+#[tokio::test]
+async fn openai_responses_replays_reasoning_items_before_tool_output() {
+    let response = json!({
+        "id": "resp_continuity",
+        "output": [{"content": [{
+            "type": "output_text",
+            "text": "{\"visibleSummary\":\"One direction\",\"generationPrompt\":\"dry studio drums\",\"durationSeconds\":20,\"candidateCount\":1}"
+        }]}]
+    });
+    let (base_url, requests) = serve_once("/responses", response).await;
+    let adapter = adapter("openai", LlmProtocol::OpenAiResponses, &base_url, "gpt-5.2");
+    let first_request = inference_request();
+    let prepared = first_request.prepared.clone();
+    let first = adapter
+        .infer(first_request)
+        .await
+        .expect("first Responses turn");
+    let _ = requests.recv().expect("first request");
+
+    let second = continuation_request(&prepared, first);
+    adapter
+        .infer(second)
+        .await
+        .expect("continued Responses turn");
+    let (_, body) = requests.recv().expect("continued request");
+    let input = body["input"].as_array().expect("Responses input");
+
+    assert_eq!(input[1]["type"], "reasoning");
+    assert_eq!(input[1]["encrypted_content"], OPENAI_CONTINUITY_SENTINEL);
+    assert_eq!(input[2]["type"], "function_call");
+    assert_eq!(input[3]["type"], "function_call_output");
+}
+
+#[tokio::test]
+async fn anthropic_messages_replays_signed_thinking_with_the_tool_use() {
+    let response = json!({
+        "id": "msg_continuity",
+        "content": [{
+            "type": "tool_use",
+            "name": "submit_creative_plan",
+            "input": {
+                "visibleSummary": "One direction",
+                "generationPrompt": "cinematic strings",
+                "durationSeconds": 30,
+                "candidateCount": 1
+            }
+        }]
+    });
+    let (base_url, requests) = serve_once("/v1/messages", response).await;
+    let adapter = adapter(
+        "anthropic",
+        LlmProtocol::AnthropicMessages,
+        &base_url,
+        "claude-sonnet-4-6",
+    );
+    let first_request = inference_request();
+    let prepared = first_request.prepared.clone();
+    let first = adapter
+        .infer(first_request)
+        .await
+        .expect("first Messages turn");
+    let _ = requests.recv().expect("first request");
+
+    let second = continuation_request(&prepared, first);
+    adapter
+        .infer(second)
+        .await
+        .expect("continued Messages turn");
+    let (_, body) = requests.recv().expect("continued request");
+    let messages = body["messages"].as_array().expect("Anthropic messages");
+    let assistant = messages[1]["content"]
+        .as_array()
+        .expect("assistant content blocks");
+
+    assert_eq!(assistant[0]["type"], "thinking");
+    assert_eq!(assistant[0]["signature"], ANTHROPIC_CONTINUITY_SENTINEL);
+    assert_eq!(assistant[1]["type"], "tool_use");
+    assert_eq!(messages[2]["content"][0]["type"], "tool_result");
 }
 
 #[tokio::test]
@@ -295,6 +394,33 @@ fn inference_request() -> InferenceTurnRequest {
     support::inference_request(project.brief().expect("saved brief"), store)
 }
 
+fn continuation_request(
+    prepared: &PreparedContext,
+    outcome: InferenceOutcome,
+) -> InferenceTurnRequest {
+    let mut messages = prepared.messages().to_vec();
+    messages.push(CanonicalMessage::Assistant {
+        content: outcome.visible_text,
+        tool_calls: outcome.tool_calls.clone(),
+    });
+    for call in outcome.tool_calls {
+        messages.push(CanonicalMessage::Tool {
+            call_id: call.call_id,
+            name: call.name,
+            content: "{\"accepted\":true}".to_owned(),
+            is_error: false,
+        });
+    }
+    InferenceTurnRequest {
+        prepared: PreparedContext::new(
+            prepared.manifest().clone(),
+            messages,
+            prepared.journal_revision(),
+        ),
+        continuity: outcome.continuity,
+    }
+}
+
 async fn serve_once(
     path: &'static str,
     response: Value,
@@ -356,15 +482,30 @@ fn sse_fixture(path: &str, response: &Value) -> String {
                 .and_then(Value::as_str)
                 .unwrap_or("{}");
             let created = json!({"type":"response.created","response":{"id":id}});
+            let reasoning = json!({
+                "type":"response.output_item.done",
+                "output_index":0,
+                "item":{
+                    "type":"reasoning",
+                    "id":"rs_cm2",
+                    "summary":[],
+                    "encrypted_content":OPENAI_CONTINUITY_SENTINEL
+                }
+            });
             let added = json!({
                 "type":"response.output_item.added",
-                "output_index":0,
+                "output_index":1,
                 "item":{"type":"function_call","id":"fc_test","call_id":format!("call_{id}"),"name":"submit_creative_plan","arguments":""}
             });
-            let delta = json!({"type":"response.function_call_arguments.delta","output_index":0,"delta":arguments});
+            let delta = json!({"type":"response.function_call_arguments.delta","output_index":1,"delta":arguments});
+            let tool = json!({
+                "type":"response.output_item.done",
+                "output_index":1,
+                "item":{"type":"function_call","id":"fc_test","call_id":format!("call_{id}"),"name":"submit_creative_plan","arguments":arguments}
+            });
             let completed = json!({"type":"response.completed","response":{"id":id,"usage":response.get("usage").cloned().unwrap_or(Value::Null)}});
             format!(
-                "event: response.created\ndata: {created}\n\nevent: response.output_item.added\ndata: {added}\n\nevent: response.function_call_arguments.delta\ndata: {delta}\n\nevent: response.completed\ndata: {completed}\n\n"
+                "event: response.created\ndata: {created}\n\nevent: response.output_item.done\ndata: {reasoning}\n\nevent: response.output_item.added\ndata: {added}\n\nevent: response.function_call_arguments.delta\ndata: {delta}\n\nevent: response.output_item.done\ndata: {tool}\n\nevent: response.completed\ndata: {completed}\n\n"
             )
         }
         "/v1/messages" => {
@@ -392,11 +533,14 @@ fn sse_fixture(path: &str, response: &Value) -> String {
                 .and_then(Value::as_u64)
                 .unwrap_or(0);
             let start = json!({"type":"message_start","message":{"id":id,"usage":{"input_tokens":input_tokens}}});
-            let block = json!({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":format!("toolu_{id}"),"name":"submit_creative_plan","input":{}}});
-            let delta = json!({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":arguments.to_string()}});
+            let thinking = json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}});
+            let thinking_delta = json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"private fixture"}});
+            let signature_delta = json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":ANTHROPIC_CONTINUITY_SENTINEL}});
+            let block = json!({"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":format!("toolu_{id}"),"name":"submit_creative_plan","input":{}}});
+            let delta = json!({"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":arguments.to_string()}});
             let usage = json!({"type":"message_delta","usage":{"output_tokens":output_tokens}});
             format!(
-                "event: message_start\ndata: {start}\n\nevent: content_block_start\ndata: {block}\n\nevent: content_block_delta\ndata: {delta}\n\nevent: message_delta\ndata: {usage}\n\nevent: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n"
+                "event: message_start\ndata: {start}\n\nevent: content_block_start\ndata: {thinking}\n\nevent: content_block_delta\ndata: {thinking_delta}\n\nevent: content_block_delta\ndata: {signature_delta}\n\nevent: content_block_start\ndata: {block}\n\nevent: content_block_delta\ndata: {delta}\n\nevent: message_delta\ndata: {usage}\n\nevent: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n"
             )
         }
         _ => panic!("unsupported SSE fixture path"),
