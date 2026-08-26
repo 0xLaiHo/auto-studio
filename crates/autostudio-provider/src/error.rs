@@ -51,6 +51,23 @@ pub enum AdapterError {
     Unavailable(String),
     #[error("Provider Continuity is unavailable: {0}")]
     ContinuityUnavailable(String),
+    #[error("Provider context window is exhausted: {0}")]
+    ContextOverflow(String),
+}
+
+pub(crate) fn is_context_overflow_error(message: &str) -> bool {
+    let normalized = message.to_ascii_lowercase();
+    crate::constants::CONTEXT_OVERFLOW_ERROR_SIGNALS
+        .iter()
+        .any(|signal| normalized.contains(signal))
+}
+
+pub(crate) fn invalid_or_context_overflow(message: String) -> AdapterError {
+    if is_context_overflow_error(&message) {
+        AdapterError::ContextOverflow(message)
+    } else {
+        AdapterError::InvalidResponse(message)
+    }
 }
 
 #[derive(Debug, Error)]

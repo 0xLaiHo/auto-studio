@@ -31,8 +31,8 @@ use autostudio_core::agent::{
 #[cfg(any(test, debug_assertions))]
 use autostudio_core::context::CanonicalMessage;
 use autostudio_core::context::{
-    ContextId, InferenceFinishReason, InferenceItemDraft, InferenceTurnId, PreparedContext,
-    ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
+    ContextError, ContextId, InferenceFinishReason, InferenceItemDraft, InferenceTurnId,
+    PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
 use autostudio_core::continuity::ContinuityBinding;
 use autostudio_core::production::{
@@ -330,10 +330,11 @@ impl AgentPlanner {
             continuity_reference,
             continuity_overhead_tokens,
             tools,
-            token_budget: TokenBudgetPlan::unknown(
+            token_budget: TokenBudgetPlan::known(
+                constants::PLANNING_CONTEXT_WINDOW_TOKENS,
                 u64::from(constants::PLAN_MAX_OUTPUT_TOKENS),
                 constants::CONTEXT_SAFETY_MARGIN_TOKENS,
-            ),
+            )?,
         })?;
         let context_id = prepared.manifest().context_id().clone();
         let journal_revision = prepared.journal_revision();
@@ -357,16 +358,12 @@ impl AgentPlanner {
         let outcome = match self.inference.infer(turn.request.clone()).await {
             Ok(outcome) => outcome,
             Err(error) => {
-                self.contexts.record_turn(context::RecordInferenceTurn {
-                    run_id: turn.run_id,
-                    turn_id: turn.turn_id,
-                    context_id: turn.context_id,
-                    expected_journal_revision: turn.journal_revision,
-                    items: vec![InferenceItemDraft::Finish {
-                        reason: finish_reason_for_error(&error),
-                        detail: Some(error.to_string()),
-                    }],
-                })?;
+                let context_overflow = matches!(error, AdapterError::ContextOverflow(_));
+                self.record_planning_turn_failure(&turn, &error)?;
+                if context_overflow {
+                    self.continuity.purge_run(&turn.run_id)?;
+                    return Ok(());
+                }
                 return Err(error.into());
             }
         };
@@ -377,16 +374,7 @@ impl AgentPlanner {
             let error = AdapterError::InvalidResponse(
                 "Provider output descriptor changed after Context preparation".to_owned(),
             );
-            self.contexts.record_turn(context::RecordInferenceTurn {
-                run_id: turn.run_id,
-                turn_id: turn.turn_id,
-                context_id: turn.context_id,
-                expected_journal_revision: turn.journal_revision,
-                items: vec![InferenceItemDraft::Finish {
-                    reason: finish_reason_for_error(&error),
-                    detail: Some(error.to_string()),
-                }],
-            })?;
+            self.record_planning_turn_failure(&turn, &error)?;
             return Err(error.into());
         }
         let mut items = Vec::new();
@@ -409,16 +397,7 @@ impl AgentPlanner {
                     "Provider requested unavailable Tool '{}'",
                     call.name
                 ));
-                self.contexts.record_turn(context::RecordInferenceTurn {
-                    run_id: turn.run_id,
-                    turn_id: turn.turn_id,
-                    context_id: turn.context_id,
-                    expected_journal_revision: turn.journal_revision,
-                    items: vec![InferenceItemDraft::Finish {
-                        reason: finish_reason_for_error(&error),
-                        detail: Some(error.to_string()),
-                    }],
-                })?;
+                self.record_planning_turn_failure(&turn, &error)?;
                 return Err(error.into());
             };
             items.push(InferenceItemDraft::ToolRequest {
@@ -450,6 +429,24 @@ impl AgentPlanner {
                 continuity::FileContinuityVault::now_unix_millis()?,
             )?;
         }
+        Ok(())
+    }
+
+    fn record_planning_turn_failure(
+        &self,
+        turn: &PreparedPlanningTurn,
+        error: &AdapterError,
+    ) -> Result<(), AgentPlannerError> {
+        self.contexts.record_turn(context::RecordInferenceTurn {
+            run_id: turn.run_id.clone(),
+            turn_id: turn.turn_id.clone(),
+            context_id: turn.context_id.clone(),
+            expected_journal_revision: turn.journal_revision,
+            items: vec![InferenceItemDraft::Finish {
+                reason: finish_reason_for_error(error),
+                detail: Some(error.to_string()),
+            }],
+        })?;
         Ok(())
     }
 
@@ -585,12 +582,14 @@ fn finish_reason_for_error(error: &AdapterError) -> InferenceFinishReason {
             InferenceFinishReason::InvalidResponse
         }
         AdapterError::Unavailable(_) => InferenceFinishReason::ProviderUnavailable,
+        AdapterError::ContextOverflow(_) => InferenceFinishReason::ContextOverflow,
     }
 }
 
 fn planning_failure(error: &AgentPlannerError) -> AgentRunFailureDraft {
     let kind = match error {
-        AgentPlannerError::Adapter(AdapterError::Rejected(_)) => {
+        AgentPlannerError::Adapter(AdapterError::Rejected(_))
+        | AgentPlannerError::Context(ContextError::OverflowRecoveryExhausted) => {
             AgentRunFailureKind::ProviderRejected
         }
         AgentPlannerError::Adapter(AdapterError::InvalidResponse(_)) => {
@@ -599,7 +598,8 @@ fn planning_failure(error: &AgentPlannerError) -> AgentRunFailureDraft {
         AgentPlannerError::Adapter(
             AdapterError::Unavailable(_)
             | AdapterError::UnknownOutcome(_)
-            | AdapterError::ContinuityUnavailable(_),
+            | AdapterError::ContinuityUnavailable(_)
+            | AdapterError::ContextOverflow(_),
         ) => AgentRunFailureKind::ProviderUnavailable,
         AgentPlannerError::InterruptedTurn => AgentRunFailureKind::InferenceInterrupted,
         AgentPlannerError::Context(_)
@@ -1330,7 +1330,9 @@ fn runtime_generation_error(error: GenerationCoordinatorError) -> CreativeRuntim
 
 fn adapter_failure(error: &AdapterError) -> AgentRunFailureDraft {
     let kind = match error {
-        AdapterError::Rejected(_) => AgentRunFailureKind::ProviderRejected,
+        AdapterError::Rejected(_) | AdapterError::ContextOverflow(_) => {
+            AgentRunFailureKind::ProviderRejected
+        }
         AdapterError::UnknownOutcome(_) | AdapterError::InvalidResponse(_) => {
             AgentRunFailureKind::InvalidProviderResponse
         }
@@ -1347,7 +1349,9 @@ fn adapter_failure(error: &AdapterError) -> AgentRunFailureDraft {
 fn runtime_adapter_error(error: AdapterError) -> CreativeRuntimeError {
     match error {
         AdapterError::UnknownOutcome(message) => CreativeRuntimeError::UnknownOutcome(message),
-        AdapterError::Rejected(message) => CreativeRuntimeError::Rejected(message),
+        AdapterError::Rejected(message) | AdapterError::ContextOverflow(message) => {
+            CreativeRuntimeError::Rejected(message)
+        }
         AdapterError::InvalidResponse(error) => CreativeRuntimeError::Unavailable(error),
         AdapterError::Unavailable(message) | AdapterError::ContinuityUnavailable(message) => {
             CreativeRuntimeError::Unavailable(message)

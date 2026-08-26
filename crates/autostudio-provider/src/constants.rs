@@ -73,7 +73,22 @@ pub const PLAN_SYSTEM_PROMPT: &str = "You are the planning model inside Auto Stu
 
 pub const PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
 pub const MAX_PROVIDER_ERROR_CHARS: usize = 1_024;
+pub const CONTEXT_OVERFLOW_ERROR_SIGNALS: &[&str] = &[
+    "context_length_exceeded",
+    "context_window_exceeded",
+    "prompt_too_long",
+    "input_too_long",
+    "maximum context length",
+    "maximum context window",
+    "exceeds the context window",
+    "context length exceeded",
+    "prompt is too long",
+    "input is too long",
+];
 pub const PLAN_MAX_OUTPUT_TOKENS: u32 = 4_096;
+/// Conservative host-owned planning ceiling. It is a stable Harness safety
+/// policy, not a claim about any configured model's advertised context window.
+pub const PLANNING_CONTEXT_WINDOW_TOKENS: u64 = 16_384;
 pub const CONTEXT_SAFETY_MARGIN_TOKENS: u64 = 1_024;
 pub const PLANNING_MAX_TURNS: u8 = 8;
 pub const PLANNING_MAX_STEPS: u8 = 24;

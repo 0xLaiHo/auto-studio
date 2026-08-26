@@ -453,7 +453,9 @@ pub fn openai_responses_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, 
             deltas.push(InferenceDelta::Completed);
         }
         "response.failed" | "error" => {
-            return Err(AdapterError::InvalidResponse(openai_failure_detail(&value)));
+            return Err(crate::error::invalid_or_context_overflow(
+                openai_failure_detail(&value),
+            ));
         }
         _ => {}
     }
@@ -523,9 +525,17 @@ pub fn anthropic_deltas(event: &SseEvent) -> Result<Vec<InferenceDelta>, Adapter
         }
         "message_stop" => deltas.push(InferenceDelta::Completed),
         "error" => {
-            return Err(AdapterError::InvalidResponse(
-                "Anthropic stream reported an error event".to_owned(),
-            ));
+            let error_type = value
+                .pointer("/error/type")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown_error");
+            let message = value
+                .pointer("/error/message")
+                .and_then(Value::as_str)
+                .unwrap_or("Anthropic stream reported an error event");
+            return Err(crate::error::invalid_or_context_overflow(format!(
+                "Anthropic {error_type}: {message}"
+            )));
         }
         _ => {}
     }
@@ -636,6 +646,8 @@ fn responses_usage(value: &Value) -> Option<InferenceUsage> {
 
 #[cfg(test)]
 mod tests {
+    use crate::AdapterError;
+
     use super::{
         InferenceDelta, SseDecoder, SseEvent, StreamingTurnAssembler, anthropic_deltas,
         openai_chat_deltas, openai_responses_deltas,
@@ -745,5 +757,26 @@ mod tests {
             error.to_string(),
             "Provider response is invalid: OpenAI Responses model_error: The model could not produce a valid tool call"
         );
+    }
+
+    #[test]
+    fn provider_stream_overflow_signals_use_the_recoverable_error_class() {
+        let openai = SseEvent {
+            event: Some("response.failed".to_owned()),
+            data: r#"{"type":"response.failed","response":{"error":{"code":"context_length_exceeded","message":"maximum context length exceeded"}}}"#.to_owned(),
+        };
+        assert!(matches!(
+            openai_responses_deltas(&openai).expect_err("OpenAI overflow"),
+            AdapterError::ContextOverflow(_)
+        ));
+
+        let anthropic = SseEvent {
+            event: Some("error".to_owned()),
+            data: r#"{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long for this context window"}}"#.to_owned(),
+        };
+        assert!(matches!(
+            anthropic_deltas(&anthropic).expect_err("Anthropic overflow"),
+            AdapterError::ContextOverflow(_)
+        ));
     }
 }

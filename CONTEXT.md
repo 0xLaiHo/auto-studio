@@ -177,7 +177,7 @@ _Avoid_: Token、Private Reasoning
 **Context Snapshot（上下文快照）**：某个 Agent Step 使用的不可变 Brief、Project facts、相关对话和 Tool Result 集合。  
 _Avoid_: Prompt String、Entire Project
 
-**Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
+**Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision、Context Preparation Reason、surface transform 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
 _Avoid_: Prompt Cache、Project Snapshot、Provider Continuity State
 
 **Context Surface（上下文表面）**：Context Manager 从完整 Inference Transcript、最新 Compaction Checkpoint、当前 Project facts 与本轮输入派生出的有界模型视图。它可以由结构化摘要和最近原文 tail 组成，可在重启后重建，但不是 Project 或 Transcript 的第二份事实源。
@@ -191,6 +191,12 @@ _Avoid_: Transcript Truncation、Asset、Lossy Delete
 
 **Compaction Checkpoint（压缩检查点）**：Run 内不可变的 Context Event，记录由结构化摘要替代的连续 Transcript 前缀、首个保留条目、源 journal revision 与内容 hash。它只改变后续 Context Surface，不删除或改写完整 Inference Transcript，也不包含 Provider private reasoning。
 _Avoid_: Transcript Rewrite、Project Snapshot、Provider Continuity State
+
+**Safe Compaction Cut（安全压缩切点）**：位于完整 Inference Turn 边界、从 Transcript 开头推进的切点；它不拆 Tool Request/Result，不移除本轮 Creator 输入，并保留最近原文 Turn。只有摘要后的 Context Surface 实际变短且回到允许压力范围时才可提交。
+_Avoid_: Arbitrary Token Truncation、Delete History、Split Tool Pair
+
+**Provider Overflow Recovery（Provider 溢出恢复）**：Provider 明确报告 context window 耗尽后，Harness 先持久化 `ContextOverflow` Finish、清除不再兼容的 Continuity，再用推进后的 Context Surface 重试一次。第二次 overflow 必须停止；普通 Provider 400 错误不属于此恢复。
+_Avoid_: Blind Retry、Unlimited Compaction Loop、Unknown Outcome Retry
 
 **Agent Decision（代理决策）**：Agent Step 输出的结构化可见内容或下一步 Tool 意图；不包含模型的私有推理过程。  
 _Avoid_: Chain of Thought

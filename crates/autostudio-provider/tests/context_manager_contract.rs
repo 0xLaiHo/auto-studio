@@ -1,14 +1,18 @@
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use autostudio_core::agent::{AgentRunId, InferenceUsage};
 use autostudio_core::compaction::{StructuredRunSummary, StructuredRunSummaryDraft};
 use autostudio_core::constants::CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES;
 use autostudio_core::context::{
-    CanonicalMessage, CanonicalToolDefinition, ContextEventStore, ContextStoreError,
-    InferenceFinishReason, InferenceItemDraft, InferenceTurnId, ProviderBinding, TokenBudgetPlan,
-    VisibleMessageRole,
+    CanonicalMessage, CanonicalToolDefinition, ContextEvent, ContextEventEnvelope,
+    ContextEventStore, ContextStoreError, InferenceFinishReason, InferenceItemDraft,
+    InferenceTurnId, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
-use autostudio_core::context_surface::{ContextPressure, ContextSpillBlob};
+use autostudio_core::context_surface::{
+    ContextPreparationReason, ContextPressure, ContextSpillBlob, ContextSurfaceTransform,
+};
 use autostudio_core::project::ProjectService;
 use autostudio_core::provider::{ThinkingControl, ThinkingLevel};
 use autostudio_provider::context::{
@@ -296,7 +300,7 @@ fn large_tool_result_is_spilled_atomically_and_survives_project_backup() {
 }
 
 #[test]
-fn hard_context_pressure_is_rejected_before_any_manifest_is_committed() {
+fn an_oversized_first_turn_is_rejected_when_no_safe_compaction_cut_exists() {
     let temp = tempfile::tempdir().expect("temporary directory");
     let store = Arc::new(
         autostudio_storage::SqliteProjectStore::open(&temp.path().join("pressure.autostudio"))
@@ -317,7 +321,7 @@ fn hard_context_pressure_is_rejected_before_any_manifest_is_committed() {
         .expect_err("hard pressure must stop before inference");
     assert!(matches!(
         error,
-        autostudio_core::context::ContextError::CompactionRequired { .. }
+        autostudio_core::context::ContextError::AutomaticCompactionUnavailable
     ));
     let projection = manager.inspect_run(&run_id).expect("empty projection");
     assert_eq!(projection.journal_revision(), 0);
@@ -363,6 +367,181 @@ fn context_revision_conflict_rolls_back_spill_blob_with_events() {
             .is_none(),
         "a rejected Context append must not leave an orphan spill blob"
     );
+}
+
+#[test]
+#[allow(clippy::too_many_lines)]
+fn automatic_compaction_is_effective_atomic_deterministic_and_restart_safe() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let package = temp.path().join("automatic-compaction.autostudio");
+    let run_id = AgentRunId::new();
+    let base_store =
+        Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("context store"));
+    let store = Arc::new(FailOnceContextStore::new(base_store.clone()));
+    let manager = ContextManager::new(store.clone());
+
+    let first_turn = InferenceTurnId::new();
+    let brief = serde_json::json!({
+        "summary": "PRIMARY OBJECTIVE",
+        "purpose": "soundtrack",
+        "targetDurationSeconds": 90,
+        "style": ["ambient"],
+        "mood": ["hopeful"],
+        "instrumentation": ["piano"],
+        "constraints": ["no vocals"],
+        "padding": "u".repeat(12_000),
+    })
+    .to_string();
+    let first = manager
+        .prepare_turn(prepare(run_id.clone(), first_turn.clone(), 1, &brief))
+        .expect("large first turn");
+    record_visible_turn(
+        &manager,
+        &run_id,
+        first_turn,
+        &first,
+        &format!("completed first analysis {}", "a".repeat(12_000)),
+    );
+
+    for (revision, message) in [
+        (2, "second creator decision"),
+        (3, "third creator decision"),
+    ] {
+        let turn_id = InferenceTurnId::new();
+        let prepared = manager
+            .prepare_turn(prepare(run_id.clone(), turn_id.clone(), revision, message))
+            .expect("recent turn");
+        record_visible_turn(
+            &manager,
+            &run_id,
+            turn_id,
+            &prepared,
+            "recent assistant result",
+        );
+    }
+
+    let before = manager.inspect_run(&run_id).expect("pre-compaction state");
+    let before_revision = before.journal_revision();
+    let first_kept_after_expected_cut = before.items()[3].id().clone();
+    store.fail_next_compaction.store(true, Ordering::SeqCst);
+    let recovery_turn = InferenceTurnId::new();
+    let pressure_request = || {
+        let mut request = prepare(
+            run_id.clone(),
+            recovery_turn.clone(),
+            4,
+            "new creator instruction protected from compaction",
+        );
+        request.token_budget = TokenBudgetPlan::known(6_000, 500, 500).expect("pressure budget");
+        request
+    };
+    let error = manager
+        .prepare_turn(pressure_request())
+        .expect_err("injected compaction transaction failure");
+    assert!(matches!(
+        error,
+        autostudio_core::context::ContextError::Store(ContextStoreError::Unavailable(_))
+    ));
+    let after_failure = manager.inspect_run(&run_id).expect("rolled back state");
+    assert_eq!(after_failure.journal_revision(), before_revision);
+    assert_eq!(after_failure.items(), before.items());
+    assert!(after_failure.checkpoints().is_empty());
+    let attempted_hash = store
+        .attempted_checkpoint_hash
+        .lock()
+        .expect("attempt hash lock")
+        .clone()
+        .expect("attempted checkpoint hash");
+
+    let compacted = manager
+        .prepare_turn(pressure_request())
+        .expect("deterministic compaction retry");
+    assert_eq!(
+        compacted.manifest().preparation_reason(),
+        ContextPreparationReason::PressureCompaction
+    );
+    let metrics = compacted
+        .manifest()
+        .surface_metrics()
+        .expect("surface metrics");
+    assert_eq!(metrics.transform(), ContextSurfaceTransform::Compaction);
+    assert_eq!(
+        metrics.prepared_footprint().pressure(),
+        ContextPressure::Normal
+    );
+    assert!(
+        metrics.prepared_footprint().total_serialized_bytes()
+            < metrics.initial_footprint().total_serialized_bytes()
+    );
+    let projection = manager.inspect_run(&run_id).expect("compacted state");
+    assert_eq!(projection.items().len(), before.items().len() + 1);
+    assert_eq!(projection.checkpoints().len(), 1);
+    let checkpoint = &projection.checkpoints()[0];
+    assert_eq!(checkpoint.content_hash(), attempted_hash);
+    assert_eq!(checkpoint.summary().objective(), "PRIMARY OBJECTIVE");
+    assert!(
+        checkpoint
+            .summary()
+            .constraints()
+            .iter()
+            .any(|constraint| constraint == "style:ambient")
+    );
+    assert!(
+        checkpoint
+            .summary()
+            .constraints()
+            .iter()
+            .any(|constraint| constraint == "constraints:no vocals")
+    );
+    assert_eq!(checkpoint.replaces_item_ids().len(), 3);
+    assert_eq!(
+        checkpoint.first_kept_item_id(),
+        &first_kept_after_expected_cut
+    );
+    assert!(matches!(
+        compacted.messages().first(),
+        Some(CanonicalMessage::ContextSummary { content })
+            if content.contains("PRIMARY OBJECTIVE")
+    ));
+    assert!(matches!(
+        compacted.messages().last(),
+        Some(CanonicalMessage::User { content })
+            if content.contains("protected from compaction")
+    ));
+    record_visible_turn(
+        &manager,
+        &run_id,
+        recovery_turn,
+        &compacted,
+        "post-compaction response",
+    );
+    drop(manager);
+    drop(store);
+    drop(base_store);
+
+    let reopened_store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&package).expect("reopened context store"),
+    );
+    let reopened = ContextManager::new(reopened_store);
+    let full_before_next = reopened.inspect_run(&run_id).expect("replayed state");
+    assert_eq!(full_before_next.items().len(), before.items().len() + 3);
+    let next = reopened
+        .prepare_turn(prepare(
+            run_id.clone(),
+            InferenceTurnId::new(),
+            5,
+            "continue after process restart",
+        ))
+        .expect("surface rebuilt from checkpoint");
+    assert!(matches!(
+        next.messages().first(),
+        Some(CanonicalMessage::ContextSummary { content })
+            if content.contains("PRIMARY OBJECTIVE")
+    ));
+    assert!(matches!(
+        next.messages().last(),
+        Some(CanonicalMessage::User { content }) if content.contains("process restart")
+    ));
 }
 
 #[test]
@@ -595,6 +774,116 @@ fn prepare(
         continuity_overhead_tokens: 0,
         tools,
         token_budget: TokenBudgetPlan::known(32_768, 4_096, 1_024).expect("valid token budget"),
+    }
+}
+
+fn record_visible_turn(
+    manager: &ContextManager,
+    run_id: &AgentRunId,
+    turn_id: InferenceTurnId,
+    prepared: &autostudio_core::context::PreparedContext,
+    content: &str,
+) {
+    manager
+        .record_turn(RecordInferenceTurn {
+            run_id: run_id.clone(),
+            turn_id,
+            context_id: prepared.manifest().context_id().clone(),
+            expected_journal_revision: prepared.journal_revision(),
+            items: vec![
+                InferenceItemDraft::VisibleMessage {
+                    role: VisibleMessageRole::Assistant,
+                    content: content.to_owned(),
+                },
+                InferenceItemDraft::Finish {
+                    reason: InferenceFinishReason::Completed,
+                    detail: None,
+                },
+            ],
+        })
+        .expect("record visible turn");
+}
+
+struct FailOnceContextStore {
+    inner: Arc<autostudio_storage::SqliteProjectStore>,
+    fail_next_compaction: AtomicBool,
+    attempted_checkpoint_hash: Mutex<Option<String>>,
+}
+
+impl FailOnceContextStore {
+    fn new(inner: Arc<autostudio_storage::SqliteProjectStore>) -> Self {
+        Self {
+            inner,
+            fail_next_compaction: AtomicBool::new(false),
+            attempted_checkpoint_hash: Mutex::new(None),
+        }
+    }
+
+    fn reject_compaction_once(&self, events: &[ContextEvent]) -> bool {
+        let checkpoint = events.iter().find_map(|event| match event {
+            ContextEvent::CompactionCommitted { checkpoint } => Some(checkpoint),
+            ContextEvent::InferenceItemAppended { .. } | ContextEvent::ContextPrepared { .. } => {
+                None
+            }
+        });
+        let Some(checkpoint) = checkpoint else {
+            return false;
+        };
+        if !self.fail_next_compaction.swap(false, Ordering::SeqCst) {
+            return false;
+        }
+        *self
+            .attempted_checkpoint_hash
+            .lock()
+            .expect("attempt hash lock") = Some(checkpoint.content_hash().to_owned());
+        true
+    }
+}
+
+impl ContextEventStore for FailOnceContextStore {
+    fn append_context_events(
+        &self,
+        run_id: &AgentRunId,
+        expected_revision: u64,
+        events: &[ContextEvent],
+    ) -> Result<u64, ContextStoreError> {
+        if self.reject_compaction_once(events) {
+            return Err(ContextStoreError::Unavailable(
+                "injected pre-commit crash".to_owned(),
+            ));
+        }
+        self.inner
+            .append_context_events(run_id, expected_revision, events)
+    }
+
+    fn append_context_events_with_spills(
+        &self,
+        run_id: &AgentRunId,
+        expected_revision: u64,
+        events: &[ContextEvent],
+        spills: &[ContextSpillBlob],
+    ) -> Result<u64, ContextStoreError> {
+        if self.reject_compaction_once(events) {
+            return Err(ContextStoreError::Unavailable(
+                "injected pre-commit crash".to_owned(),
+            ));
+        }
+        self.inner
+            .append_context_events_with_spills(run_id, expected_revision, events, spills)
+    }
+
+    fn context_events(
+        &self,
+        run_id: &AgentRunId,
+    ) -> Result<Vec<ContextEventEnvelope>, ContextStoreError> {
+        self.inner.context_events(run_id)
+    }
+
+    fn context_spill(
+        &self,
+        content_hash: &str,
+    ) -> Result<Option<ContextSpillBlob>, ContextStoreError> {
+        self.inner.context_spill(content_hash)
     }
 }
 

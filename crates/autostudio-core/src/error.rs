@@ -39,6 +39,10 @@ pub enum ContextError {
         estimated_tokens: u64,
         input_budget_tokens: u64,
     },
+    #[error("automatic context compaction could not produce a bounded model surface")]
+    AutomaticCompactionUnavailable,
+    #[error("Provider context overflow recovery was already attempted for this Run")]
+    OverflowRecoveryExhausted,
     #[error(transparent)]
     Surface(#[from] ContextSurfaceError),
     #[error(transparent)]

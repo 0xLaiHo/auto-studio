@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use crate::constants::{
     CONTEXT_ESTIMATED_BYTES_PER_TOKEN, CONTEXT_HARD_PRESSURE_PERCENT,
     CONTEXT_SOFT_PRESSURE_PERCENT, CONTEXT_SURFACE_FORMAT_REVISION,
+    CONTEXT_SURFACE_LEGACY_FORMAT_REVISION,
 };
 use crate::context::{CanonicalMessage, CanonicalToolDefinition, InferenceItemId, TokenBudgetPlan};
 pub use crate::error::ContextSurfaceError;
@@ -19,6 +20,39 @@ pub enum ContextPressure {
     Soft,
     Hard,
     Overflow,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextSurfaceTransform {
+    #[default]
+    None,
+    ToolResultSpill,
+    Compaction,
+    CompactionAndToolResultSpill,
+}
+
+impl ContextSurfaceTransform {
+    #[must_use]
+    pub const fn includes_compaction(self) -> bool {
+        matches!(self, Self::Compaction | Self::CompactionAndToolResultSpill)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextPreparationReason {
+    #[default]
+    Standard,
+    PressureCompaction,
+    ProviderOverflowRecovery,
+}
+
+impl ContextPreparationReason {
+    #[must_use]
+    pub const fn requires_compaction(self) -> bool {
+        !matches!(self, Self::Standard)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -275,6 +309,8 @@ pub struct ContextSurfaceMetrics {
     initial_footprint: ContextFootprint,
     prepared_footprint: ContextFootprint,
     spills: Vec<ToolResultSpillReference>,
+    #[serde(default)]
+    transform: ContextSurfaceTransform,
     format_revision: String,
 }
 
@@ -284,11 +320,19 @@ impl ContextSurfaceMetrics {
         initial_footprint: ContextFootprint,
         prepared_footprint: ContextFootprint,
         spills: Vec<ToolResultSpillReference>,
+        compaction_applied: bool,
     ) -> Self {
+        let transform = match (compaction_applied, spills.is_empty()) {
+            (false, true) => ContextSurfaceTransform::None,
+            (false, false) => ContextSurfaceTransform::ToolResultSpill,
+            (true, true) => ContextSurfaceTransform::Compaction,
+            (true, false) => ContextSurfaceTransform::CompactionAndToolResultSpill,
+        };
         Self {
             initial_footprint,
             prepared_footprint,
             spills,
+            transform,
             format_revision: CONTEXT_SURFACE_FORMAT_REVISION.to_owned(),
         }
     }
@@ -308,13 +352,20 @@ impl ContextSurfaceMetrics {
         &self.spills
     }
 
+    #[must_use]
+    pub const fn transform(&self) -> ContextSurfaceTransform {
+        self.transform
+    }
+
     /// Revalidates surface audit metadata restored from a Manifest.
     ///
     /// # Errors
     ///
     /// Returns [`ContextSurfaceError`] for unsupported or malformed spill data.
     pub fn validate(&self) -> Result<(), ContextSurfaceError> {
-        if self.format_revision != CONTEXT_SURFACE_FORMAT_REVISION {
+        if self.format_revision != CONTEXT_SURFACE_FORMAT_REVISION
+            && self.format_revision != CONTEXT_SURFACE_LEGACY_FORMAT_REVISION
+        {
             return Err(ContextSurfaceError::InvalidSpillReference);
         }
         self.initial_footprint.validate()?;
@@ -337,7 +388,31 @@ impl ContextSurfaceMetrics {
                 return Err(ContextSurfaceError::InvalidSpillReference);
             }
         }
-        if self.spills.is_empty() {
+        let effective_transform = if self.format_revision == CONTEXT_SURFACE_LEGACY_FORMAT_REVISION
+        {
+            if self.spills.is_empty() {
+                ContextSurfaceTransform::None
+            } else {
+                ContextSurfaceTransform::ToolResultSpill
+            }
+        } else {
+            self.transform
+        };
+        let transform_matches_spills = matches!(
+            (effective_transform, self.spills.is_empty()),
+            (
+                ContextSurfaceTransform::None | ContextSurfaceTransform::Compaction,
+                true
+            ) | (
+                ContextSurfaceTransform::ToolResultSpill
+                    | ContextSurfaceTransform::CompactionAndToolResultSpill,
+                false
+            )
+        );
+        if !transform_matches_spills {
+            return Err(ContextSurfaceError::InvalidSpillReference);
+        }
+        if effective_transform == ContextSurfaceTransform::None {
             if self.initial_footprint != self.prepared_footprint {
                 return Err(ContextSurfaceError::InvalidSpillReference);
             }

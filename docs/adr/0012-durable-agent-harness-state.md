@@ -5,7 +5,7 @@ date: 2026-08-24
 
 # 分离推理记录、Provider 连续性状态、授权凭据与运行预算
 
-> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 已实现 checkpoint foundation、deterministic Request Footprint/pressure policy 与大 Tool Result spill：Manifest 记录压缩前后占用和 hash 引用，spill blob 与 Context Event 在同一 SQLite transaction 提交，重启与 Project backup 可恢复；完整 Transcript 不改写，hard/overflow 在 Provider 调用前失败。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Approval Grant、Run Budget、自动 summary/cut、overflow recovery、长期 Run 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
+> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、大 Tool Result spill、同事务 crash/retry 与最多一次 Provider overflow recovery；完整 Transcript 不改写。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Provider-specific tokenizer/overflow live、CM-4 长期 Run、Approval Grant、Run Budget 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
 
 ## 背景
 
@@ -30,6 +30,10 @@ Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 
 11. Context compaction 只压缩可重建的对话语义，不改变 Project facts、Transcript 中完整 Tool Request/Result、Approval Grant、budget ledger、ToolExecution receipt 或 Continuity binding。
 12. Context Manager 在每次 Provider 调用前，从 canonical instructions/messages/Tool schema 加上 Adapter 提供的 opaque continuity allowance 生成 `RequestFootprint`。在没有精确 tokenizer 的通用边界使用保守且版本化的估算；已知输入预算按 `75% soft / 90% hard / 超预算 overflow` 分级，hard/overflow 不得调用 Provider。
 13. 超过固定阈值的 Tool Result 只在 Context Surface 中替换为 source item、hash、原始字节数和有界预览。完整 Tool Result 继续保留在 Transcript，并以 content-addressed spill blob 与对应 Context Manifest/事件同事务提交；revision 冲突必须一起回滚，读取、重启和备份时必须重新校验 hash。
+14. automatic compaction 只在完整 Inference Turn 边界选择连续前缀，必须推进上一 cut、不拆 Tool Request/Result、保留本轮新输入并至少保留最近两个 Turn。结构化摘要由 Context Module 确定性生成；只有 prepared surface 实际变短并回到 `Normal` 才可提交。
+15. Creator 新输入、Compaction Checkpoint、Context Manifest 与 spill blob 必须由同一 Context journal transaction 原子发布。压缩不调用外部收费服务，因此事务前失败不写 attempt 事实；相同 source facts 的安全重试必须得到相同 checkpoint content hash。
+16. Provider 只有返回明确的 context-window 机器码/短语才进入 `ContextOverflow`。Harness 必须先记录 Finish 并清除旧 Continuity，再执行一次必须推进 surface 的恢复；同一 Run 第二次 overflow 必须停止，不能无限重提。
+17. Planning 的 `16,384` token context window 是 host-owned 保守 safety ceiling，不是模型能力声明。Provider-specific tokenizer 可以校准 footprint，但不能绕过 hard/overflow、effectiveness 或单次恢复合同。
 
 ## Considered Options
 

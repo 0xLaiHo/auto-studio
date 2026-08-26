@@ -1,8 +1,8 @@
 # Auto Studio 文档导航
 
 > 基线日期：2026-08-26
-> 当前阶段：Q0 真人内容 Gate；M3-A CM-3 Compaction 正在实施
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。CM-3 已具备 checkpoint foundation、deterministic Request Footprint/pressure policy 和大 Tool Result spill：完整 Transcript 不改写，Manifest 记录压缩前后 footprint 与 spill 引用，content-addressed blob 与 Context Event 原子落盘并随 Project backup 保存；自动 summary/cut、通用 prune、overflow recovery 与 CM-4 长 Run 检索仍未完成。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。真人内容 Gate、Grant/Budget、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
+> 当前阶段：Q0 真人内容 Gate；M3-A CM-4 Long-Run Retrieval 待实施
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash 语义、大 Tool Result spill 与单次 Provider overflow recovery；完整 Transcript 不改写。超长 single-turn 无安全 cut 时明确失败，Provider-specific tokenizer/真实 overflow live 仍待资格验证。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。CM-4 长 Run、真人内容 Gate、Grant/Budget、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
 
 ## 权威顺序
 

@@ -4,9 +4,14 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use autostudio_core::agent::AgentRunId;
-use autostudio_core::compaction::{CompactionCheckpoint, StructuredRunSummary};
+use autostudio_core::compaction::{
+    CompactionCheckpoint, StructuredRunSummary, StructuredRunSummaryDraft,
+};
 use autostudio_core::constants::{
-    CONTEXT_TOOL_RESULT_PREVIEW_CHARS, CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES,
+    CONTEXT_COMPACTION_MIN_RECENT_TURNS, CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
+    CONTEXT_COMPACTION_SUMMARY_MAX_ITEMS, CONTEXT_COMPACTION_SUMMARY_OBJECTIVE_CHARS,
+    CONTEXT_COMPACTION_UNKNOWN_TARGET_PERCENT, CONTEXT_TOOL_RESULT_PREVIEW_CHARS,
+    CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES,
 };
 use autostudio_core::context::{
     CanonicalMessage, CanonicalToolCall, CanonicalToolDefinition, ContextError, ContextEvent,
@@ -14,8 +19,8 @@ use autostudio_core::context::{
     InferenceTurnId, PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
 use autostudio_core::context_surface::{
-    ContextFootprint, ContextPressure, ContextSpillBlob, ContextSurfaceMetrics,
-    ToolResultSpillReference,
+    ContextFootprint, ContextPreparationReason, ContextPressure, ContextSpillBlob,
+    ContextSurfaceMetrics, ToolResultSpillReference,
 };
 use autostudio_core::continuity::ContinuityReference;
 use serde::Serialize;
@@ -167,40 +172,27 @@ impl ContextManager {
             return Err(ContextError::EmptyField("prepare.new_user_messages"));
         }
         let created_at = now_unix_millis()?;
-        let mut items = Vec::with_capacity(request.new_user_messages.len());
-        let mut next_item_sequence = state.next_item_sequence;
-        for content in &request.new_user_messages {
-            let payload = InferenceItemDraft::VisibleMessage {
-                role: VisibleMessageRole::User,
-                content: content.clone(),
-            };
-            let item = InferenceItem::new(
-                request.run_id.clone(),
-                request.turn_id.clone(),
-                next_item_sequence,
-                created_at,
-                digest_json(&payload)?,
-                payload,
-            )?;
-            next_item_sequence = next_item_sequence
-                .checked_add(1)
-                .ok_or(ContextError::SequenceExhausted)?;
-            items.push(item);
-        }
-
-        let mut all_items = state.items;
+        let items = build_user_items(&request, state.next_item_sequence, created_at)?;
+        let previous_checkpoint = state.checkpoints.last().cloned();
+        let mut all_items = state.items.clone();
         all_items.extend(items.iter().cloned());
-        let checkpoint = state.checkpoints.last();
-        let surface_items = current_surface_items(&all_items, checkpoint)?;
+        let SelectedPreparedSurface {
+            new_checkpoint,
+            surface_start,
+            prepared_surface,
+            preparation_reason,
+            source_journal_revision,
+        } = select_prepared_surface(&request, &state, &all_items, items.len(), created_at)?;
+        let checkpoint = new_checkpoint.as_ref().or(previous_checkpoint.as_ref());
+        let surface_items = &all_items[surface_start..];
         let PreparedSurfaceArtifacts {
             messages,
             spills,
             metrics: surface_metrics,
-        } = prepare_surface(&request, surface_items, checkpoint)?;
+        } = prepared_surface;
         let included_item_ids = surface_items.iter().map(|item| item.id().clone()).collect();
-        let transcript_revision = state
-            .journal_revision
-            .checked_add(u64::try_from(items.len()).map_err(|_| ContextError::SequenceExhausted)?)
+        let transcript_revision = source_journal_revision
+            .checked_add(u64::from(new_checkpoint.is_some()))
             .ok_or(ContextError::SequenceExhausted)?;
         let content_hash = digest_json(&ContextHashInput {
             project_id: &request.project_id,
@@ -211,6 +203,7 @@ impl ContextManager {
             provider_binding: &request.provider_binding,
             compaction_checkpoint_hash: checkpoint.map(CompactionCheckpoint::content_hash),
             surface_metrics: &surface_metrics,
+            preparation_reason,
             continuity_reference: request.continuity_reference.as_ref(),
             token_budget: &request.token_budget,
         })?;
@@ -227,6 +220,7 @@ impl ContextManager {
             request.provider_binding,
             checkpoint.map(|checkpoint| checkpoint.id().clone()),
             Some(surface_metrics),
+            preparation_reason,
             request.continuity_reference,
             request.token_budget,
             content_hash,
@@ -236,6 +230,11 @@ impl ContextManager {
             .cloned()
             .map(|item| ContextEvent::InferenceItemAppended { item })
             .collect::<Vec<_>>();
+        if let Some(checkpoint) = new_checkpoint {
+            events.push(ContextEvent::CompactionCommitted {
+                checkpoint: Box::new(checkpoint),
+            });
+        }
         events.push(ContextEvent::ContextPrepared {
             manifest: Box::new(manifest.clone()),
         });
@@ -783,6 +782,33 @@ fn validate_compaction_cut(
     Ok(())
 }
 
+fn build_user_items(
+    request: &PrepareContext,
+    mut next_item_sequence: u64,
+    created_at_unix_millis: u64,
+) -> Result<Vec<InferenceItem>, ContextError> {
+    let mut items = Vec::with_capacity(request.new_user_messages.len());
+    for content in &request.new_user_messages {
+        let payload = InferenceItemDraft::VisibleMessage {
+            role: VisibleMessageRole::User,
+            content: content.clone(),
+        };
+        let item = InferenceItem::new(
+            request.run_id.clone(),
+            request.turn_id.clone(),
+            next_item_sequence,
+            created_at_unix_millis,
+            digest_json(&payload)?,
+            payload,
+        )?;
+        next_item_sequence = next_item_sequence
+            .checked_add(1)
+            .ok_or(ContextError::SequenceExhausted)?;
+        items.push(item);
+    }
+    Ok(items)
+}
+
 fn project_messages(
     items: &[InferenceItem],
     checkpoint: Option<&CompactionCheckpoint>,
@@ -882,18 +908,113 @@ struct PreparedSurfaceArtifacts {
     metrics: ContextSurfaceMetrics,
 }
 
+struct SelectedPreparedSurface {
+    new_checkpoint: Option<CompactionCheckpoint>,
+    surface_start: usize,
+    prepared_surface: PreparedSurfaceArtifacts,
+    preparation_reason: ContextPreparationReason,
+    source_journal_revision: u64,
+}
+
+struct AutomaticCompaction {
+    checkpoint: CompactionCheckpoint,
+    surface_start: usize,
+    surface: PreparedSurfaceArtifacts,
+}
+
+fn select_prepared_surface(
+    request: &PrepareContext,
+    state: &ReplayState,
+    all_items: &[InferenceItem],
+    new_item_count: usize,
+    created_at_unix_millis: u64,
+) -> Result<SelectedPreparedSurface, ContextError> {
+    let provider_overflow_recovery = state.items.last().is_some_and(|item| {
+        matches!(
+            item.payload(),
+            InferenceItemDraft::Finish {
+                reason: autostudio_core::context::InferenceFinishReason::ContextOverflow,
+                ..
+            }
+        )
+    });
+    if provider_overflow_recovery
+        && state.manifests.iter().any(|manifest| {
+            manifest.preparation_reason() == ContextPreparationReason::ProviderOverflowRecovery
+        })
+    {
+        return Err(ContextError::OverflowRecoveryExhausted);
+    }
+    let previous_checkpoint = state.checkpoints.last();
+    let previous_surface_items = current_surface_items(all_items, previous_checkpoint)?;
+    let standard_surface = prepare_surface(
+        request,
+        previous_surface_items,
+        previous_checkpoint,
+        None,
+        false,
+    )?;
+    let preparation_reason = if provider_overflow_recovery {
+        ContextPreparationReason::ProviderOverflowRecovery
+    } else if matches!(
+        standard_surface.metrics.prepared_footprint().pressure(),
+        ContextPressure::Hard | ContextPressure::Overflow
+    ) {
+        ContextPreparationReason::PressureCompaction
+    } else {
+        ContextPreparationReason::Standard
+    };
+    let source_journal_revision = state
+        .journal_revision
+        .checked_add(u64::try_from(new_item_count).map_err(|_| ContextError::SequenceExhausted)?)
+        .ok_or(ContextError::SequenceExhausted)?;
+    if preparation_reason == ContextPreparationReason::Standard {
+        reject_hard_pressure(standard_surface.metrics.prepared_footprint())?;
+        return Ok(SelectedPreparedSurface {
+            new_checkpoint: None,
+            surface_start: all_items.len() - previous_surface_items.len(),
+            prepared_surface: standard_surface,
+            preparation_reason,
+            source_journal_revision,
+        });
+    }
+    let compacted = automatic_compaction(
+        request,
+        all_items,
+        new_item_count,
+        previous_checkpoint,
+        source_journal_revision,
+        standard_surface.metrics.initial_footprint(),
+        created_at_unix_millis,
+    )?;
+    Ok(SelectedPreparedSurface {
+        new_checkpoint: Some(compacted.checkpoint),
+        surface_start: compacted.surface_start,
+        prepared_surface: compacted.surface,
+        preparation_reason,
+        source_journal_revision,
+    })
+}
+
 fn prepare_surface(
     request: &PrepareContext,
     items: &[InferenceItem],
     checkpoint: Option<&CompactionCheckpoint>,
+    initial_footprint: Option<ContextFootprint>,
+    compaction_applied: bool,
 ) -> Result<PreparedSurfaceArtifacts, ContextError> {
     let initial_messages = project_messages(items, checkpoint, &[])?;
-    let initial_footprint = ContextFootprint::measure(
-        &request.instructions,
-        &initial_messages,
-        &request.tools,
-        request.continuity_overhead_tokens,
-        &request.token_budget,
+    let initial_footprint = initial_footprint.map_or_else(
+        || {
+            ContextFootprint::measure(
+                &request.instructions,
+                &initial_messages,
+                &request.tools,
+                request.continuity_overhead_tokens,
+                &request.token_budget,
+            )
+        },
+        Ok,
     )?;
     let (spills, spill_references) = plan_tool_result_spills(items)?;
     let messages = if spill_references.is_empty() {
@@ -908,7 +1029,6 @@ fn prepare_surface(
         request.continuity_overhead_tokens,
         &request.token_budget,
     )?;
-    reject_hard_pressure(&prepared_footprint)?;
     Ok(PreparedSurfaceArtifacts {
         messages,
         spills,
@@ -916,8 +1036,273 @@ fn prepare_surface(
             initial_footprint,
             prepared_footprint,
             spill_references,
+            compaction_applied,
         ),
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn automatic_compaction(
+    request: &PrepareContext,
+    all_items: &[InferenceItem],
+    new_item_count: usize,
+    previous: Option<&CompactionCheckpoint>,
+    source_journal_revision: u64,
+    initial_footprint: &ContextFootprint,
+    created_at_unix_millis: u64,
+) -> Result<AutomaticCompaction, ContextError> {
+    let minimum_cut = previous
+        .and_then(|checkpoint| {
+            all_items
+                .iter()
+                .position(|item| item.id() == checkpoint.first_kept_item_id())
+        })
+        .map_or(1, |position| position.saturating_add(1));
+    let protected_turn_start = recent_turn_tail_start(all_items);
+    let new_items_start = all_items.len().saturating_sub(new_item_count);
+    let maximum_cut = protected_turn_start.min(new_items_start);
+    if minimum_cut > maximum_cut {
+        return Err(ContextError::AutomaticCompactionUnavailable);
+    }
+
+    for cut in minimum_cut..=maximum_cut {
+        if all_items[cut - 1].turn_id() == all_items[cut].turn_id() {
+            continue;
+        }
+        let replaces_item_ids = all_items[..cut]
+            .iter()
+            .map(|item| item.id().clone())
+            .collect::<Vec<_>>();
+        let first_kept_item_id = all_items[cut].id().clone();
+        if validate_compaction_cut(all_items, previous, &replaces_item_ids, &first_kept_item_id)
+            .is_err()
+        {
+            continue;
+        }
+        let summary = summarize_replaced_prefix(&all_items[..cut])?;
+        let checkpoint = CompactionCheckpoint::new(
+            request.run_id.clone(),
+            source_journal_revision,
+            replaces_item_ids,
+            first_kept_item_id,
+            summary,
+            created_at_unix_millis,
+        )
+        .map_err(|error| ContextError::InconsistentJournal(error.to_string()))?;
+        let surface = prepare_surface(
+            request,
+            &all_items[cut..],
+            Some(&checkpoint),
+            Some(initial_footprint.clone()),
+            true,
+        )?;
+        if compaction_recovers_surface(
+            surface.metrics.initial_footprint(),
+            surface.metrics.prepared_footprint(),
+        ) {
+            return Ok(AutomaticCompaction {
+                checkpoint,
+                surface_start: cut,
+                surface,
+            });
+        }
+    }
+    Err(ContextError::AutomaticCompactionUnavailable)
+}
+
+fn recent_turn_tail_start(items: &[InferenceItem]) -> usize {
+    let mut turns = std::collections::HashSet::new();
+    let mut protected_start = items.len();
+    for (position, item) in items.iter().enumerate().rev() {
+        if !turns.contains(item.turn_id()) && turns.len() == CONTEXT_COMPACTION_MIN_RECENT_TURNS {
+            break;
+        }
+        turns.insert(item.turn_id().clone());
+        protected_start = position;
+    }
+    protected_start
+}
+
+fn compaction_recovers_surface(initial: &ContextFootprint, prepared: &ContextFootprint) -> bool {
+    if prepared.total_serialized_bytes() >= initial.total_serialized_bytes() {
+        return false;
+    }
+    match prepared.pressure() {
+        ContextPressure::Normal => true,
+        ContextPressure::Unknown => {
+            u128::from(prepared.estimated_input_tokens()) * 100
+                <= u128::from(initial.estimated_input_tokens())
+                    * u128::from(CONTEXT_COMPACTION_UNKNOWN_TARGET_PERCENT)
+        }
+        ContextPressure::Soft | ContextPressure::Hard | ContextPressure::Overflow => false,
+    }
+}
+
+fn summarize_replaced_prefix(
+    items: &[InferenceItem],
+) -> Result<StructuredRunSummary, ContextError> {
+    let objective_source = items
+        .iter()
+        .find_map(|item| match item.payload() {
+            InferenceItemDraft::VisibleMessage {
+                role: VisibleMessageRole::User,
+                content,
+            } => Some(content.as_str()),
+            _ => None,
+        })
+        .ok_or(ContextError::AutomaticCompactionUnavailable)?;
+    let objective = summarize_objective(objective_source);
+    let constraints = extract_constraints(objective_source);
+    let mut seen_objective = false;
+    let mut creator_decisions = Vec::new();
+    let mut completed_work = Vec::new();
+    let mut open_items = Vec::new();
+    let mut artifact_references = Vec::new();
+    for item in items {
+        match item.payload() {
+            InferenceItemDraft::VisibleMessage {
+                role: VisibleMessageRole::User,
+                content,
+            } => {
+                if seen_objective {
+                    push_summary_item(
+                        &mut creator_decisions,
+                        format_summary_item(item, "creator", content),
+                    );
+                }
+                seen_objective = true;
+            }
+            InferenceItemDraft::VisibleMessage {
+                role: VisibleMessageRole::Assistant,
+                content,
+            } => push_summary_item(
+                &mut completed_work,
+                format_summary_item(item, "assistant", content),
+            ),
+            InferenceItemDraft::ToolResult {
+                name,
+                content,
+                is_error,
+                execution_id,
+                ..
+            } => {
+                let (status, target) = if *is_error {
+                    ("error", &mut open_items)
+                } else {
+                    ("ok", &mut completed_work)
+                };
+                push_summary_item(
+                    target,
+                    format_summary_item(item, &format!("tool:{name}:{status}"), content),
+                );
+                if let Some(execution_id) = execution_id {
+                    push_summary_item(
+                        &mut artifact_references,
+                        bounded_text(
+                            &format!("execution:{execution_id} sourceItem:{}", item.id().as_str()),
+                            CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
+                        ),
+                    );
+                }
+            }
+            InferenceItemDraft::ToolRequest { .. }
+            | InferenceItemDraft::Usage { .. }
+            | InferenceItemDraft::Finish { .. } => {}
+        }
+    }
+    StructuredRunSummary::new(StructuredRunSummaryDraft {
+        objective,
+        creator_decisions,
+        constraints,
+        completed_work,
+        open_items,
+        artifact_references,
+    })
+    .map_err(|error| ContextError::InconsistentJournal(error.to_string()))
+}
+
+fn summarize_objective(source: &str) -> String {
+    let summary = serde_json::from_str::<serde_json::Value>(source)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("summary")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| source.to_owned());
+    bounded_text(&summary, CONTEXT_COMPACTION_SUMMARY_OBJECTIVE_CHARS)
+}
+
+fn extract_constraints(objective: &str) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(objective) else {
+        return Vec::new();
+    };
+    let mut facts = Vec::new();
+    for field in ["purpose", "targetDurationSeconds"] {
+        if let Some(value) = value.get(field).filter(|value| !value.is_null()) {
+            push_summary_item(
+                &mut facts,
+                bounded_text(
+                    &format!("{field}:{}", json_fact(value)),
+                    CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
+                ),
+            );
+        }
+    }
+    for field in ["style", "mood", "instrumentation", "constraints"] {
+        for value in value
+            .get(field)
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            push_summary_item(
+                &mut facts,
+                bounded_text(
+                    &format!("{field}:{}", json_fact(value)),
+                    CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
+                ),
+            );
+        }
+    }
+    facts
+}
+
+fn json_fact(value: &serde_json::Value) -> String {
+    value
+        .as_str()
+        .map_or_else(|| value.to_string(), str::to_owned)
+}
+
+fn format_summary_item(item: &InferenceItem, kind: &str, content: &str) -> String {
+    bounded_text(
+        &format!(
+            "{kind} sourceItem:{} sourceHash:{} content:{}",
+            item.id().as_str(),
+            item.content_hash(),
+            content
+        ),
+        CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
+    )
+}
+
+fn push_summary_item(items: &mut Vec<String>, value: String) {
+    if items.len() < CONTEXT_COMPACTION_SUMMARY_MAX_ITEMS && !value.trim().is_empty() {
+        items.push(value);
+    }
+}
+
+fn bounded_text(value: &str, max_chars: usize) -> String {
+    if value.chars().count() <= max_chars {
+        return value.to_owned();
+    }
+    let mut bounded = value
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .collect::<String>();
+    bounded.push('…');
+    bounded
 }
 
 fn plan_tool_result_spills(
@@ -1150,6 +1535,7 @@ struct ContextHashInput<'a> {
     provider_binding: &'a ProviderBinding,
     compaction_checkpoint_hash: Option<&'a str>,
     surface_metrics: &'a ContextSurfaceMetrics,
+    preparation_reason: ContextPreparationReason,
     continuity_reference: Option<&'a ContinuityReference>,
     token_budget: &'a TokenBudgetPlan,
 }

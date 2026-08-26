@@ -2,6 +2,7 @@ use autostudio_core::constants::CONTEXT_ESTIMATED_BYTES_PER_TOKEN;
 use autostudio_core::context::{CanonicalMessage, TokenBudgetPlan};
 use autostudio_core::context_surface::{
     ContextFootprint, ContextPressure, ContextSpillBlob, ContextSurfaceError,
+    ContextSurfaceMetrics, ContextSurfaceTransform,
 };
 
 #[test]
@@ -95,4 +96,29 @@ fn spill_blob_is_content_addressed_and_detects_tampering() {
         tampered.validate(),
         Err(ContextSurfaceError::SpillHashMismatch)
     );
+}
+
+#[test]
+fn legacy_surface_metrics_without_a_transform_remain_replayable() {
+    let budget = TokenBudgetPlan::known(4_096, 512, 256).expect("budget");
+    let footprint = ContextFootprint::measure(
+        "system",
+        &[CanonicalMessage::User {
+            content: "legacy context".to_owned(),
+        }],
+        &[],
+        0,
+        &budget,
+    )
+    .expect("footprint");
+    let metrics = ContextSurfaceMetrics::new(footprint.clone(), footprint, Vec::new(), false);
+    let mut json = serde_json::to_value(metrics).expect("metrics JSON");
+    json.as_object_mut()
+        .expect("metrics object")
+        .remove("transform");
+    json["formatRevision"] = serde_json::Value::String("autostudio.context-surface/1".to_owned());
+    let legacy: ContextSurfaceMetrics = serde_json::from_value(json).expect("legacy metrics shape");
+
+    assert_eq!(legacy.transform(), ContextSurfaceTransform::None);
+    legacy.validate().expect("legacy metrics remain valid");
 }

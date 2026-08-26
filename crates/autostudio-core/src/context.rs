@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::agent::{AgentRunId, InferenceUsage};
 use crate::compaction::{CompactionCheckpoint, CompactionId};
 use crate::constants::MAX_PROVIDER_TOOL_NAME_CHARS;
-use crate::context_surface::{ContextSpillBlob, ContextSurfaceMetrics};
+use crate::context_surface::{ContextPreparationReason, ContextSpillBlob, ContextSurfaceMetrics};
 use crate::continuity::ContinuityReference;
 pub use crate::error::{ContextError, ContextStoreError};
 use crate::provider::{ThinkingControl, ThinkingLevel};
@@ -150,6 +150,7 @@ pub enum InferenceFinishReason {
     InvalidResponse,
     Interrupted,
     UnknownConsumption,
+    ContextOverflow,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -423,6 +424,8 @@ pub struct ContextManifest {
     #[serde(default)]
     surface_metrics: Option<ContextSurfaceMetrics>,
     #[serde(default)]
+    preparation_reason: ContextPreparationReason,
+    #[serde(default)]
     continuity_reference: Option<ContinuityReference>,
     token_budget: TokenBudgetPlan,
     content_hash: String,
@@ -448,6 +451,7 @@ impl ContextManifest {
         provider_binding: ProviderBinding,
         compaction_checkpoint: Option<CompactionId>,
         surface_metrics: Option<ContextSurfaceMetrics>,
+        preparation_reason: ContextPreparationReason,
         continuity_reference: Option<ContinuityReference>,
         token_budget: TokenBudgetPlan,
         content_hash: String,
@@ -466,6 +470,7 @@ impl ContextManifest {
             provider_binding,
             compaction_checkpoint,
             surface_metrics,
+            preparation_reason,
             continuity_reference,
             token_budget,
             content_hash,
@@ -507,6 +512,11 @@ impl ContextManifest {
     #[must_use]
     pub const fn surface_metrics(&self) -> Option<&ContextSurfaceMetrics> {
         self.surface_metrics.as_ref()
+    }
+
+    #[must_use]
+    pub const fn preparation_reason(&self) -> ContextPreparationReason {
+        self.preparation_reason
     }
 
     #[must_use]
@@ -572,8 +582,26 @@ impl ContextManifest {
             tool.validate()?;
         }
         self.provider_binding.validate()?;
+        if self.preparation_reason.requires_compaction() && self.surface_metrics.is_none() {
+            return Err(ContextError::InconsistentJournal(
+                "compacted Context Manifest must include surface metrics".to_owned(),
+            ));
+        }
         if let Some(metrics) = &self.surface_metrics {
             metrics.validate()?;
+            if self.preparation_reason.requires_compaction()
+                != metrics.transform().includes_compaction()
+            {
+                return Err(ContextError::InconsistentJournal(
+                    "Context preparation reason does not match its surface transform".to_owned(),
+                ));
+            }
+            if self.preparation_reason.requires_compaction() && self.compaction_checkpoint.is_none()
+            {
+                return Err(ContextError::InconsistentJournal(
+                    "compacted Context Manifest must bind a checkpoint".to_owned(),
+                ));
+            }
             let mut spill_items = std::collections::HashSet::new();
             for spill in metrics.spills() {
                 if !self.included_item_ids.contains(spill.item_id())

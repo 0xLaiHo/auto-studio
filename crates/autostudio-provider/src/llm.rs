@@ -954,7 +954,13 @@ async fn decode_response(
 fn status_error(status: StatusCode, body: &str, api_key: &str) -> AdapterError {
     let detail = sanitized_error_detail(body, api_key);
     let message = format!("HTTP {}: {detail}", status.as_u16());
-    if status.is_server_error()
+    if matches!(
+        status,
+        StatusCode::BAD_REQUEST | StatusCode::PAYLOAD_TOO_LARGE
+    ) && crate::error::is_context_overflow_error(&detail)
+    {
+        AdapterError::ContextOverflow(message)
+    } else if status.is_server_error()
         || matches!(
             status,
             StatusCode::REQUEST_TIMEOUT | StatusCode::CONFLICT | StatusCode::TOO_MANY_REQUESTS
@@ -1066,4 +1072,26 @@ fn parse_base_url(
 
 fn invalid_response(message: &str) -> AdapterError {
     AdapterError::InvalidResponse(message.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_explicit_http_context_signals_are_classified_as_overflow() {
+        let overflow = status_error(
+            StatusCode::BAD_REQUEST,
+            r#"{"error":{"code":"context_length_exceeded","message":"maximum context length exceeded"}}"#,
+            "secret",
+        );
+        assert!(matches!(overflow, AdapterError::ContextOverflow(_)));
+
+        let ordinary_rejection = status_error(
+            StatusCode::BAD_REQUEST,
+            r#"{"error":{"code":"invalid_request","message":"tool schema is invalid"}}"#,
+            "secret",
+        );
+        assert!(matches!(ordinary_rejection, AdapterError::Rejected(_)));
+    }
 }
