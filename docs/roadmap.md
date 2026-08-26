@@ -1,8 +1,8 @@
 # Auto Studio Roadmap
 
 > 基线日期：2026-08-27
-> 当前执行 Gate：Q0 真人内容 Gate；M3-A architecture/migration baseline 已完成，M3-B 等待 Q0 `GO`
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0—CM-4、Grant/Budget machine slices 与 legacy boundary 已落地：`autostudio-provider` 默认只编译 LLM 职责，旧 Generation runtime 仅能通过非默认 feature 回归，Core/TUI/Desktop production source 受架构门禁保护。Grant/Budget 尚未接入 composition root、Policy 或 durable ToolExecution；Music Project 也没有独立 revision，因此当前产品仍不能真实生成音乐。
+> 当前执行 Gate：Q0-Content 真人内容 Gate；M3-A architecture/migration baseline 已完成，M3-B 等待 `CONTENT-GO`
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线、Portable Handoff v1 机器切片与六样本本地内容评审包已通过。Creator feedback、Mode C、盲评 Keep 与真实继续编辑仍为 `LIVE-PENDING`，因此尚无 `CONTENT-GO`。跨 DAW qualification 独立后置到 M5/Gate E；Cubase、Studio One Pro、FL Studio 继续诚实记录为 3 个 `not_run`，不阻塞 M3-B，也不能宣称专业交接通过。M3-A CM-0—CM-4、Grant/Budget machine slices 与 legacy boundary 已落地；Grant/Budget 尚未接入 composition root、Policy 或 durable ToolExecution，Music Project 也没有独立 revision，因此当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -31,7 +31,7 @@
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
 | Tool Registry/Runtime | `NOT IMPLEMENTED` | ADR/架构图 | 固定 catalog、Policy、ToolExecution |
-| MIDI/Arrangement | `PASS（Q0 v2/v3 + portable machine）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC；Portable v1 增加 per-track CC0/CC32/Program Change 与 assignment manifest，并由固定 GeneralUser GS 离线解析 | 真人内容 Gate、Cubase/Studio One/FL Studio 导入矩阵、production Music Project 与 Semantic Tool |
+| MIDI/Arrangement | `PASS（Q0 v2/v3 + portable machine）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC；Portable v1 增加 per-track CC0/CC32/Program Change 与 assignment manifest，并由固定 GeneralUser GS 离线解析 | Q0-Content 真人 Gate、production Music Project 与 Semantic Tool；跨 DAW 矩阵后置 M5 |
 | Offline Audio Engine | `NOT IMPLEMENTED` | `hound` 只用于 WAV 合同 | Render Plan、instrument、mix、analysis |
 | Factory Pack/Sampler | `NOT IMPLEMENTED` | 研究与候选清单 | 许可批准、manifest、sampler、盲听 |
 | VST3 Host | `NOT IMPLEMENTED` | 目标隔离设计 | 目标 OS、SDK Spike、worker、corpus |
@@ -46,8 +46,8 @@
 | M0 Workspace Baseline | Rust workspace、Core、Project、API、基础 TUI | `PASS` |
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
-| Q0 Music Content Feasibility | 用可移植 MIDI/冻结 DAW matrix 验证 L1—L4 Keep 与真实继续编辑 | `PASS（v2 11/12 + v3 L4 6/6 + portable handoff machine）` / `LIVE-PENDING（human/cross-DAW）` |
-| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `IN PROGRESS（M3-A CM-0—CM-4 + Grant/Budget machine slices PASS；Tool Runtime 未实现；音乐纵切仍等待 Q0 GO）` |
+| Q0-Content Music Feasibility | 用固定六样本、同一音色链、Mode B/C、Keep 与真实继续编辑判断音乐是否值得投入 | `PASS（machine + local review pack）` / `LIVE-PENDING（Creator feedback/Mode C/blind/edit）` |
+| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `IN PROGRESS（M3-A baseline PASS；Tool Runtime 未实现；M3-B 等待 CONTENT-GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
 | M6 Release Qualification | 固定 corpus、盲听、设计伙伴、Vault、安装签名 | `BLOCKED` |
@@ -55,9 +55,11 @@
 
 ## 4. Q0：Music Content Feasibility
 
-Q0 不建设 production Audio Engine。完成定义是：
+Q0-Content 不建设 production Audio Engine，也不承担跨 DAW 发布资格。完成定义是：
 
-> 使用冻结的 12 个 L1—L4 Brief、精确强模型、ExperimentalMusicSpec、MIDI、固定 DAW/version/template 与合法音色映射，完成匿名评价和真实 continued-editing 记录，并形成 `GO/REVISE/NO-GO/INVALID` 决策。
+> 使用冻结的 12 个 L1—L4 Brief、精确强模型、ExperimentalMusicSpec、MIDI、固定本地评审渲染/音色映射与同一编辑环境，完成匿名评价和真实 continued-editing 记录，并形成 `CONTENT-GO/REVISE/NO-GO/INVALID` 决策。
+
+跨 DAW qualification 已有机器装置，但真人矩阵后置 M5/Gate E。它继续影响专业交接与发布声明，不再阻塞“是否值得建设 Music Project”的内容投资决策。
 
 ### 4.1 Q0-0：仓库与协议基线
 
@@ -80,7 +82,7 @@ Q0 不建设 production Audio Engine。完成定义是：
 - [x] DAW qualification harness：冻结 handoff/target plan，生成 `not_run` template，校验精确版本、checklist、PNG/JPEG、保存工程、edited MIDI 与所有 evidence hash；
 - [x] 不计入结果的真实 DeepSeek Mode A/Mode B pilot；
 - [x] Creator 已完成一次 Bitwig 三轨导入、手动固定音色装载和工程保存/重开 Pilot；
-- [ ] 正式 Bitwig checklist/仓内截图/edited MIDI，以及 Cubase、Studio One Pro、FL Studio 导入矩阵为 `LIVE-PENDING`；当前三目标计划为 `0 pass / 0 fail / 3 not_run`，MVP Gate=false；
+- [ ] 正式 Bitwig 与 Cubase、Studio One Pro、FL Studio 导入矩阵后置 M5/Gate E；当前三目标计划保持 `0 pass / 0 fail / 3 not_run`，专业交接 Gate=false；
 - [x] Provider request/response normalization、逐轮恢复、usage/cost/latency 记录；
 - [x] 匿名 candidate ID、evaluator package、独立 private mapping 与编辑动作表；
 - [x] Credential、private reasoning 和不允许分发音色不进入 artifact；
@@ -95,12 +97,13 @@ Q0 不建设 production Audio Engine。完成定义是：
 - [x] Mode B 跑全部 12 个 Brief；11/12 valid + compiled；
 - [x] Mode A 跑 4 个代表 Brief；4/4 valid + compiled；
 - [x] 按 v3 在独立目录重新运行全部 6 个 L4 Mode B；6/6 valid + compiled，601,537 tokens，peak USD 1.933172824，0 个资源修订回合；
+- [x] 生成并验证六样本本地内容评审包：协议/summary/binding、Portable MIDI、GeneralUser GS 48 kHz stereo preview、不可变 artifact hash 与可变 Creator feedback 分离；
 - [ ] Mode C 跑全部 6 个 L4 Brief，最多两轮 Creator 反馈；
 - [ ] 记录 Keep、Actual continued editing、Time to useful、Edit distance、Structural errors、内容评分与成本；
 - [ ] 主模型未过 L4 门槛时，用第二个不同强模型复核；
-- [ ] 保存完整证据并发布 `GO/REVISE/NO-GO/INVALID` 报告。
+- [ ] 保存完整证据并发布 `CONTENT-GO/REVISE/NO-GO/INVALID` 报告。
 
-完成定义与阈值以 [Q0 Spike 设计](planning/2026-08-24-music-quality-spike-design.md) 为准。只有 `GO` 允许开始 M3 production 实施；Q0 不替代后续 Factory/VST3/Release Gate。
+完成定义与阈值以 [Q0 Spike 设计](planning/2026-08-24-music-quality-spike-design.md) 为准。只有 `CONTENT-GO` 允许开始 M3-B production 实施；Q0-Content 不替代后续 Factory/VST3/跨 DAW/Release Gate。
 
 ## 5. M3：LLM-Authored Local Music Foundation
 
@@ -321,9 +324,9 @@ Q0 中的 `InstrumentAssignment` resolver 是实验编译器资产，只验证 p
 
 ## 9. Release Gates
 
-### Gate Q0：内容可行性
+### Gate Q0-Content：内容可行性
 
-- `PASS（v2/v3/portable/qualification apparatus）/ LIVE-PENDING（human/cross-DAW）`：v2 Mode B 11/12 达到装置门槛；v3 全部 6 个 L4 valid + compiled；Portable Handoff 的 assignment/Bank/Program/离线解析与 DAW evidence verifier 通过。三目标 DAW 当前为 `not_run`；Bitwig Pilot 已手工导入和保存，但正式 checklist、Mode C、盲听与 continued-editing 尚未完成；
+- `PASS（v2/v3/portable/review apparatus）/ LIVE-PENDING（human）`：v2 Mode B 11/12 达到装置门槛；v3 全部 6 个 L4 valid + compiled；六样本评审包已把协议绑定、Portable MIDI、固定 SoundFont preview 与 immutable hash 固化。Creator feedback、Mode C、盲听与 continued-editing 尚未完成；
 - 通过条件：实验装置有效，L4 达到冻结 Keep/Actual continued editing 门槛；负面主模型结果由第二个不同强模型复核。
 
 ### Gate A：产品基线
@@ -350,7 +353,7 @@ Q0 中的 `InstrumentAssignment` resolver 是实验编译器资产，只验证 p
 ### Gate E：专业交接
 
 - `PARTIAL（Fixture + Q0 machine）`：已有 Audio-only Handoff contract；Q0 可移植 symbolic precursor 已输出 Type-1 MIDI、Bank/Program 与 assignment manifest；
-- `BLOCKED`：production Project Snapshot Candidate、stems/receipt、Cubase/Studio One/FL Studio 继续编辑矩阵与同声路径。
+- `LIVE-PENDING / BLOCKED`：跨 DAW qualification 真人矩阵后置到本 Gate；Cubase、Studio One Pro、FL Studio 当前 `0 pass / 3 not_run`。production Project Snapshot Candidate、stems/receipt 与同声路径仍未实现。
 
 ### Gate F：VST3
 

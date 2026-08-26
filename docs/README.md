@@ -1,8 +1,8 @@
 # Auto Studio 文档导航
 
 > 基线日期：2026-08-27
-> 当前阶段：Q0 真人内容 Gate；M3-A Harness architecture/migration baseline 已完成
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。CM-3/CM-4 已实现 automatic compaction/spill/overflow recovery 与 source-linked long-run retrieval。Approval Grant / Run Budget machine slice 已实现精确 binding、host-owned ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、SQLite CAS、故障零发布、重启恢复和篡改失败关闭；legacy Generation 又被收进非默认 Cargo feature，并从 Core/TUI/Desktop production interface 移除。该控制模块尚未接固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。真人内容 Gate、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
+> 当前阶段：Q0-Content 真人 Gate；M3-A Harness architecture/migration baseline 已完成，M3-B 等待 `CONTENT-GO`
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。CM-3/CM-4 已实现 automatic compaction/spill/overflow recovery 与 source-linked long-run retrieval。Approval Grant / Run Budget machine slice 已实现精确 binding、host-owned ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、SQLite CAS、故障零发布、重启恢复和篡改失败关闭；legacy Generation 又被收进非默认 Cargo feature，并从 Core/TUI/Desktop production interface 移除。该控制模块尚未接固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6；六样本本地内容评审包已生成并验证。Creator feedback、Mode C、盲听 Keep 与真实继续编辑仍为 `LIVE-PENDING`。Portable Handoff/DAW verifier 已实现，但 Cubase、Studio One Pro、FL Studio 真人矩阵后置 M5，当前均为 `not_run`。通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
 
 ## 权威顺序
 
@@ -21,7 +21,7 @@
 
 ## 当前唯一工程重点
 
-当前唯一产品 Gate 是 Q0：用 12 个 L1—L4 Brief、结构化 spec、可移植 MIDI 与冻结音色映射验证 Keep、真实继续编辑、Tool 粒度和反馈价值。M3-A 的 durable Harness 与 legacy migration boundary 已冻结；Q0 不建设 Audio Engine、Factory Pack、VST3 或 production Tool Interface，Portable Handoff 机器通过也不等于内容质量 `GO`。M3-B Music Project/Audio Engine 纵切仍等待 Q0 内容结论。
+当前唯一阻塞 M3-B 的产品 Gate 是 Q0-Content：用 12 个 L1—L4 Brief、结构化 spec、固定本地渲染与音色映射验证 Keep、真实继续编辑、Tool 粒度和反馈价值。M3-A 的 durable Harness 与 legacy migration boundary 已冻结；Q0-Content 不建设 Audio Engine、Factory Pack、VST3 或 production Tool Interface，机器通过也不等于 `CONTENT-GO`。跨 DAW 真人 qualification 后置到 M5/Gate E；它约束专业交接声明，不再阻塞内容投资决策。
 
 [Q0 音乐内容可行性 Spike](planning/2026-08-24-music-quality-spike-design.md)
 

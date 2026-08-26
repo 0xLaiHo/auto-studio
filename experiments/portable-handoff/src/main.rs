@@ -4,7 +4,8 @@ use std::process::ExitCode;
 
 use autostudio_music_quality::ExperimentalMusicSpec;
 use autostudio_portable_handoff::{
-    prepare_qualification_matrix, verify_qualification_matrix, write_portable_handoff,
+    ContentReviewRequest, prepare_content_review_pack, prepare_qualification_matrix,
+    verify_content_review_pack, verify_qualification_matrix, write_portable_handoff,
 };
 use clap::{Parser, Subcommand};
 
@@ -24,6 +25,24 @@ enum Command {
         input: PathBuf,
         #[arg(long)]
         output_dir: PathBuf,
+    },
+    /// Prepare the six-sample Q0 content-review pack and local WAV previews.
+    PrepareContentReview {
+        #[arg(long)]
+        evidence_root: PathBuf,
+        #[arg(long)]
+        protocol_lock: PathBuf,
+        #[arg(long)]
+        soundfont: PathBuf,
+        #[arg(long)]
+        output_dir: PathBuf,
+        #[arg(long, default_value = "fluidsynth")]
+        fluidsynth: PathBuf,
+    },
+    /// Verify immutable review artifacts while allowing Creator feedback edits.
+    VerifyContentReview {
+        #[arg(long)]
+        review_dir: PathBuf,
     },
     /// Freeze DAW targets and write a result template bound to the handoff.
     PrepareMatrix {
@@ -69,6 +88,34 @@ fn run(cli: Cli) -> Result<(), autostudio_portable_handoff::HandoffError> {
                 "wrote {} hashed portable artifacts to {}",
                 manifest.artifacts.len(),
                 output_dir.display()
+            );
+        }
+        Command::PrepareContentReview {
+            evidence_root,
+            protocol_lock,
+            soundfont,
+            output_dir,
+            fluidsynth,
+        } => {
+            let manifest = prepare_content_review_pack(&ContentReviewRequest {
+                evidence_root,
+                protocol_lock,
+                soundfont,
+                output_dir: output_dir.clone(),
+                fluidsynth_binary: fluidsynth,
+            })?;
+            println!(
+                "prepared {} Q0 content-review samples and {} hashed artifacts in {}",
+                manifest.samples.len(),
+                manifest.artifacts.len(),
+                output_dir.display()
+            );
+        }
+        Command::VerifyContentReview { review_dir } => {
+            let verification = verify_content_review_pack(&review_dir)?;
+            println!(
+                "verified {} Q0 content-review samples and {} immutable artifacts; feedback ready={}",
+                verification.samples, verification.artifacts, verification.feedback_ready
             );
         }
         Command::PrepareMatrix {

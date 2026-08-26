@@ -1,4 +1,4 @@
-# Q0 Human and DAW Gates
+# Q0-Content Human Gate and Deferred DAW Qualification
 
 These steps intentionally cannot be automated or replaced with an LLM
 self-score. Complete them as the Creator/evaluator after formal Mode A and B
@@ -8,9 +8,18 @@ The v2 11/12 device Gate remains immutable, but its invalid
 `l4-orchestral-argument` run has no legal base spec. Before requesting Creator
 feedback, `evidence/formal-v3-l4/formal-summary.json` must therefore show an
 exact, protocol-bound 6/6 valid and compiled L4 Mode B rebaseline. This
-prerequisite is now `PASS`; the remaining sections still require a human.
+prerequisite is now `PASS`. Sections 2—6 below are the human evidence that can
+produce `CONTENT-GO`; section 1 is a separate M5/Gate E qualification and does
+not block the content investment decision.
 
-## 1. Pilot DAW import smoke
+## 1. Deferred M5/Gate E: cross-DAW qualification
+
+This work is intentionally deferred. It remains required before Auto Studio can
+claim professional handoff support for a named DAW/version, but it is not part
+of Q0-Content and must not delay Creator feedback, Mode C, blind Keep, or the
+decision to build M3-B.
+
+### Historical Bitwig pilot
 
 Use the frozen recipe in `environment/daw-environment-v1.json` and the pilot
 MIDI at `evidence/pilot/l1-song-hook/composition.mid`.
@@ -34,7 +43,7 @@ The post-lock observation is recorded separately in
 `daw-environment-v1.json` remains byte-for-byte unchanged.
 This is useful manual Pilot evidence, but the formal Gate remains
 `LIVE-PENDING` until its screenshot and checklist are stored with the evidence
-and the edited-MIDI requirement in section 5 is completed. It does not prove a
+and the qualification result contains valid edited-MIDI evidence. It does not prove a
 Bitwig-specific integration; none is planned.
 
 The independent `../portable-handoff/` machine slice uses
@@ -65,9 +74,41 @@ cargo run --manifest-path experiments/portable-handoff/Cargo.toml -- \
 ```
 
 The command validates evidence integrity; it does not drive the DAW UI or
-replace the Creator's checklist.
+replace the Creator's checklist. Run it in M5, not as a prerequisite for the
+steps below.
 
-## 2. Real Creator feedback for Mode C
+## 2. Review the fixed six-sample package
+
+Generate the local-only package from the frozen v3 corpus with one legally
+available GeneralUser GS file:
+
+```bash
+cargo run --release --manifest-path experiments/portable-handoff/Cargo.toml -- \
+  prepare-content-review \
+  --evidence-root experiments/music-quality/evidence/formal-v3-l4 \
+  --protocol-lock experiments/music-quality/protocol-v3-l4.lock.json \
+  --soundfont '/absolute/path/to/GeneralUser GS v1.471.sf2' \
+  --output-dir experiments/portable-handoff/evidence/content-review/q0-content-v1
+```
+
+For each sample, read `brief.json`, listen to `preview.wav`, and write one or
+two concrete production changes in the root `feedback.json`. Change
+`ready_for_mode_c` to `true` only when that sample has real Creator feedback.
+Do not edit `feedback-template.json`, and do not ask another LLM to invent the
+feedback. Verify the package before paid Mode C calls:
+
+```bash
+cargo run --release --manifest-path experiments/portable-handoff/Cargo.toml -- \
+  verify-content-review \
+  --review-dir experiments/portable-handoff/evidence/content-review/q0-content-v1
+```
+
+The verifier must report exactly 6 samples, 44 immutable artifacts and
+`feedback ready=true`. The WAV files are fixed local review renders, not
+production audio or cross-DAW evidence. The SoundFont is hashed but never
+copied into the package.
+
+## 3. Run Mode C with real Creator feedback
 
 For each of the six frozen L4 Briefs, inspect its Mode B result and write one or
 two concrete production intentions. Do not ask another LLM to invent the
@@ -87,7 +128,7 @@ experiments/music-quality/target/release/autostudio-music-quality run \
 The command rejects empty feedback, more than two feedback rounds and invalid
 base specs.
 
-## 3. Freeze the anonymous evaluator package
+## 4. Freeze the anonymous evaluator package
 
 After Mode C completes, run:
 
@@ -100,14 +141,14 @@ experiments/music-quality/target/release/autostudio-music-quality prepare-blind 
 Open only `evidence/blind-v3-l4/evaluator/` while scoring. Do not open
 `blind-map.private.json` until every score and editing session is closed.
 
-## 4. Blind Keep and content score
+## 5. Blind Keep and content score
 
-Import each anonymous Candidate using the exact same Bitwig recipe and sound
-mapping. Fill `evaluator/evaluation.csv`. A `Keep` means you would preserve the
+Review each anonymous Candidate with the same frozen playback and sound mapping,
+then fill `evaluator/evaluation.csv`. A `Keep` means you would preserve the
 result as a real creative starting point; “interesting” or “sounds okay” is not
 enough.
 
-## 5. Actual continued editing
+## 6. Actual continued editing
 
 For each kept L4 Candidate, perform at least one intentional musical edit,
 save/reopen the project and export the edited MIDI. Record operation counts,
@@ -115,6 +156,7 @@ time and the edited MIDI SHA-256 in the evaluation CSV. Playback-only sessions
 do not count.
 
 Only after these records exist may the private map be joined with scores and
-the frozen `GO / REVISE / NO-GO / INVALID` thresholds be evaluated. A negative
-main-model result also requires the separately credentialed second strong model
-specified by the protocol.
+the frozen `CONTENT-GO / REVISE / NO-GO / INVALID` thresholds be evaluated. A
+negative main-model result also requires the separately credentialed second
+strong model specified by the protocol. A `CONTENT-GO` authorizes M3-B even if
+section 1 remains `not_run`; it does not authorize any cross-DAW support claim.

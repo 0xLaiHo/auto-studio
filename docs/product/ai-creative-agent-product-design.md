@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-27
 > 产品方向：LLM 驱动的本地专业音乐创作 Agent  
-> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与真实 Planning 已实现；M3-A CM-0—CM-4 已落地 durable Transcript/Context、Provider Continuity、automatic compaction/spill/overflow recovery 与 long-run retrieval。Approval Grant / Run Budget machine slice 进一步实现了精确 Creator 授权范围、不可由客户端提高的系统安全上限、独立累计账本和 crash-safe SQLite CAS；Grant、Run Budget、单 Tool Resource Limit 三类拒绝可区分，相同请求不会重复扣减，等待 Creator 或跨日暂停不消耗 active wall-clock。旧 Generation 产品入口已从 TUI/Desktop 移除，相关 Provider/WAV 运行时代码默认不编译，只保留旧 Project/API 兼容回归。这证明安全控制与迁移边界可运行和恢复，但它尚未接入用户 Approval UI、Policy、durable ToolExecution 或 Music Project revision，因此不是已经能修改音乐工程。Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，Portable Handoff v1 已能生成乐器分配清单与带 Bank/Program 的 Type-1 MIDI；Cubase、Studio One Pro、FL Studio 的精确版本实测仍为 `not_run`。真人内容 Gate、Music Project Model、通用 Tool Runtime、Sampler、Audio Engine 与 VST3 Host 尚未完成，当前产品版本仍不能真实生成音乐。
+> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与真实 Planning 已实现；M3-A CM-0—CM-4 已落地 durable Transcript/Context、Provider Continuity、automatic compaction/spill/overflow recovery 与 long-run retrieval。Approval Grant / Run Budget machine slice 进一步实现了精确 Creator 授权范围、不可由客户端提高的系统安全上限、独立累计账本和 crash-safe SQLite CAS；Grant、Run Budget、单 Tool Resource Limit 三类拒绝可区分，相同请求不会重复扣减，等待 Creator 或跨日暂停不消耗 active wall-clock。旧 Generation 产品入口已从 TUI/Desktop 移除，相关 Provider/WAV 运行时代码默认不编译，只保留旧 Project/API 兼容回归。这证明安全控制与迁移边界可运行和恢复，但它尚未接入用户 Approval UI、Policy、durable ToolExecution 或 Music Project revision，因此不是已经能修改音乐工程。Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，六样本本地内容评审包已生成并验证；Creator feedback、Mode C、盲听与真实继续编辑仍为 `LIVE-PENDING`。Portable Handoff/DAW verifier 已实现，但 Cubase、Studio One Pro、FL Studio 的精确版本真人矩阵后置 M5，当前仍为 `not_run`。Music Project Model、通用 Tool Runtime、Sampler、Audio Engine 与 VST3 Host 尚未完成，当前产品版本仍不能真实生成音乐。
 
 ## 1. 产品摘要
 
@@ -288,9 +288,9 @@ MVP 至少包含：
 
 ### 11.1 Q0 内容可行性 Gate
 
-在 M3 production 实现之前，先执行 [Q0 音乐内容可行性 Spike](../planning/2026-08-24-music-quality-spike-design.md)：只用 12 个 L1—L4 Brief、结构化音乐 spec、MIDI 和固定 DAW/音色映射，判断强 LLM 结果是否被 Keep、是否发生真实继续编辑，以及分阶段/反馈是否有价值。Q0 不建设 L5 Mix、Sampler、自研 DSP 或 VST3；实验 schema 也不自动成为 production Tool Interface。
+在 M3-B production 实现之前，先执行 [Q0 音乐内容可行性 Spike](../planning/2026-08-24-music-quality-spike-design.md)：只用 12 个 L1—L4 Brief、结构化音乐 spec、MIDI、固定本地评审渲染/音色映射与同一编辑环境，判断强 LLM 结果是否被 Keep、是否发生真实继续编辑，以及分阶段/反馈是否有价值。Q0-Content 不建设 L5 Mix、Sampler、自研 DSP 或 VST3；实验 schema 也不自动成为 production Tool Interface。
 
-主模型的负面结果必须由第二个不同的强模型复核后才能形成产品 `NO-GO`。Q0 `GO` 只授权继续投入 M3，不替代 Factory Pack、VST3、设计伙伴和 Release 盲听 Gate。
+主模型的负面结果必须由第二个不同的强模型复核后才能形成产品 `NO-GO`。只有 `CONTENT-GO` 才授权继续投入 M3-B，不替代 Factory Pack、VST3、设计伙伴和 Release 盲听 Gate。跨 DAW qualification 是独立的 M5/Gate E：完成前不能宣称目标 DAW 专业交接通过，但不阻塞内容投资判断。
 
 ### 11.2 发布固定 Corpus
 

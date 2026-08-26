@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-27
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 durable Transcript/Manifest、Provider Continuity、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production Planning 路径。Approval Grant / Run Budget machine slice 又实现了精确且不可变的授权 binding、host-owned system ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、稳定的 Grant/Budget/Tool Resource 三类拒绝，以及独立 SQLite CAS 持久化；故障零发布、stale revision、重启恢复、篡改失败关闭和跨日暂停不消耗 active wall-clock 均有契约测试。Legacy Generation architecture boundary 也已落地：`autostudio-provider` 默认只包含 LLM 职责，旧 `GenerationAdapter` 与 WAV Fixture 只在非默认 `legacy-generation` feature 下编译，Core/TUI/Desktop production source 由自动门禁禁止注册或调用它。该控制模块尚未接入固定 Planning composition root，也没有 durable ToolExecution 或 Music Project 独立 revision，因此仍不能执行真实音乐写入。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 durable Transcript/Manifest、Provider Continuity、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production Planning 路径。Approval Grant / Run Budget machine slice 又实现了精确且不可变的授权 binding、host-owned system ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、稳定的 Grant/Budget/Tool Resource 三类拒绝，以及独立 SQLite CAS 持久化；故障零发布、stale revision、重启恢复、篡改失败关闭和跨日暂停不消耗 active wall-clock 均有契约测试。Legacy Generation architecture boundary 也已落地：`autostudio-provider` 默认只包含 LLM 职责，旧 `GenerationAdapter` 与 WAV Fixture 只在非默认 `legacy-generation` feature 下编译，Core/TUI/Desktop production source 由自动门禁禁止注册或调用它。该控制模块尚未接入固定 Planning composition root，也没有 durable ToolExecution 或 Music Project 独立 revision，因此仍不能执行真实音乐写入。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live。Q0 v2/v3 机器证据与六样本本地内容评审包已通过，真人 Creator feedback/Mode C/盲听/继续编辑仍待完成；跨 DAW 真人矩阵独立后置到 M5。通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。
 
 ## 1. 决策摘要
 
@@ -194,7 +194,7 @@ flowchart LR
 | TUI `/connect`、`/model`、Thinking、`/exit` | `PASS` | Ratatui reducer/UI 与 Core Connection 合同 |
 | LLM Adapter | `PASS（contract + DeepSeek/OpenAI live）` | OpenAI/Anthropic/DeepSeek 等协议合同；2026-08-25 `deepseek-v4-flash` 真实流式 Tool Call smoke；2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live |
 | LLM Planning | `PASS（CM-1 contract）` | SSE canonical Turn；`project_describe → submit_creative_plan` 两轮链路；typed Plan 与 Approval 已接 production composition root |
-| Q0 实验 Harness | `PASS（v2/v3/portable machine）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订与 formal verifier 通过；Portable v1 增加 InstrumentAssignment、CC0/CC32/Program Change 和 assignment manifest |
+| Q0-Content 实验 Harness | `PASS（machine/review apparatus）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、formal verifier 与六样本固定本地 preview/feedback 包通过 |
 | Inference Transcript/Context Manifest | `PASS（CM-0—CM-4 planning machine slices）` | Run/Turn/Item、完整 Visible/Tool/Usage/Finish、SQLite append/CAS、精确 Manifest、三协议 stream assembler、完整 pair 校验与重启 replay；automatic compaction/spill/overflow recovery；Run 内 exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、projection rebuild 与 100-step long-run corpus | 真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification 未通过 |
 | Approval Grant / Run Budget | `PASS（machine contract）` / `NOT WIRED（Tool Runtime）` | 不可变 Grant binding；configured/system ceiling 分离；Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger；Execution Reservation/settlement/cancel；SQLite CAS、故障零发布、重启/篡改合同 | 尚未接固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision |
 | Agent Run lifecycle | `PASS（CM-1/CM-2 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；终态前清理 continuity |
@@ -212,9 +212,9 @@ flowchart LR
 
 结论：当前产品仍是 `planning-only`。旧 `GenerationAdapter` 的 Fixture 可以继续帮助迁移测试，但默认构建不可见、production Client 无入口，也不能被计为真实音乐能力。完整冻结范围与删除条件见 [Legacy Generation 迁移清单](../planning/legacy-generation-migration.md)。
 
-### 3.2 Q0 前置 Gate
+### 3.2 Q0-Content 前置 Gate
 
-M3 开工前先按 [Q0 音乐内容可行性 Spike](../planning/2026-08-24-music-quality-spike-design.md) 验证 L1—L4 结构化音乐决定。Q0 只产生 ExperimentalMusicSpec、Portable MIDI、乐器分配清单和固定 DAW 评价证据；不实例化 Audio Engine、Factory Pack、VST3，也不把实验 schema/catalog 当成 production Tool Interface。Q0 未得到 `GO` 前，M3 保持目标设计状态。
+M3-B 开工前先按 [Q0 音乐内容可行性 Spike](../planning/2026-08-24-music-quality-spike-design.md) 验证 L1—L4 结构化音乐决定。Q0-Content 只产生 ExperimentalMusicSpec、Portable MIDI、乐器分配清单、固定本地 WAV preview 和 Creator 评价证据；不实例化 Audio Engine、Factory Pack、VST3，也不把实验 schema/catalog 当成 production Tool Interface。Q0-Content 未得到 `CONTENT-GO` 前，M3-B 保持目标设计状态。跨 DAW qualification 独立属于 M5/Gate E，不参与该内容投资 Gate。
 
 Q0 的当前实例化架构如下。读法是：上半部分负责“让真实模型产生可检查的音乐事实”，下半部分负责“证明证据没有漂移，再交给人听和继续编辑”。
 
@@ -249,7 +249,7 @@ Q0 的当前实例化架构如下。读法是：上半部分负责“让真实�
 │ Blind Pack：evaluator 目录不含 mode；private map 与评价包分离          │
 └──────────────────────────────┬───────────────────────────────────┘
                                ▼
-           frozen DAW import matrix → blind Keep → Creator edit
+       fixed local review playback → blind Keep → Creator edit
         （Bitwig 仅有手动 Pilot；正式 matrix/内容证据仍需真人完成）
 ```
 
@@ -861,6 +861,8 @@ qualification-plan.json + qualification-results.json (not_run template)
 
 Verifier 不把“命令执行成功”等同于产品 Gate：Blocked target 不能 PASS；目标版本必须精确相等；截图只接受 PNG/JPEG；证据必须位于 evidence root 内且 size/hash 匹配；edited MIDI 必须可解析且至少一个 channel event 相对源 MIDI 发生变化。Program Change 的 `honored/ignored/remapped` 都是有效观察，marker 的 `lost` 则阻止 PASS。
 
+该 qualification 真人矩阵属于 M5/Gate E，不参与 Q0-Content 的 `CONTENT-GO`。当前 apparatus 可以生成并校验证据，但以下三个目标仍必须保持 `not_run`，不能据此形成兼容声明。
+
 目标 DAW 资格必须按同一个不经手工修复的 Export 逐项记录：
 
 | 目标 | Portable import | Structured | Sound-identical |
@@ -1041,7 +1043,7 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 按依赖顺序实施：
 
 1. `PASS`：已建立可回退 Git baseline `b9db99c`；继续禁止未审计的 destructive cleanup；
-2. `IN PROGRESS`：执行 Q0 内容可行性 Spike；Harness Foundation 可并行，只有 `GO` 才进入 production Music Project/Audio Engine 纵切；
+2. `IN PROGRESS`：执行 Q0-Content 真人 Gate；只有 `CONTENT-GO` 才进入 production Music Project/Audio Engine 纵切，跨 DAW 真人 qualification 后置 M5/Gate E；
 3. 冻结 ADR-0011、ADR-0012 与新领域词汇；
 4. `PASS（architecture boundary）`：旧 `GenerationAdapter/Coordinator` 已冻结在非默认 feature，TUI/Desktop 入口移除，v1 API 标记 deprecated，停止扩展 submit/observe/reconcile；删除条件见 [迁移清单](../planning/legacy-generation-migration.md)；
 5. `PASS（CM-1 planning slice）`：Inference Item/Transcript、Context Manifest、canonical request、SSE assembler、完整 Tool pair、每步 restart replay 与 Planning resume 已实现；

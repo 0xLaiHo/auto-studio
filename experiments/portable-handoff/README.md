@@ -27,6 +27,18 @@ cargo run --manifest-path experiments/portable-handoff/Cargo.toml -- \
   --input experiments/music-quality/evidence/pilot/l1-song-hook/spec.json \
   --output-dir experiments/portable-handoff/evidence/pilot/l1-song-hook/portable-handoff-v1
 
+# Generate the local-only six-sample Q0 content review package.
+cargo run --release --manifest-path experiments/portable-handoff/Cargo.toml -- \
+  prepare-content-review \
+  --evidence-root experiments/music-quality/evidence/formal-v3-l4 \
+  --protocol-lock experiments/music-quality/protocol-v3-l4.lock.json \
+  --soundfont '/absolute/path/to/GeneralUser GS v1.471.sf2' \
+  --output-dir experiments/portable-handoff/evidence/content-review/q0-content-v1
+
+cargo run --release --manifest-path experiments/portable-handoff/Cargo.toml -- \
+  verify-content-review \
+  --review-dir experiments/portable-handoff/evidence/content-review/q0-content-v1
+
 cargo run --manifest-path experiments/portable-handoff/Cargo.toml -- \
   prepare-matrix \
   --handoff-dir experiments/portable-handoff/evidence/pilot/l1-song-hook/portable-handoff-v1 \
@@ -46,6 +58,17 @@ The output contains `spec.json`, `instrument-assignments.json`,
 `composition.mid` and an integrity `manifest.json`. GeneralUser GS remains a
 local validation asset and is not copied into the output or approved for
 product redistribution.
+
+`prepare-content-review` first requires the frozen v3 L4 summary to prove an
+exact 6/6 valid + compiled Mode B corpus and verifies every run's protocol
+binding. It then creates one portable handoff and a fixed 48 kHz stereo WAV
+preview per Brief, plus mutable `feedback.json`, an immutable feedback template,
+review instructions and a root `review-manifest.json`. The root manifest hashes
+every immutable generated artifact and the local SoundFont while never copying
+the SoundFont. `verify-content-review` continues to pass after valid Creator
+feedback is entered, but rejects changed MIDI/WAV/Brief/Spec/binding evidence.
+Generated review audio is ignored by Git because its license scope is local
+evaluation only.
 
 The post-lock Creator observation lives in
 `environment/portable-handoff-pilot-v1.json`. Frozen Q0 v2/v3 inputs remain in

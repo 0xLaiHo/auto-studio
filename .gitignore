@@ -1,6 +1,7 @@
 target/
 **/node_modules/
 apps/desktop/dist/
+experiments/portable-handoff/evidence/content-review/
 *.db
 *.db-shm
 *.db-wal

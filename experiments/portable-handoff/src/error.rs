@@ -25,6 +25,28 @@ pub enum QualificationError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum ContentReviewError {
+    #[error("invalid Q0 content-review input: {0}")]
+    InvalidInput(String),
+    #[error("content-review output already exists: {0}")]
+    OutputExists(String),
+    #[error("FluidSynth `{binary}` failed with status {status}: {detail}")]
+    RendererFailed {
+        binary: String,
+        status: String,
+        detail: String,
+    },
+    #[error("rendered WAV is invalid: {0}")]
+    InvalidWav(String),
+    #[error("rendered WAV has {actual} Hz, expected {expected} Hz")]
+    SampleRateMismatch { actual: u32, expected: u32 },
+    #[error("rendered WAV has {actual} channels, expected {expected}")]
+    ChannelMismatch { actual: u16, expected: u16 },
+    #[error("failed to persist the staged content-review pack: {0}")]
+    Persist(String),
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum HandoffError {
     #[error(transparent)]
     Spec(#[from] autostudio_music_quality::SpecError),
@@ -34,6 +56,8 @@ pub enum HandoffError {
     Instrument(#[from] InstrumentError),
     #[error(transparent)]
     Qualification(#[from] QualificationError),
+    #[error(transparent)]
+    ContentReview(#[from] ContentReviewError),
     #[error("failed to parse the base Type-1 MIDI: {0}")]
     MidiParse(String),
     #[error("failed to encode portable Type-1 MIDI: {0}")]

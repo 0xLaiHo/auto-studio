@@ -107,8 +107,14 @@ _Avoid_: Bitwig Adapter、Universal Native Project
 **Sound-identical Handoff（同声交接）**：通过冻结音频，或由目标 DAW 加载同一版本的 Auto Studio Sampler/VST3、内容包与 preset state，复现经过验证的声音。没有相同依赖时只能承诺 Portable Handoff。
 _Avoid_: MIDI-only Exact Sound
 
+**Content Investment Decision（内容投资决策）**：Q0-Content 对冻结 L4 corpus 的真人结论，状态只能是 `CONTENT-GO`、`REVISE`、`NO-GO` 或 `INVALID`。它回答“LLM 产生的结构化音乐是否值得继续建设 Music Project/Tool Runtime”，不声明 Audio Engine、Factory Pack、VST3 或 DAW 兼容已经通过。
+_Avoid_: Release GO、DAW PASS、Compiled Means Good
+
 **DAW Qualification（DAW 资格验证）**：把一个不可变 Handoff Package 与精确 DAW 版本、平台、可执行文件 hash、导入检查和继续编辑证据绑定的验证过程。未安装、未冻结版本或缺少截图/工程/edited MIDI 时只能是 `not_run` 或 `fail`，不能用 `SKIP`、Fixture 或其他 DAW 的结果代替 `pass`。
 _Avoid_: Compatibility Claim、Import Once、DAW Support Boolean
+
+**DAW Qualification Gate（DAW 资格 Gate）**：独立于 Content Investment Decision 的 M5/Gate E。它约束某个 DAW/version 的 Portable/Structured/Sound-identical 支持声明；`not_run` 不阻塞 M3-B，但阻塞相应专业交接和发布声明。
+_Avoid_: Q0 Content Gate、One DAW Proves All
 
 ## 内容、乐器与插件
 

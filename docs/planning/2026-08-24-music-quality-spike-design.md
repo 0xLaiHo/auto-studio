@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`LIVE-PENDING`；v2 正式 A/B 机器 Gate、v3 真实 L4 6/6 重基线、Portable Handoff v1 与 DAW qualification harness 已完成；Cubase、Studio One Pro、FL Studio 当前为 3 个 `not_run`，真人内容 Gate 与真实跨 DAW checklist 尚未完成
+> 状态：Q0-Content `LIVE-PENDING`；v2 正式 A/B 机器 Gate、v3 真实 L4 6/6 重基线、Portable Handoff v1 与六样本本地评审包已完成；Creator feedback、Mode C、盲听和 continued editing 尚未完成。跨 DAW qualification apparatus 已完成，但真人矩阵独立后置 M5/Gate E，当前为 3 个 `not_run`
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -116,7 +116,7 @@ v3 在看到任何 Creator 反馈或盲评分数前冻结以下规则：
 
 报告必须写精确 model id、Provider、API/protocol version、Thinking、日期、prompt/schema hash 和价格来源；“GPT 顶配”“Claude 最新”等营销名称无效。
 
-## 8. MIDI 与 DAW 评价链
+## 8. MIDI 与内容评价链
 
 ```text
 Frozen Brief + Prompt + Schema
@@ -129,15 +129,15 @@ Frozen Brief + Prompt + Schema
              │ validate / compile
              ▼
  MIDI + tempo + markers + diagnostics
-             │ fixed import recipe
+             │ fixed local render recipe
              ▼
- Frozen DAW/version/template + fixed instrument mapping
+ Fixed SoundFont/renderer + one editing environment
              │
              ├── blind listening
              └── actual continued-editing session
 ```
 
-必须冻结一个 DAW/version、project template、buffer/sample rate、instrument mapping 与导入步骤。所有候选使用同一组用户自有或本地合法使用的音色，不根据模式偷偷更换更好的 preset。
+必须冻结 renderer/version、sample rate、instrument mapping 与试听步骤；continued editing 在同一冻结编辑环境中完成。所有候选使用同一组用户自有或本地合法使用的音色，不根据模式偷偷更换更好的 preset。跨 DAW import/save/edit matrix 是 M5/Gate E 的独立资格验证，不是 Q0-Content 的投资门槛。
 
 Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、license/EULA、文件 hash 与本地使用权结论。“不进入安装包”只免除产品再分发 Gate，不免除实验使用许可。
 
@@ -175,16 +175,16 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 4. **投入合理性**：记录达到可用结果的中位 Time to useful、编辑操作与推理成本，并在结果评审前冻结团队可接受上限。不得在看到数据后移动上限。
 5. **负面复核**：主模型未过第 2 项时，必须按 §7 使用第二个模型复核，才能决定 `NO-GO`。
 
-通过 Q0 只授权进入 M3 Harness Foundation 和 Music Project/Tool Runtime 实现；Factory Pack、VST3 和发布仍由各自 Gate 决定。
+通过 Q0-Content 只授权进入 M3-B Music Project/Tool Runtime 实现；Harness Foundation 已独立完成。Factory Pack、VST3、跨 DAW qualification 和发布仍由各自 Gate 决定。
 
 ## 11. 结果状态
 
 | 状态 | 含义 | 下一步 |
 |---|---|---|
-| `GO` | 装置有效且达到 L4 投资门槛 | 进入 M3；用失败分布设计深 Tool |
+| `CONTENT-GO` | 装置有效且达到 L4 投资门槛 | 进入 M3-B；用失败分布设计深 Tool |
 | `REVISE` | 有 Keep/编辑信号，但 schema、粒度或反馈策略不稳定 | 只迭代实验接口，再跑受影响子集 |
 | `NO-GO` | 两个不同强模型均未达到 L4 门槛 | 停止完整本地 AI-native DAW 投入，重新评估产品方向 |
-| `INVALID` | DAW、音色、协议、模型或数据记录不一致 | 修复装置并重跑，不能形成产品结论 |
+| `INVALID` | 评审渲染、音色、协议、模型或数据记录不一致 | 修复装置并重跑，不能形成产品结论 |
 
 ## 12. 实现与证据保存
 
@@ -206,10 +206,10 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [ ] 负面结果的第二个不同强模型仍需独立 Credential/精确 model 后冻结；
 - [x] 冻结 Bitwig Studio 6.0.11、48 kHz 导入 recipe 与 instrument mapping；
 - [x] Creator 已在 Bitwig 6.0.11 Pilot 中完成三轨 MIDI 导入、手动 GeneralUser GS 音色装载、保存与重开；`.bwproject` hash 已记录；
-- [ ] 正式 DAW checklist、仓内截图和 edited MIDI 仍为 `LIVE-PENDING`，不能把 Pilot smoke 计为 continued editing；
+- [x] 生成并验证六样本 Q0-Content 本地评审包：固定 GeneralUser GS/FluidSynth preview、protocol binding、不可变 artifact hash 与可变 Creator feedback 分离；
 - [x] Portable Handoff v1：冻结乐器 profile，输出 Type-1 MIDI CC0/CC32/Program Change 与 assignment manifest，并以相同 SoundFont 完成 48 kHz 离线解析；
 - [x] 实现 DAW qualification plan/results/summary、handoff hash binding、Blocked/精确版本 Gate、checklist 与截图/project/edited-MIDI evidence verifier；
-- [ ] Cubase、Studio One Pro、FL Studio 的冻结版本导入矩阵仍为 `LIVE-PENDING`，当前 summary 为 `0/3 pass`；Q0 不做 DAW UI Adapter；
+- [ ] Cubase、Studio One Pro、FL Studio 的冻结版本导入矩阵后置 M5/Gate E，当前 summary 为 `0/3 pass`；不做 DAW UI Adapter，也不阻塞 `CONTENT-GO`；
 - [x] 完成本地音色使用许可、版本和 hash 记录；GeneralUser GS 只批准本地评价，不批准产品再分发；
 - [x] 创建独立 experiment workspace、严格 schema/parser、Type-1 SMF compiler、逐轮恢复、证据哈希和测试；
 - [x] 完成不计入结果的真实 Mode A/Mode B DeepSeek pilot；
@@ -223,8 +223,8 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [x] 实现从任意已落盘 Mode B turn 恢复、v3 Formal Verifier 和 fixture 端到端验证；
 - [x] 在 `evidence/formal-v3-l4/` 运行全部 6 个 L4 Mode B，并达到 6/6 valid + compiled；
 - [ ] 运行真实 Creator feedback Mode C、盲评和 continued-editing session；
-- [ ] 输出 `GO/REVISE/NO-GO/INVALID` 报告；
-- [ ] 只有 `GO` 才把 M3 从目标设计转为 production 实施。
+- [ ] 输出 `CONTENT-GO/REVISE/NO-GO/INVALID` 报告；
+- [ ] 只有 `CONTENT-GO` 才把 M3-B 从目标设计转为 production 实施。
 
 ## 14. 当前可审计证据
 

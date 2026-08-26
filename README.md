@@ -17,12 +17,13 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS（M3-A Grant/Budget machine contract）/ NOT WIRED（Tool Runtime）`：`ExecutionControlManager` 已实现不可变 Approval Grant、configured/system Run Budget ceiling、独立 Tool Resource Limit、Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger，以及幂等 Execution Reservation/settlement/cancel；SQLite CAS、stale revision、故障零发布、重启恢复、篡改失败关闭和跨日暂停合同通过。它尚未接入固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
-- `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
+- `PASS（Q0-Content machine/review apparatus）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled；六样本本地评审包已生成并验证，Creator feedback、Mode C、盲听 Keep、实际继续编辑与条件式第二模型复核仍未完成；
+- `PASS（DAW qualification apparatus）/ DEFERRED（M5 human matrix）`：Portable Handoff 与证据 verifier 已实现；Cubase、Studio One Pro、FL Studio 当前保持 `0 pass / 3 not_run`。该矩阵影响专业交接声明，但不再阻塞 Q0-Content 对 M3-B 的投资判断；
 - `NOT IMPLEMENTED（production execution）`：通用 Tool Registry/Policy/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。Grant/Budget 机器合同已完成但尚未驱动真实工具；真实音乐 Tool 的长 Run 质量 Gate、超长 single-turn、Provider-specific 精确 tokenizer 和真实 overflow live qualification 仍待完成。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。`autostudio-provider` 默认只编译 LLM Connection/Inference/Continuity/Planning 职责；仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，只能通过非默认 `legacy-generation` feature 做兼容回归，不是目标 runtime，也不能用于发布能力声明。Core/TUI/Desktop production source 由架构门禁禁止调用这条旧路径。
 
-当前并行推进 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人 Gate 与不依赖内容结论的 Harness Foundation。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 已为全部 6 个 L4 建立可比较的合法 B 基线。Grant/Budget 机器合同已完成；真人反馈、盲听与继续编辑完成前仍不形成内容质量 `GO`。下一代码依赖是具有独立 revision 的 Music Project Domain，完成后才能把 Execution Reservation 接到 ToolExecution。M3 的目标是：
+当前只把 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人内容结论作为 M3-B 前置 Gate。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，本地六样本评审包由 [`experiments/portable-handoff`](experiments/portable-handoff/README.md) 可复现生成；两者都不加入 production workspace。真人反馈、Mode C、盲听与继续编辑完成前仍不形成 `CONTENT-GO`。跨 DAW 真人矩阵后置到 M5，不影响是否开始 Music Project Domain，但在完成前不能宣称专业 DAW 交接通过。下一代码依赖是在 `CONTENT-GO` 后实现具有独立 revision 的 Music Project Domain，再把 Execution Reservation 接到 ToolExecution。M3 的目标是：
 
 ```text
 Brief

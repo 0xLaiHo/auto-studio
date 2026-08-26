@@ -1,10 +1,10 @@
 # Q0 音乐内容可行性结果
 
 > 日期：2026-08-24  
-> 当前结论：`LIVE-PENDING`，不是 `GO`、`REVISE` 或 `NO-GO`  
+> 当前结论：Q0-Content 为 `LIVE-PENDING`，不是 `CONTENT-GO`、`REVISE` 或 `NO-GO`
 > 已完成：工程装置、真实 DeepSeek pilot、正式 Mode A/B、机器 Gate、匿名评审包  
-> 2026-08-25 更新：v2 证据保持不可变；v3 L4 全量重基线 6/6 valid + compiled；另完成 Portable Handoff v1 与 DAW qualification harness 机器切片
-> 未完成：正式 DAW checklist、真实 Creator feedback/Mode C、盲听 Keep、actual continued editing
+> 2026-08-27 更新：v2 证据保持不可变；v3 L4 全量重基线 6/6 valid + compiled；另完成 Portable Handoff v1、六样本本地内容评审包与 DAW qualification harness 机器切片
+> 未完成：真实 Creator feedback/Mode C、盲听 Keep、actual continued editing；跨 DAW 真人 qualification 已独立后置 M5/Gate E
 
 ## 0. v3 L4 协议补充
 
@@ -38,7 +38,7 @@ v3 protocol SHA-256 为 `080c7daf92b3d3272da5b3a27c08315d20f0aa760761b0edcfabf5e
 
 Q0 的机器装置通过：冻结的 4 个 Mode A 与 12 个 Mode B 均有精确 run 记录，Mode B 中 11/12 无需人工修 JSON 即通过严格 schema/不变量并编译成可解析的 Type-1 SMF MIDI，恰好达到预设门槛。
 
-这还不能回答“音乐是否值得保留”。Creator 已在 Bitwig Pilot 中完成三轨导入、手动 GeneralUser GS 音色分配和工程保存/重开，但该记录尚未形成完整的正式 checklist，也没有匿名 Keep、Creator feedback 或继续编辑数据。因此不能把“JSON/MIDI 可编译”或一次手工 DAW smoke 写成内容质量 `GO`。M3 production 仍然等待 Q0 人工 Gate。
+这还不能回答“音乐是否值得保留”。Creator 尚未提交六个 L4 的具体反馈，也没有 Mode C、匿名 Keep 或真实继续编辑数据。因此不能把“JSON/MIDI 可编译”、固定 SoundFont 能发声或一次手工 DAW smoke 写成 `CONTENT-GO`。M3-B production 仍然等待 Q0-Content 人工 Gate。跨 DAW 真人矩阵独立后置 M5/Gate E，不再阻塞这次内容投资判断。
 
 ### 1.1 Portable Handoff v1 机器证据
 
@@ -54,6 +54,18 @@ Q0 的机器装置通过：冻结的 4 个 Mode A 与 12 个 Mode B 均有精确
 - 当前主机只检测到 Bitwig；Cubase、Studio One Pro、FL Studio 未安装且未冻结精确版本。因此三项目标均为 `not_run`，`all_required_targets_passed=false`，没有以 Fixture 或 Bitwig 结果冒充兼容性。
 
 这证明“Agent 决定乐器 → 标准 MIDI 表达 → 可审计清单”是可运行的，不证明 Cubase、Studio One、FL Studio 会自动加载相同原生音色，也不证明 production `instrument.assign`、stems、DAWproject 或 Auto Studio Sampler VST3 已实现。
+
+### 1.2 六样本本地内容评审包
+
+为让 Creator 在不安装多个 DAW、不再次调用付费模型的前提下完成反馈，`experiments/portable-handoff` 新增可复现的 `prepare-content-review` / `verify-content-review`：
+
+- 只接受 protocol v3 冻结的精确 6/6 L4 Mode B corpus，并逐个核对 `protocol-binding.json`；
+- 为每个 Brief 生成带 Bank/Program 的 Portable MIDI，并用同一份本地 GeneralUser GS 和 FluidSynth 2.6.0 渲染 48 kHz、stereo、16-bit WAV；
+- 生成 6 个样本、44 个不可变 artifact，根 manifest 记录 protocol、formal summary、本地 SoundFont 与所有素材的 SHA-256；
+- SoundFont 只读取和哈希，不复制到评审包；本地约 100 MB WAV 目录由 Git 忽略，不能当作可分发 Factory Pack；
+- `feedback.json` 是唯一可变的 Creator 输入；verifier 会检查其六个身份、每项最多两条反馈和 ready 状态，同时拒绝被修改的 Brief、Spec、MIDI、WAV、assignment 或 binding。
+
+本机生成结果是 `6 samples / 44 immutable artifacts / feedback_ready=false`。这把“如何听并写反馈”变成了可复现流程，但不会代替 Creator 的真实判断。
 
 ## 2. 协议与可追溯性
 
@@ -116,23 +128,22 @@ Formal Verifier 的完整聚合：
 |---|---|---|
 | 装置有效 | Mode B 至少 11/12 valid + compiled | `PASS`：11/12 |
 | 正式成本 | peak 不超过 USD 10 | `PASS`：USD 3.450488888 |
-| Pilot DAW import | 固定版本导入、音色、保存/重开证据 | `PARTIAL / LIVE-PENDING`：Creator 已完成手动 smoke 并保存 `.bwproject`；正式 checklist/仓内截图未收口 |
 | Portable instrument handoff | Type-1 MIDI 含 Bank/Program，assignment manifest 与固定音色离线解析 | `PASS（machine）`；不等于跨 DAW 同声或 production export |
-| DAW qualification apparatus | handoff/target binding、证据 hash、continued-editing verifier | `PASS（machine）`；三目标 live result 为 `0 pass / 3 not_run` |
+| 六样本内容评审装置 | 6/6 protocol-bound、固定渲染、immutable hash、可变真实反馈 | `PASS（machine）`；feedback 尚未填写 |
 | L4 内容信号 | Mode C 至少 4/6 Keep | `LIVE-PENDING`；没有真人反馈/评分 |
 | Actual continued editing | Mode C 至少 3/6 | `LIVE-PENDING` |
 | 反馈不退化 | Mode C 相对 B 至少 4/6 保持或提高 | `LIVE-PENDING` |
 | 负面复核 | 主模型未过内容门槛时使用第二个不同强模型 | 条件尚未触发；Credential/model 未冻结 |
+| 跨 DAW qualification | 精确版本 import/save/edit/export evidence | `DEFERRED（M5/Gate E）`；apparatus `PASS`，真人矩阵 `0 pass / 3 not_run` |
 
 ## 6. 完成 Q0 决策还需要什么
 
 严格按 [`experiments/music-quality/HUMAN-GATES.md`](../../experiments/music-quality/HUMAN-GATES.md) 完成：
 
-1. 把已完成的 Bitwig Pilot import/mapping/save/reopen 截图和 checklist 固化到 evidence，并用 `portable-handoff-v1` 重测无需修改的标准 MIDI；
-2. 在 Cubase、Studio One Pro、FL Studio 的冻结版本中分别执行同一 Portable Handoff import matrix；Program Change 被忽略或映射不同音源要如实记录，不手工修 MIDI后冒充自动恢复；
-3. 对 v3 的 6 个 L4 Mode B 结果写 1—2 条真实 Creator feedback，运行 Mode C；不能让另一个 LLM 代写反馈；
-4. 重新生成含 v3 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
-5. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；
-6. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
+1. 在本地六样本评审包中逐个听 `preview.wav`，对每个 Brief 在 `feedback.json` 写 1—2 条真实、具体的 Creator feedback；不能让另一个 LLM 代写；
+2. 运行 verifier，只有 `feedback_ready=true` 才启动六个 Mode C；
+3. 重新生成含 v3 B/C 的匿名包，在不查看 private map 的情况下填写 Keep 与内容评分；
+4. 对 Keep 的 L4 候选做真实音乐编辑、保存/重开、导出 edited MIDI，并记录操作数、时间与 hash；内容 Gate 可统一使用同一冻结编辑环境；
+5. 最后才解盲并应用冻结阈值。主模型若为负面，再用第二个不同强模型复核。
 
-在这些证据完成之前，诚实的 Q0 状态只能是 `LIVE-PENDING`，不能授权 M3。
+在这些证据完成之前，诚实的 Q0-Content 状态只能是 `LIVE-PENDING`，不能授权 M3-B。Cubase、Studio One Pro、FL Studio 的正式 checklist/截图/project/edited MIDI 继续留在 M5/Gate E；完成前不能形成专业 DAW 兼容声明，但不改变本节的内容结论。
