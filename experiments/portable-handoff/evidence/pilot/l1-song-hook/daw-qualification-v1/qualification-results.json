@@ -1,0 +1,33 @@
+{
+  "schema_version": "daw-qualification-results-v1",
+  "plan_sha256": "3f67624439e41af95011c7319635c2b969c9e720c3c3ff06433f760c4693184d",
+  "results": [
+    {
+      "target_id": "steinberg-cubase",
+      "outcome": "not_run",
+      "observed_version": null,
+      "executable_sha256": null,
+      "checks": null,
+      "evidence": null,
+      "notes": "Cubase is not installed on the current qualification host; freeze an exact version and executable hash before testing."
+    },
+    {
+      "target_id": "presonus-studio-one-pro",
+      "outcome": "not_run",
+      "observed_version": null,
+      "executable_sha256": null,
+      "checks": null,
+      "evidence": null,
+      "notes": "Studio One Pro is not installed on the current qualification host; freeze an exact version and executable hash before testing."
+    },
+    {
+      "target_id": "image-line-fl-studio",
+      "outcome": "not_run",
+      "observed_version": null,
+      "executable_sha256": null,
+      "checks": null,
+      "evidence": null,
+      "notes": "FL Studio is not installed on the current qualification host; freeze an exact version and executable hash before testing."
+    }
+  ]
+}

@@ -80,6 +80,20 @@ async fn plan_agent_run(
 }
 
 #[tauri::command]
+async fn resume_planning_run(
+    run_id: String,
+    expected_revision: u64,
+    state: State<'_, DesktopState>,
+) -> Result<ProjectView, CommandError> {
+    state
+        .core
+        .clone()
+        .resume_planning_run(&run_id, expected_revision)
+        .await
+        .map_err(Into::into)
+}
+
+#[tauri::command]
 async fn approve_agent_run(
     run_id: String,
     expected_revision: u64,
@@ -225,6 +239,7 @@ pub fn run() {
             backup_project,
             set_brief,
             plan_agent_run,
+            resume_planning_run,
             approve_agent_run,
             execute_agent_run,
             reconcile_agent_run,

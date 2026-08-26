@@ -97,7 +97,10 @@ fn older_agent_plan_snapshot_without_usage_restores_with_unknown_usage() {
         .open_project()
         .expect("restore compatible snapshot");
     assert_eq!(
-        restored.agent_runs()[0].plan_value().usage(),
+        restored.agent_runs()[0]
+            .plan_value()
+            .expect("restored planned run")
+            .usage(),
         &InferenceUsage::default()
     );
 }

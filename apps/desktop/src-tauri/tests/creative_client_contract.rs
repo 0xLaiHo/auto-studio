@@ -18,10 +18,15 @@ async fn desktop_client_completes_the_fake_creative_workflow_through_core_only()
     let staging = temp.path().join("staging");
     let store =
         Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("project store"));
-    let projects = Arc::new(ProjectService::new(store));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     let media = Arc::new(ProjectMedia::new(&package, &staging).expect("media"));
     let runtime = LocalCreativeRuntime::new(
-        AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter)),
+        AgentPlanner::new(
+            projects.clone(),
+            contexts,
+            Arc::new(DeterministicInferenceAdapter),
+        ),
         GenerationCoordinator::new(
             projects.clone(),
             Arc::new(DeterministicGenerationAdapter::new(&staging).expect("fake provider")),
@@ -79,7 +84,13 @@ async fn desktop_client_completes_the_fake_creative_workflow_through_core_only()
     let planned = client.plan_agent_run(briefed.revision).await.expect("plan");
     let run = &planned.agent_runs[0];
     let approved = client
-        .approve_agent_run(&run.id, planned.revision, "USD", 100, &run.plan.input_hash)
+        .approve_agent_run(
+            &run.id,
+            planned.revision,
+            "USD",
+            100,
+            &run.plan.as_ref().expect("planned run").input_hash,
+        )
         .await
         .expect("approval");
     let generated = client

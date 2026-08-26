@@ -1,0 +1,29 @@
+{
+  "schema_version": "q0-instrument-catalog-v1",
+  "mapping_policy": "Resolve an explicit approved profile first; otherwise match instrument_hint, role, then track name against normalized terms. Use the frozen fallback only when no approved term matches.",
+  "library": {
+    "id": "generaluser-gs-1.471",
+    "name": "GeneralUser GS v1.471",
+    "sha256": "f45b6b4a68b6bf3d792fcbb6d7de24dc701a0f89c5900a21ef3aaece993b839a",
+    "license_decision": "approved-for-local-q0-only"
+  },
+  "profiles": [
+    {"id": "gm.acoustic-grand-piano", "match_terms": ["acoustic grand piano", "grand piano", "acoustic piano", "felt piano", "piano"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 0}, "soundfont_bank": 0, "gm_name": "Acoustic Grand Piano", "preset_name": "Stereo Grand"},
+    {"id": "gm.electric-piano-1", "match_terms": ["electric piano", "e piano", "rhodes"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 4}, "soundfont_bank": 0, "gm_name": "Electric Piano 1", "preset_name": "Tine Electric Piano"},
+    {"id": "gm.nylon-guitar", "match_terms": ["nylon string acoustic guitar", "nylon guitar", "acoustic guitar"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 24}, "soundfont_bank": 0, "gm_name": "Acoustic Guitar (nylon)", "preset_name": "Nylon Guitar"},
+    {"id": "gm.clean-electric-guitar", "match_terms": ["clean electric guitar", "electric guitar", "clean guitar"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 27}, "soundfont_bank": 0, "gm_name": "Electric Guitar (clean)", "preset_name": "Clean Guitar"},
+    {"id": "gm.finger-bass", "match_terms": ["electric bass finger", "finger bass", "electric bass", "synth bass", "sub bass", "analog bass", "bass"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 33}, "soundfont_bank": 0, "gm_name": "Electric Bass (finger)", "preset_name": "Finger Bass"},
+    {"id": "gm.violin", "match_terms": ["violin section", "violin", "violins"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 40}, "soundfont_bank": 0, "gm_name": "Violin", "preset_name": "Violin"},
+    {"id": "gm.viola", "match_terms": ["viola section", "viola", "violas"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 41}, "soundfont_bank": 0, "gm_name": "Viola", "preset_name": "Viola"},
+    {"id": "gm.cello", "match_terms": ["solo cello", "cello section", "cello", "cellos"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 42}, "soundfont_bank": 0, "gm_name": "Cello", "preset_name": "Cello"},
+    {"id": "gm.double-bass", "match_terms": ["acoustic upright bass", "double bass", "contrabass", "contrabasses"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 43}, "soundfont_bank": 0, "gm_name": "Contrabass", "preset_name": "Double Bass"},
+    {"id": "gm.string-ensemble-1", "match_terms": ["string ensemble", "string section", "strings"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 48}, "soundfont_bank": 0, "gm_name": "String Ensemble 1", "preset_name": "Stereo Strings Fast"},
+    {"id": "gm.french-horn", "match_terms": ["french horn", "horn in f", "horn"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 60}, "soundfont_bank": 0, "gm_name": "French Horn", "preset_name": "French Horns"},
+    {"id": "gm.oboe", "match_terms": ["woodwind", "oboe", "flute", "bassoon"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 68}, "soundfont_bank": 0, "gm_name": "Oboe", "preset_name": "Oboe"},
+    {"id": "gm.square-lead", "match_terms": ["square synth lead", "square lead", "lead synth", "synth lead", "lead", "melody", "motif"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 80}, "soundfont_bank": 0, "gm_name": "Lead 1 (square)", "preset_name": "Square Lead"},
+    {"id": "gm.warm-pad", "match_terms": ["warm analog pad", "warm pad", "soft pad", "string pad", "pad", "harmony"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 89}, "soundfont_bank": 0, "gm_name": "Pad 2 (warm)", "preset_name": "Warm Pad"},
+    {"id": "gm.atmosphere", "match_terms": ["granular texture", "transition texture", "filtered noise", "texture", "atmosphere", "riser", "impact", "noise"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 99}, "soundfont_bank": 0, "gm_name": "FX 4 (atmosphere)", "preset_name": "Atmosphere"},
+    {"id": "gm.standard-drum-kit", "match_terms": ["gm standard drums", "standard drum kit", "electronic drum kit", "drum kit", "percussion", "drums", "kick", "snare", "shaker", "hi hat", "cymbal", "timpani", "woodblock", "clap", "rim"], "midi": {"bank_msb": 0, "bank_lsb": 0, "program": 0, "preferred_channel": 10}, "soundfont_bank": 128, "gm_name": "Standard Drum Kit", "preset_name": "Standard"}
+  ],
+  "fallback_profile_id": "gm.acoustic-grand-piano"
+}

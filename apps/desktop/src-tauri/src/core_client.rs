@@ -138,6 +138,23 @@ impl CoreClient {
             .await
     }
 
+    /// Resumes a durable Planning Run from Project and transcript facts.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreClientError`] when the Run cannot be resumed safely.
+    pub async fn resume_planning_run(
+        &self,
+        run_id: &str,
+        expected_revision: u64,
+    ) -> Result<ProjectView, CoreClientError> {
+        self.post_revision(
+            &format!("/v1/agent-runs/{run_id}/resume"),
+            expected_revision,
+        )
+        .await
+    }
+
     /// Records Creator Approval for one unchanged plan and cost ceiling.
     ///
     /// # Errors
@@ -481,7 +498,7 @@ pub struct CreativeBriefInput {
 pub struct AgentRunView {
     pub id: String,
     pub status: String,
-    pub plan: AgentPlanView,
+    pub plan: Option<AgentPlanView>,
     pub approval: Option<serde_json::Value>,
 }
 

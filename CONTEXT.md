@@ -101,6 +101,15 @@ _Avoid_: Download、Single WAV
 **DAW Handoff Package（DAW 交接包）**：供 Creator 在目标 DAW 继续制作的 Export；不自动等同于某个 DAW 的原生工程文件。  
 _Avoid_: Native DAW Project
 
+**Portable Handoff（可移植交接）**：不依赖某个 DAW UI 或专有工程格式的交付层；至少包含 Type-1 Standard MIDI、轨道名、Tempo/拍号/marker、Bank Select/Program Change、乐器分配清单，并在完整 MVP 中加入 WAV/stems。它表达可重建的意图，不承诺各 DAW 使用自己的音源时声音完全一致。
+_Avoid_: Bitwig Adapter、Universal Native Project
+
+**Sound-identical Handoff（同声交接）**：通过冻结音频，或由目标 DAW 加载同一版本的 Auto Studio Sampler/VST3、内容包与 preset state，复现经过验证的声音。没有相同依赖时只能承诺 Portable Handoff。
+_Avoid_: MIDI-only Exact Sound
+
+**DAW Qualification（DAW 资格验证）**：把一个不可变 Handoff Package 与精确 DAW 版本、平台、可执行文件 hash、导入检查和继续编辑证据绑定的验证过程。未安装、未冻结版本或缺少截图/工程/edited MIDI 时只能是 `not_run` 或 `fail`，不能用 `SKIP`、Fixture 或其他 DAW 的结果代替 `pass`。
+_Avoid_: Compatibility Claim、Import Once、DAW Support Boolean
+
 ## 内容、乐器与插件
 
 **Content Pack（内容包）**：可独立安装和追踪的一组采样、映射、Preset、许可与来源清单。  
@@ -159,7 +168,7 @@ _Avoid_: Chatbot、Model、Agent Swarm
 **Agent Model（代理模型）**：Creative Agent 用于理解、音乐决策和 Tool 请求的具体 LLM。它不直接拥有 Project，也不等于音乐文件生成后端。  
 _Avoid_: Agent、Music Provider、Project
 
-**Agent Run（代理运行）**：Creative Agent 为一个创作目标执行的可暂停、可恢复、可审计活动。  
+**Agent Run（代理运行）**：Creative Agent 为一个创作目标执行的可暂停、可恢复、可审计活动。Run identity 与 `planning` phase 必须在首次 Provider 调用前成为耐久 Project 事实；恢复时每个 Agent Step 从 Project 与 Inference Transcript 重新派生。若只存在已准备的 Provider Turn 而没有耐久输出，Run 必须明确记录 `InferenceInterrupted`，不得把自动重提当作恢复。
 _Avoid_: Chat、Generation Job
 
 **Agent Step（代理步骤）**：Agent Run 中的一次理解、计划、Tool 请求、结果观察、提议或等待。  
@@ -167,6 +176,9 @@ _Avoid_: Token、Private Reasoning
 
 **Context Snapshot（上下文快照）**：某个 Agent Step 使用的不可变 Brief、Project facts、相关对话和 Tool Result 集合。  
 _Avoid_: Prompt String、Entire Project
+
+**Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
+_Avoid_: Prompt Cache、Project Snapshot、Provider Continuity State
 
 **Agent Decision（代理决策）**：Agent Step 输出的结构化可见内容或下一步 Tool 意图；不包含模型的私有推理过程。  
 _Avoid_: Chain of Thought

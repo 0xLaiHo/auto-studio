@@ -1,0 +1,18 @@
+{
+  "schema_version": "q0-portable-handoff-pilot-v1",
+  "observed_at": "2026-08-25T03:32:35+08:00",
+  "base_daw_environment": "daw-environment-v1.json",
+  "status": "PARTIAL",
+  "observed": [
+    "The Creator imported the three semantic MIDI tracks into Bitwig Studio 6.0.11.",
+    "The Creator manually loaded the frozen GeneralUser GS presets for Piano, Lead and Bass.",
+    "The project was saved and reopened."
+  ],
+  "saved_project": "../../music-quality/evidence/pilot/l1-song-hook/arrangement-smoke/c-a2358748b226/c-a2358748b226.bwproject",
+  "saved_project_sha256": "582e93c5653ee69dc9d1324ad4f9af43a8418cf9a088f6f85d44931937e9694f",
+  "remaining": [
+    "Store the screenshot and completed checklist in the evidence directory.",
+    "Export and hash an intentionally edited MIDI result.",
+    "Run the same unmodified Portable Handoff package through the frozen Cubase, Studio One Pro and FL Studio matrix."
+  ]
+}

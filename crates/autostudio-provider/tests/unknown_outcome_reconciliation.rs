@@ -18,9 +18,10 @@ async fn unknown_submit_is_reconciled_without_a_second_chargeable_submit() {
     let package = temp.path().join("unknown.autostudio");
     let staging = temp.path().join("staging");
     fs::create_dir_all(&staging).expect("staging");
-    let projects = Arc::new(ProjectService::new(Arc::new(
-        autostudio_storage::SqliteProjectStore::open(&package).expect("project store"),
-    )));
+    let store =
+        Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("project store"));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     projects.create_project("Night Drive").expect("project");
     projects
         .set_brief(
@@ -37,10 +38,14 @@ async fn unknown_submit_is_reconciled_without_a_second_chargeable_submit() {
             },
         )
         .expect("brief");
-    let planned = AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter))
-        .plan(1)
-        .await
-        .expect("plan");
+    let planned = AgentPlanner::new(
+        projects.clone(),
+        contexts,
+        Arc::new(DeterministicInferenceAdapter),
+    )
+    .plan(1)
+    .await
+    .expect("plan");
     let run = &planned.agent_runs()[0];
     let run_id = run.id().clone();
     projects
@@ -50,7 +55,11 @@ async fn unknown_submit_is_reconciled_without_a_second_chargeable_submit() {
             CostApproval {
                 currency: "USD".to_owned(),
                 max_minor_units: 100,
-                input_hash: run.plan_value().input_hash().to_owned(),
+                input_hash: run
+                    .plan_value()
+                    .expect("approved run has a plan")
+                    .input_hash()
+                    .to_owned(),
             },
         )
         .expect("approval");
@@ -65,7 +74,7 @@ async fn unknown_submit_is_reconciled_without_a_second_chargeable_submit() {
     );
 
     let error = coordinator
-        .execute_approved(3, &run_id)
+        .execute_approved(4, &run_id)
         .await
         .expect_err("submit response must be ambiguous");
     assert!(matches!(
@@ -74,24 +83,24 @@ async fn unknown_submit_is_reconciled_without_a_second_chargeable_submit() {
     ));
     assert_eq!(adapter.submit_calls.load(Ordering::SeqCst), 1);
     let unknown = projects.open_project().expect("unknown Project");
-    assert_eq!(unknown.revision(), 5);
+    assert_eq!(unknown.revision(), 6);
     assert_eq!(
         unknown.agent_runs()[0].status(),
         AgentRunStatus::UnknownOutcome
     );
 
     coordinator
-        .execute_approved(5, &run_id)
+        .execute_approved(6, &run_id)
         .await
         .expect_err("Unknown Outcome cannot be submitted again");
     assert_eq!(adapter.submit_calls.load(Ordering::SeqCst), 1);
 
     let reconciled = coordinator
-        .reconcile_unknown(5, &run_id)
+        .reconcile_unknown(6, &run_id)
         .await
         .expect("reconciliation");
     assert_eq!(adapter.submit_calls.load(Ordering::SeqCst), 1);
-    assert_eq!(reconciled.revision(), 7);
+    assert_eq!(reconciled.revision(), 8);
     assert_eq!(
         reconciled.agent_runs()[0].status(),
         AgentRunStatus::Completed
@@ -104,10 +113,10 @@ async fn provider_confirmed_absence_closes_unknown_attempt_without_resubmitting(
     let rig = prepare_unknown(ReconciliationMode::NotFound).await;
     let reconciled = rig
         .coordinator
-        .reconcile_unknown(5, &rig.run_id)
+        .reconcile_unknown(6, &rig.run_id)
         .await
         .expect("not-found reconciliation");
-    assert_eq!(reconciled.revision(), 6);
+    assert_eq!(reconciled.revision(), 7);
     assert_eq!(reconciled.agent_runs()[0].status(), AgentRunStatus::Failed);
     assert_eq!(rig.adapter.submit_calls.load(Ordering::SeqCst), 1);
 }
@@ -117,20 +126,20 @@ async fn provider_confirmed_acceptance_restores_submitted_job_without_resubmitti
     let rig = prepare_unknown(ReconciliationMode::Accepted).await;
     let reconciled = rig
         .coordinator
-        .reconcile_unknown(5, &rig.run_id)
+        .reconcile_unknown(6, &rig.run_id)
         .await
         .expect("accepted reconciliation");
-    assert_eq!(reconciled.revision(), 6);
+    assert_eq!(reconciled.revision(), 7);
     assert_eq!(
         reconciled.agent_runs()[0].status(),
         AgentRunStatus::Submitted
     );
     let still_pending = rig
         .coordinator
-        .resume_submitted(6, &rig.run_id)
+        .resume_submitted(7, &rig.run_id)
         .await
         .expect("poll accepted Job");
-    assert_eq!(still_pending.revision(), 6);
+    assert_eq!(still_pending.revision(), 7);
     assert_eq!(rig.adapter.submit_calls.load(Ordering::SeqCst), 1);
 }
 
@@ -146,9 +155,10 @@ async fn prepare_unknown(mode: ReconciliationMode) -> UnknownRig {
     let package = temp.path().join("unknown-mode.autostudio");
     let staging = temp.path().join("staging");
     fs::create_dir_all(&staging).expect("staging");
-    let projects = Arc::new(ProjectService::new(Arc::new(
-        autostudio_storage::SqliteProjectStore::open(&package).expect("project store"),
-    )));
+    let store =
+        Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("project store"));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     projects.create_project("Unknown Mode").expect("project");
     projects
         .set_brief(
@@ -165,10 +175,14 @@ async fn prepare_unknown(mode: ReconciliationMode) -> UnknownRig {
             },
         )
         .expect("brief");
-    let planned = AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter))
-        .plan(1)
-        .await
-        .expect("plan");
+    let planned = AgentPlanner::new(
+        projects.clone(),
+        contexts,
+        Arc::new(DeterministicInferenceAdapter),
+    )
+    .plan(1)
+    .await
+    .expect("plan");
     let run = &planned.agent_runs()[0];
     let run_id = run.id().clone();
     projects
@@ -178,7 +192,11 @@ async fn prepare_unknown(mode: ReconciliationMode) -> UnknownRig {
             CostApproval {
                 currency: "USD".to_owned(),
                 max_minor_units: 100,
-                input_hash: run.plan_value().input_hash().to_owned(),
+                input_hash: run
+                    .plan_value()
+                    .expect("approved run has a plan")
+                    .input_hash()
+                    .to_owned(),
             },
         )
         .expect("approval");
@@ -189,7 +207,7 @@ async fn prepare_unknown(mode: ReconciliationMode) -> UnknownRig {
         Arc::new(ProjectMedia::new(&package, &staging).expect("media")),
     );
     coordinator
-        .execute_approved(3, &run_id)
+        .execute_approved(4, &run_id)
         .await
         .expect_err("submit response must be ambiguous");
     UnknownRig {

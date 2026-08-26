@@ -237,7 +237,11 @@ impl Project {
         self.increment_revision()
     }
 
-    fn plan_agent_run(&mut self, draft: AgentPlanDraft) -> Result<AgentRun, ProjectError> {
+    fn plan_agent_run(
+        &mut self,
+        run_id: AgentRunId,
+        draft: AgentPlanDraft,
+    ) -> Result<AgentRun, ProjectError> {
         if self
             .agent_runs
             .iter()
@@ -245,8 +249,54 @@ impl Project {
         {
             return Err(AgentRunError::ActiveRunExists.into());
         }
-        let run = AgentRun::plan(self.revision, draft)?;
+        let run = AgentRun::plan(run_id, self.revision, draft)?;
         self.agent_runs.push(run.clone());
+        self.increment_revision()?;
+        Ok(run)
+    }
+
+    fn begin_agent_run(&mut self, run_id: AgentRunId) -> Result<AgentRun, ProjectError> {
+        if self
+            .agent_runs
+            .iter()
+            .any(|run| !run.status().is_terminal())
+        {
+            return Err(AgentRunError::ActiveRunExists.into());
+        }
+        let run = AgentRun::begin(run_id, self.revision);
+        self.agent_runs.push(run.clone());
+        self.increment_revision()?;
+        Ok(run)
+    }
+
+    fn record_agent_plan(
+        &mut self,
+        run_id: &AgentRunId,
+        draft: AgentPlanDraft,
+    ) -> Result<AgentRun, ProjectError> {
+        let run = self
+            .agent_runs
+            .iter_mut()
+            .find(|run| run.id() == run_id)
+            .ok_or(AgentRunError::NotFound)?;
+        run.record_plan(draft)?;
+        let run = run.clone();
+        self.increment_revision()?;
+        Ok(run)
+    }
+
+    fn fail_agent_run(
+        &mut self,
+        run_id: &AgentRunId,
+        failure: AgentRunFailureDraft,
+    ) -> Result<AgentRun, ProjectError> {
+        let run = self
+            .agent_runs
+            .iter_mut()
+            .find(|run| run.id() == run_id)
+            .ok_or(AgentRunError::NotFound)?;
+        run.fail(failure)?;
+        let run = run.clone();
         self.increment_revision()?;
         Ok(run)
     }
@@ -635,9 +685,80 @@ impl ProjectService {
         expected_revision: u64,
         draft: AgentPlanDraft,
     ) -> Result<Project, ProjectError> {
+        self.plan_agent_run_with_id(expected_revision, AgentRunId::new(), draft)
+    }
+
+    /// Persists a visible Agent Plan under an identity allocated before inference.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProjectError`] when the plan or identity is invalid, the
+    /// revision is stale, or the transaction cannot be committed.
+    pub fn plan_agent_run_with_id(
+        &self,
+        expected_revision: u64,
+        run_id: AgentRunId,
+        draft: AgentPlanDraft,
+    ) -> Result<Project, ProjectError> {
         let mut project = self.open_at_revision(expected_revision)?;
-        let run = project.plan_agent_run(draft)?;
+        let run = project.plan_agent_run(run_id, draft)?;
         let event = ProjectEvent::agent_run_planned(&project, run);
+        self.store.commit(expected_revision, &project, &event)?;
+        Ok(project)
+    }
+
+    /// Starts a durable Agent Run before any Provider request is made.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProjectError`] when another Run is active, the revision is stale,
+    /// or the transaction cannot be committed.
+    pub fn begin_agent_run(
+        &self,
+        expected_revision: u64,
+        run_id: AgentRunId,
+    ) -> Result<Project, ProjectError> {
+        let mut project = self.open_at_revision(expected_revision)?;
+        let run = project.begin_agent_run(run_id)?;
+        let event = ProjectEvent::agent_run_started(&project, run);
+        self.store.commit(expected_revision, &project, &event)?;
+        Ok(project)
+    }
+
+    /// Attaches a validated Agent Plan to a durable planning Run.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProjectError`] when the Run is absent or no longer planning,
+    /// the Plan is invalid, the revision is stale, or commit fails.
+    pub fn record_agent_plan(
+        &self,
+        expected_revision: u64,
+        run_id: &AgentRunId,
+        draft: AgentPlanDraft,
+    ) -> Result<Project, ProjectError> {
+        let mut project = self.open_at_revision(expected_revision)?;
+        let run = project.record_agent_plan(run_id, draft)?;
+        let event = ProjectEvent::agent_run_planned(&project, run);
+        self.store.commit(expected_revision, &project, &event)?;
+        Ok(project)
+    }
+
+    /// Terminates a planning or execution Run with a durable failure record.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ProjectError`] when the Run cannot fail from its current state,
+    /// the failure is invalid, the revision is stale, or commit fails.
+    pub fn fail_agent_run(
+        &self,
+        expected_revision: u64,
+        run_id: &AgentRunId,
+        failure: AgentRunFailureDraft,
+    ) -> Result<Project, ProjectError> {
+        let mut project = self.open_at_revision(expected_revision)?;
+        let run = project.fail_agent_run(run_id, failure)?;
+        let event = ProjectEvent::agent_run_failed(&project, run);
         self.store.commit(expected_revision, &project, &event)?;
         Ok(project)
     }
@@ -980,6 +1101,22 @@ impl ProjectEvent {
         }
     }
 
+    fn agent_run_started(project: &Project, run: AgentRun) -> Self {
+        Self {
+            project_id: project.id().clone(),
+            project_revision: project.revision(),
+            kind: ProjectEventKind::AgentRunStarted { run },
+        }
+    }
+
+    fn agent_run_failed(project: &Project, run: AgentRun) -> Self {
+        Self {
+            project_id: project.id().clone(),
+            project_revision: project.revision(),
+            kind: ProjectEventKind::AgentRunFailed { run },
+        }
+    }
+
     fn agent_run_approved(project: &Project, run: AgentRun) -> Self {
         Self {
             project_id: project.id().clone(),
@@ -1074,7 +1211,9 @@ impl ProjectEvent {
         match self.kind {
             ProjectEventKind::ProjectCreated => "project.created",
             ProjectEventKind::BriefUpdated { .. } => "brief.updated",
+            ProjectEventKind::AgentRunStarted { .. } => "agent_run.started",
             ProjectEventKind::AgentRunPlanned { .. } => "agent_run.planned",
+            ProjectEventKind::AgentRunFailed { .. } => "agent_run.failed",
             ProjectEventKind::AgentRunApproved { .. } => "agent_run.approved",
             ProjectEventKind::GenerationSubmitStarted { .. } => "generation.submit_started",
             ProjectEventKind::GenerationSubmitted { .. } => "generation.submitted",
@@ -1098,7 +1237,13 @@ enum ProjectEventKind {
     BriefUpdated {
         brief: CreativeBrief,
     },
+    AgentRunStarted {
+        run: AgentRun,
+    },
     AgentRunPlanned {
+        run: AgentRun,
+    },
+    AgentRunFailed {
         run: AgentRun,
     },
     AgentRunApproved {

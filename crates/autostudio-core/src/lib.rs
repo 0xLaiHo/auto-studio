@@ -2,6 +2,7 @@
 
 pub mod agent;
 pub mod constants;
+pub mod context;
 mod error;
 pub mod production;
 pub mod project;

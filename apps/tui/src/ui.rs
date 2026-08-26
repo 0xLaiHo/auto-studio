@@ -86,12 +86,18 @@ fn draw_activity(frame: &mut Frame<'_>, area: Rect, app: &App) {
             ]));
         }
         if let Some(run) = project.agent_runs.last() {
-            lines.push(Line::from(vec![
+            let mut line = vec![
                 Span::styled("Run    ", Style::default().fg(THEME_SECONDARY)),
                 Span::raw(format!("{:?}", run.status)),
-                Span::styled("  ·  ", Style::default().fg(THEME_MUTED)),
-                Span::raw(&run.plan.visible_summary),
-            ]));
+            ];
+            if let Some(plan) = &run.plan {
+                line.push(Span::styled("  ·  ", Style::default().fg(THEME_MUTED)));
+                line.push(Span::raw(&plan.visible_summary));
+            } else if let Some(failure) = &run.failure {
+                line.push(Span::styled("  ·  ", Style::default().fg(THEME_MUTED)));
+                line.push(Span::raw(&failure.message));
+            }
+            lines.push(Line::from(line));
         }
     }
     if lines.is_empty() {

@@ -1,7 +1,7 @@
 # Q0 音乐内容可行性 Spike
 
 > 基线日期：2026-08-24  
-> 状态：`LIVE-PENDING`；v2 正式 A/B 机器 Gate 与 v3 真实 L4 6/6 重基线已完成；真人/DAW Gate 尚未完成
+> 状态：`LIVE-PENDING`；v2 正式 A/B 机器 Gate、v3 真实 L4 6/6 重基线、Portable Handoff v1 与 DAW qualification harness 已完成；Cubase、Studio One Pro、FL Studio 当前为 3 个 `not_run`，真人内容 Gate 与真实跨 DAW checklist 尚未完成
 > 决策对象：是否继续投入 M3 Agent Harness、Music Project 与本地音频执行链  
 > 性质：一次性、可复现实验；不属于 production runtime，也不构成产品能力声明
 
@@ -9,7 +9,7 @@
 
 [ADR-0011](../adr/0011-llm-authored-local-music.md) 把产品方向改为“LLM 通过本地语义工具创作可编辑音乐”。这个方向成立需要一个尚未验证的核心前提：通用 LLM 能产生值得创作者保留并继续编辑的结构、和声、旋律、节奏与配器决定。
 
-Q0 开工前，production 代码只证明一次 typed Planning Turn，没有真实 Tool loop、Music Project、MIDI、Sampler 或 Audio Engine。现已在 `experiments/music-quality/` 建成独立试验纵切，但它不改变 production 的 planning-only 状态。若先完成完整本地引擎再验证音乐决策质量，仍会把最昂贵的技术投入放在最大的不确定性之前。
+Q0 开工时，production 代码只证明一次 typed Planning Turn；截至 2026-08-25，CM-1 已补齐 SSE assembler、完整 Tool pair、固定 `project.describe → submit_creative_plan` 多轮规划与恢复，但仍没有 Music Project 写入 Tool、MIDI、Sampler 或 Audio Engine。`experiments/music-quality/` 的独立试验纵切不改变 production 的 planning-only 状态。若先完成完整本地引擎再验证音乐决策质量，仍会把最昂贵的技术投入放在最大的不确定性之前。
 
 ## 2. 要回答的决策问题
 
@@ -75,7 +75,8 @@ ExperimentalMusicSpec
 - region 时间相对 Section，以 beat 表达，不要求 LLM 计算 MIDI tick；
 - `role`、`register` 和 `instrument_hint` 用于诊断声部分工，不绑定未来 Plugin/Profile 设计；
 - schema 限制轨道、Section、note、CC、音域、时长和 payload 大小；
-- 编译器只产生 SMF MIDI、tempo/time-signature 和 marker 信息；
+- 编译器产生 SMF MIDI、tempo/time-signature、marker、轨道级 Bank Select/Program Change，并另存可审计 `instrument-assignments.json`；
+- Q0 的 assignment catalog 只证明 General MIDI/GeneralUser GS 评价链；它不是 production Content Catalog，也不保证目标 DAW 自动加载相同原生音源；
 - Q0 结束后先总结证据，再单独设计 production Tool Interface。实验 schema 不自动冻结为未来 API。
 
 ## 6. 三种运行模式
@@ -204,7 +205,11 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - [x] 冻结主模型 `deepseek-v4-pro`、Thinking `high`、协议和价格快照；
 - [ ] 负面结果的第二个不同强模型仍需独立 Credential/精确 model 后冻结；
 - [x] 冻结 Bitwig Studio 6.0.11、48 kHz 导入 recipe 与 instrument mapping；
-- [ ] Bitwig 实际 MIDI 导入/音色装载/保存仍为 `LIVE-PENDING`；当前 accessibility provider 不暴露其自绘窗口，不以坐标猜测冒充通过；
+- [x] Creator 已在 Bitwig 6.0.11 Pilot 中完成三轨 MIDI 导入、手动 GeneralUser GS 音色装载、保存与重开；`.bwproject` hash 已记录；
+- [ ] 正式 DAW checklist、仓内截图和 edited MIDI 仍为 `LIVE-PENDING`，不能把 Pilot smoke 计为 continued editing；
+- [x] Portable Handoff v1：冻结乐器 profile，输出 Type-1 MIDI CC0/CC32/Program Change 与 assignment manifest，并以相同 SoundFont 完成 48 kHz 离线解析；
+- [x] 实现 DAW qualification plan/results/summary、handoff hash binding、Blocked/精确版本 Gate、checklist 与截图/project/edited-MIDI evidence verifier；
+- [ ] Cubase、Studio One Pro、FL Studio 的冻结版本导入矩阵仍为 `LIVE-PENDING`，当前 summary 为 `0/3 pass`；Q0 不做 DAW UI Adapter；
 - [x] 完成本地音色使用许可、版本和 hash 记录；GeneralUser GS 只批准本地评价，不批准产品再分发；
 - [x] 创建独立 experiment workspace、严格 schema/parser、Type-1 SMF compiler、逐轮恢复、证据哈希和测试；
 - [x] 完成不计入结果的真实 Mode A/Mode B DeepSeek pilot；
@@ -231,7 +236,7 @@ Q0 不分发音色，但仍记录每个音色/样本的来源、精确版本、l
 - protocol v2 L4 pilot：3 个真实调用，113,342 tokens，841,105 ms，679 notes / 33 CC，最终严格校验并编译成功；正式 v2 A/B 使用全新目录；
 - protocol v3 L4：apparatus、lock、runner、resume、binding、verifier 与真实 Provider evidence 已完成；6/6 valid + compiled，601,537 tokens，peak USD 1.933172824，未使用第 4 个资源修订回合；
 - Provider evidence 不持久化 API Key 或 private reasoning；请求固定 `Accept-Encoding: identity`，单次超时 600 秒；
-- Bitwig 进程和 48 kHz PipeWire 初始化已实测，MIDI GUI import 尚未取得可验证证据；
+- Bitwig 进程、48 kHz PipeWire、三轨 MIDI GUI import、手动音色装载和工程保存/重开已由 Creator 实测；正式仓内截图/checklist 和 edited MIDI 尚未收口；
 - pilot 明确排除于正式评分，不能用于填充 11/12、Keep 或 continued-editing 门槛。
 
 ## 关联

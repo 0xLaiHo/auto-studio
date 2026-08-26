@@ -42,6 +42,8 @@ pub enum TuiError {
     ProjectRequired,
     #[error("this action requires an Agent Run")]
     RunRequired,
+    #[error("this action requires a completed Agent Plan")]
+    PlanRequired,
     #[error("this action requires a Candidate")]
     CandidateRequired,
 }

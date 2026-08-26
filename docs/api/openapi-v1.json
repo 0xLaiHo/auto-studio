@@ -238,6 +238,21 @@
         }
       }
     },
+    "/v1/agent-runs/{runId}/resume": {
+      "post": {
+        "operationId": "resumePlanningAgentRun",
+        "description": "Resumes a durable planning Run from Project and Transcript facts. A prepared Provider turn with no durable output is failed instead of resubmitted.",
+        "parameters": [{ "$ref": "#/components/parameters/RunId" }],
+        "security": [{ "coreSession": [] }],
+        "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Project" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/v1/agent-runs/{runId}/execute": {
       "post": {
         "operationId": "executeAgentRun",
@@ -560,13 +575,13 @@
       },
       "AgentRun": {
         "type": "object",
-        "required": ["id", "contextRevision", "plan", "status", "approval"],
+        "required": ["id", "contextRevision", "status", "approval"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "contextRevision": { "type": "integer", "minimum": 0 },
           "plan": { "$ref": "#/components/schemas/AgentPlan" },
           "status": {
-            "enum": ["awaiting_approval", "ready_to_submit", "submitting", "submitted", "unknown_outcome", "completed", "failed", "cancelled"]
+            "enum": ["planning", "awaiting_approval", "ready_to_submit", "submitting", "submitted", "unknown_outcome", "completed", "failed", "cancelled"]
           },
           "approval": { "oneOf": [{ "$ref": "#/components/schemas/Approval" }, { "type": "null" }] },
           "generationAttempt": { "type": "object" },
@@ -622,7 +637,7 @@
         "required": ["kind", "message"],
         "properties": {
           "kind": {
-            "enum": ["provider_rejected", "provider_unavailable", "invalid_provider_response", "provider_confirmed_not_found"]
+            "enum": ["harness_unavailable", "inference_interrupted", "provider_rejected", "provider_unavailable", "invalid_provider_response", "provider_confirmed_not_found"]
           },
           "message": { "type": "string", "minLength": 1 }
         },

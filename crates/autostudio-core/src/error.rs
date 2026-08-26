@@ -1,6 +1,40 @@
 use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ContextStoreError {
+    #[error("context journal revision conflict: expected {expected}, actual {actual}")]
+    RevisionConflict { expected: u64, actual: u64 },
+    #[error("context journal is corrupt: {0}")]
+    Corrupt(String),
+    #[error("context storage is unavailable: {0}")]
+    Unavailable(String),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ContextError {
+    #[error("{0} identity is invalid")]
+    InvalidId(&'static str),
+    #[error("context field '{0}' must not be empty")]
+    EmptyField(&'static str),
+    #[error("context JSON field '{0}' is invalid")]
+    InvalidJson(&'static str),
+    #[error("context digest is invalid")]
+    InvalidDigest,
+    #[error("context token budget is invalid")]
+    InvalidTokenBudget,
+    #[error("context item sequence is exhausted")]
+    SequenceExhausted,
+    #[error("context journal violates an ordering or identity invariant: {0}")]
+    InconsistentJournal(String),
+    #[error("system clock is before the Unix epoch")]
+    InvalidClock,
+    #[error("context serialization failed: {0}")]
+    Serialization(String),
+    #[error(transparent)]
+    Store(#[from] ContextStoreError),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum AgentRunError {
     #[error("Agent Run id is invalid")]
     InvalidId,

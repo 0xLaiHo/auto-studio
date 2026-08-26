@@ -1,8 +1,8 @@
 # Auto Studio Roadmap
 
 > 基线日期：2026-08-25
-> 当前执行 Gate：Q0 音乐内容可行性 Spike  
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12 达到机器装置 Gate；protocol v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，机器 Gate 已完成，真人/DAW Gate 仍为 `LIVE-PENDING`。M3 production 尚未开工，当前产品仍不能真实生成音乐。
+> 当前执行 Gate：Q0 真人内容 Gate；M3-A CM-1 已完成，下一实现切片为 CM-2 Continuity Vault
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0/CM-1 的 Planning 纵切已落地：Provider streaming assembler、完整 ToolRequest/ToolResult、固定 `project.describe → submit_creative_plan` 多轮循环和 crash-safe resume 已进入 production Planning 路径。Continuity、compaction、长期 Run、Grant/Budget 与通用 Tool Runtime 仍未实现，因此当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -24,14 +24,14 @@
 | Rust Core/API | `PASS` | Axum、discovery/session、健康检查、独立进程 | installer/OS hardening |
 | Project/SQLite | `PASS` | revision、snapshot、event/outbox、backup、single writer | Music Project schema/migration |
 | TUI | `PASS` | `autostudio`、Composer、`/connect`、`/model`、Thinking、`/exit` | Project/Run/Candidate/Render 视图 |
-| LLM Provider | `PASS（contract）` | OpenAI/Anthropic/DeepSeek/Kimi 协议与目录 | exact model live qualification |
-| LLM Planning | `PASS（contract）` | typed Plan、Approval、真实 composition root | 从一次 Plan 扩展为多轮 Tool loop |
-| Harness Foundation | `NOT IMPLEMENTED` | ADR-0012 与图已冻结 | Transcript、Continuity Vault、Approval Grant、Run Budget |
+| LLM Provider | `PASS（contract + DeepSeek live）` | OpenAI/Anthropic/DeepSeek/Kimi 协议与目录；2026-08-25 `deepseek-v4-flash` 流式 Tool Call smoke | OpenAI/Anthropic/Kimi exact-model live qualification |
+| LLM Planning | `PASS（CM-1 contract）` | typed Plan、Approval、真实 composition root、固定两轮本地 Tool 链路 | 接 Music Project Semantic Tool，而非扩大固定规划工具 |
+| Harness Foundation | `PARTIAL` | Context domain、SQLite Transcript、Context Manifest、SSE assembler、完整 Tool pair、每步 replay、Planning resume/中断防重提 | Continuity Vault、compaction、长期 Run、Approval Grant、Run Budget、通用 ToolExecution |
 | 旧 GenerationAdapter | `LEGACY` | Fixture 状态机、WAV ingest、Candidate contract | 停止 production 扩展并迁移/删除 |
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
 | Tool Registry/Runtime | `NOT IMPLEMENTED` | ADR/架构图 | 固定 catalog、Policy、ToolExecution |
-| MIDI/Arrangement | `PASS（Q0 v2/v3 machine）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC 实测；v3 6/6 L4、协议绑定与资源预算修订合同通过 | 真人内容 Gate、production Music Project 与 Semantic Tool |
+| MIDI/Arrangement | `PASS（Q0 v2/v3 + portable machine）` / `NOT IMPLEMENTED（production）` | 严格 ExperimentalMusicSpec → Type-1 SMF、480 PPQ、tempo/拍号/key/marker/track/note/CC；Portable v1 增加 per-track CC0/CC32/Program Change 与 assignment manifest，并由固定 GeneralUser GS 离线解析 | 真人内容 Gate、Cubase/Studio One/FL Studio 导入矩阵、production Music Project 与 Semantic Tool |
 | Offline Audio Engine | `NOT IMPLEMENTED` | `hound` 只用于 WAV 合同 | Render Plan、instrument、mix、analysis |
 | Factory Pack/Sampler | `NOT IMPLEMENTED` | 研究与候选清单 | 许可批准、manifest、sampler、盲听 |
 | VST3 Host | `NOT IMPLEMENTED` | 目标隔离设计 | 目标 OS、SDK Spike、worker、corpus |
@@ -46,8 +46,8 @@
 | M0 Workspace Baseline | Rust workspace、Core、Project、API、基础 TUI | `PASS` |
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
-| Q0 Music Content Feasibility | 用 MIDI/固定 DAW 验证 L1—L4 Keep 与真实继续编辑 | `PASS（v2 11/12 + v3 L4 6/6 machine）` / `LIVE-PENDING（human/DAW）` |
-| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `NOT IMPLEMENTED（等待 Q0 GO）` |
+| Q0 Music Content Feasibility | 用可移植 MIDI/冻结 DAW matrix 验证 L1—L4 Keep 与真实继续编辑 | `PASS（v2 11/12 + v3 L4 6/6 + portable handoff machine）` / `LIVE-PENDING（human/cross-DAW）` |
+| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `IN PROGRESS（M3-A CM-0/CM-1 Planning slice PASS；音乐纵切仍等待 Q0 GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
 | M6 Release Qualification | 固定 corpus、盲听、设计伙伴、Vault、安装签名 | `BLOCKED` |
@@ -76,8 +76,11 @@ Q0 不建设 production Audio Engine。完成定义是：
 
 - [x] schema/parser/compiler 单元测试；
 - [x] ExperimentalMusicSpec → SMF MIDI/tempo/拍号/key/marker/track/note/CC；
+- [x] Portable Handoff v1：按语义解析冻结 Instrument Profile，写入 CC0/CC32/Program Change，并输出含库 hash/许可结论的 `instrument-assignments.json`；
+- [x] DAW qualification harness：冻结 handoff/target plan，生成 `not_run` template，校验精确版本、checklist、PNG/JPEG、保存工程、edited MIDI 与所有 evidence hash；
 - [x] 不计入结果的真实 DeepSeek Mode A/Mode B pilot；
-- [ ] Bitwig MIDI import、固定音色装载和工程保存 smoke 为 `LIVE-PENDING`；
+- [x] Creator 已完成一次 Bitwig 三轨导入、手动固定音色装载和工程保存/重开 Pilot；
+- [ ] 正式 Bitwig checklist/仓内截图/edited MIDI，以及 Cubase、Studio One Pro、FL Studio 导入矩阵为 `LIVE-PENDING`；当前三目标计划为 `0 pass / 0 fail / 3 not_run`，MVP Gate=false；
 - [x] Provider request/response normalization、逐轮恢复、usage/cost/latency 记录；
 - [x] 匿名 candidate ID、evaluator package、独立 private mapping 与编辑动作表；
 - [x] Credential、private reasoning 和不允许分发音色不进入 artifact；
@@ -108,11 +111,17 @@ M3 不接入 Music Provider。完成定义是：
 ### 5.1 M3-A：Harness Foundation 与迁移基线
 
 - [ ] ADR-0011、ADR-0012、产品、技术、Roadmap 与领域词汇成为唯一权威；
-- [ ] production composition root 明确禁止 Music Provider/Fixture；
+- [x] production composition root 保持 planning-only，不注册 Music Provider/Fixture；
 - [ ] `autostudio-provider` 的目标职责改为 LLM-only；
 - [ ] 旧 Generation 状态、API 和测试建立迁移清单并冻结，标记 `LEGACY`，暂不删除；
-- [ ] 定义 AgentStep、InferenceTurn、InferenceItem、ToolRequest、ToolResult 的独立 identity 与顺序；
-- [ ] durable Inference Transcript 与 partial tool-call assembler；
+- [x] 定义 `AgentRunId`、`InferenceTurnId`、`InferenceItemId`、完整 Tool Request/Result 条目与单调顺序；`AgentStepId`/`ToolExecutionId` 留待 Tool Runtime；
+- [x] durable Inference Transcript：同一 Project SQLite actor 内按 Run append、CAS revision、重启 replay；
+- [x] `ContextManifest`：持久化精确 instruction、Tool catalog、included item、Provider binding、token budget 与内容 hash，并在 Provider 调用前落盘；
+- [x] OpenAI Chat、OpenAI Responses、Anthropic Messages 从统一 `InferenceTurnRequest/PreparedContext` 生成请求；
+- [x] 在首次 Inference 前创建可见 `planning` Agent Run；成功后附加 typed Plan，Provider/Context 失败后写入无 Plan 的终态 `failed`，TUI/Desktop DTO 能读取该形状，失败后允许新 Run；
+- [x] OpenAI Chat/Responses、Anthropic Messages 的 SSE decoder、protocol delta mapper 与 partial tool-call assembler；仅完整 canonical Turn 可进入 Transcript；
+- [x] 固定 Planning Tool Module：真实只读 `project.describe` 后才开放 terminal `submit_creative_plan`；完整 Request/Result 配对持久化；
+- [x] 每一步重新打开 Project 并 replay Transcript；待执行 Tool、已完成 Plan 和仅有 Manifest 的中断分别恢复、提交或安全失败；Core API、TUI 与 Desktop 暴露 Planning resume；
 - [ ] Provider Adapter continuity capture/replay contract；
 - [ ] Project 外加密 Continuity Vault、binding/TTL/purge/janitor；
 - [ ] Approval Grant 绑定 revision/plan/tool fingerprint/target/effect/cost；
@@ -121,7 +130,9 @@ M3 不接入 Music Provider。完成定义是：
 - [ ] 添加架构守护测试，禁止新的 production `GenerationAdapter` 注册；
 - [ ] 删除 TUI/Desktop 中“配置真实 Music Provider”“查询 Provider”“Unknown Outcome”产品文案。
 
-完成定义：Run 可以持久化规范化 Transcript，安全继续或明确放弃 Provider 链，精确校验 Grant/Budget，并在终态清理 continuity；运行产品不再要求 Music Provider。
+CM-1 完成边界：固定 Planning 纵切可持久化规范化 Transcript、执行真实本地只读 Tool、跨进程继续，并对结果不明的 Provider Turn 明确放弃而不重提。整个 M3-A 仍需 CM-2 Continuity、CM-3/CM-4 context management 与 Grant/Budget 后才完成；运行产品不要求 Music Provider。
+
+Live evidence（2026-08-25）：`bash scripts/test-deepseek-live.sh` 使用默认 `deepseek-v4-flash` 完成真实流式 Tool Call。该模型开启 thinking 时不接受 `tool_choice=required`，Adapter 因而只对这一组合使用 `auto`；Core 继续校验固定 catalog、tool identity、fingerprint 与参数。这个 smoke 证明 DeepSeek CM-1 wire path，不替代其他 Provider/exact model 的 live qualification。
 
 ### 5.2 M3-B：Music Project Domain
 
@@ -166,6 +177,8 @@ M3 不接入 Music Provider。完成定义是：
 - [ ] `candidate.create`。
 
 Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MIDI byte 或逐 crate function 调用。
+
+Q0 中的 `InstrumentAssignment` resolver 是实验编译器资产，只验证 profile 解析、Bank/Program 与 manifest 合同；它没有注册为 production `instrument.assign`，因此本清单保持未完成。
 
 完成定义：工具合同覆盖成功、schema 拒绝、revision conflict、budget、cancel、crash recovery 和结果清洗。
 
@@ -246,14 +259,17 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 - [ ] stereo WAV；
 - [ ] stems；
-- [ ] MIDI；
+- [x] Q0 前置证据：Type-1 MIDI、语义轨道名、CC0/CC32/Program Change 与 assignment manifest 可确定生成并离线解析；
+- [ ] production MIDI export 与 Selection/Project Snapshot/receipt 绑定；
 - [ ] Tempo/拍号/markers；
 - [ ] Pack/Plugin/engine lock；
 - [ ] credits/license/provenance；
-- [ ] 在一个冻结 DAW/version 中导入和继续编辑；
+- [ ] Cubase、Studio One Pro、FL Studio 的冻结版本按同一 Portable Handoff recipe 导入和继续编辑；
+- [ ] 对已验证支持的 DAW 增加 DAWproject Structured Handoff；FL Studio 继续使用 MIDI+stems，除非其官方支持状态改变并重新验证；
+- [ ] 以 freeze，或同一 Auto Studio Sampler VST3 + pack/preset lock，验证 Sound-identical Handoff；
 - [ ] 不承诺未验证的原生工程文件。
 
-完成定义：设计伙伴能把 Selection 带到目标 DAW，并在不重建全部结构的前提下继续制作。
+完成定义：设计伙伴能把 Selection 带到至少三类冻结目标 DAW，并在不重建全部结构的前提下继续制作。Portable、Structured、Sound-identical 三个能力等级分别声明，不用 MIDI Program Change 冒充同声恢复。
 
 ## 8. M6：质量与发布资格
 
@@ -273,7 +289,7 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 ### Gate Q0：内容可行性
 
-- `PASS（v2/v3 machine）/ LIVE-PENDING（human）`：v2 Mode B 11/12 达到装置门槛；v3 全部 6 个 L4 valid + compiled；Bitwig import、Mode C、盲听与 continued-editing 尚未完成；
+- `PASS（v2/v3/portable/qualification apparatus）/ LIVE-PENDING（human/cross-DAW）`：v2 Mode B 11/12 达到装置门槛；v3 全部 6 个 L4 valid + compiled；Portable Handoff 的 assignment/Bank/Program/离线解析与 DAW evidence verifier 通过。三目标 DAW 当前为 `not_run`；Bitwig Pilot 已手工导入和保存，但正式 checklist、Mode C、盲听与 continued-editing 尚未完成；
 - 通过条件：实验装置有效，L4 达到冻结 Keep/Actual continued editing 门槛；负面主模型结果由第二个不同强模型复核。
 
 ### Gate A：产品基线
@@ -284,7 +300,7 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 ### Gate B：LLM Agent Harness
 
 - `PASS（contract）`：LLM Connection、Model/Thinking、typed Planning；
-- `NOT IMPLEMENTED`：Inference Transcript、Continuity Vault、Approval Grant、Run Budget、真实多轮 Tool loop；
+- `PARTIAL`：Inference Transcript、Context Manifest、canonical request、SSE assembler、固定 Planning 多轮 Tool loop 与重启恢复已实现；Continuity Vault、compaction/长期 Run、Approval Grant、Run Budget 与通用 ToolExecution 未实现；
 - 通过条件：continuity/Transcript 分离，Grant/预算范围生效，重启/compaction/终态 purge 和 exact model live qualification 通过。
 
 ### Gate C：本地可编辑音乐
@@ -299,8 +315,8 @@ Tool 以 section/region/pattern 为主要粒度，不让 LLM 逐 sample、逐 MI
 
 ### Gate E：专业交接
 
-- `PARTIAL（Fixture）`：已有 Audio-only Handoff contract；
-- `BLOCKED`：Project Snapshot Candidate、MIDI/stems 与目标 DAW 继续编辑。
+- `PARTIAL（Fixture + Q0 machine）`：已有 Audio-only Handoff contract；Q0 可移植 symbolic precursor 已输出 Type-1 MIDI、Bank/Program 与 assignment manifest；
+- `BLOCKED`：production Project Snapshot Candidate、stems/receipt、Cubase/Studio One/FL Studio 继续编辑矩阵与同声路径。
 
 ### Gate F：VST3
 

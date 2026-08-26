@@ -52,8 +52,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .into());
     }
 
-    let store = SqliteProjectStore::open_with_owner(&project_package, &core_instance_id)?;
-    let projects = Arc::new(ProjectService::new(Arc::new(store)));
+    let store = Arc::new(SqliteProjectStore::open_with_owner(
+        &project_package,
+        &core_instance_id,
+    )?);
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     let staging = project_package.join(".staging/provider-downloads");
     let llm_provider =
         env::var(ENV_LLM_PROVIDER).unwrap_or_else(|_| DEFAULT_LLM_PROVIDER.to_owned());
@@ -83,7 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         });
     }
     let inference = ConnectionInferenceAdapter::new(connections.clone());
-    let planner = AgentPlanner::new(projects.clone(), Arc::new(inference));
+    let planner = AgentPlanner::new(projects.clone(), contexts, Arc::new(inference));
     let media = Arc::new(ProjectMedia::new(&project_package, &staging)?);
     let backup = Arc::new(ProjectPackageBackup::new(&project_package, &backup_root)?);
     let runtime = Arc::new(LocalCreativeRuntime::planning_only(planner));

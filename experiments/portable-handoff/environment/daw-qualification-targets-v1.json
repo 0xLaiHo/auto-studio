@@ -1,0 +1,33 @@
+{
+  "schema_version": "daw-qualification-targets-v1",
+  "frozen_at": "2026-08-25",
+  "targets": [
+    {
+      "id": "steinberg-cubase",
+      "product": "Steinberg Cubase",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "Cubase is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    },
+    {
+      "id": "presonus-studio-one-pro",
+      "product": "PreSonus Studio One Pro",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "Studio One Pro is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    },
+    {
+      "id": "image-line-fl-studio",
+      "product": "Image-Line FL Studio",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "FL Studio is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    }
+  ]
+}

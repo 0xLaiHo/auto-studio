@@ -477,7 +477,8 @@ impl App {
             .project
             .as_ref()
             .and_then(|project| project.agent_runs.last())
-            .is_some_and(|run| matches!(run.plan.estimated_cost, CostEstimateView::Unknown))
+            .and_then(|run| run.plan.as_ref())
+            .is_some_and(|plan| matches!(plan.estimated_cost, CostEstimateView::Unknown))
         {
             self.overlay = Overlay::TextInput {
                 kind: TextInputKind::ApprovalBudget,
@@ -695,7 +696,7 @@ impl App {
                     .set_brief(revision, Self::brief_from_summary(summary))
                     .await?
             }
-            Effect::Plan => client.plan(self.revision()?).await?,
+            Effect::Plan => self.plan_run(client).await?,
             Effect::Approve(maximum) => self.approve(client, maximum).await?,
             Effect::Execute => self.execute_run(client).await?,
             Effect::Recover => self.recover_run(client).await?,
@@ -740,7 +741,13 @@ impl App {
         let revision = project.revision;
         self.project = Some(project);
 
-        let project = client.plan(revision).await?;
+        let project = match client.plan(revision).await {
+            Ok(project) => project,
+            Err(error) => {
+                self.reload_after_partial_failure(client).await;
+                return Err(error);
+            }
+        };
         let revision = project.revision;
         self.project = Some(project);
         self.log(format!("Agent 已生成 Plan · revision {revision}"));
@@ -774,7 +781,8 @@ impl App {
     async fn approve(&self, client: &TuiClient, maximum: u64) -> Result<ProjectView, TuiError> {
         let project = self.project.as_ref().ok_or(TuiError::ProjectRequired)?;
         let run = project.agent_runs.last().ok_or(TuiError::RunRequired)?;
-        let (currency, maximum) = match &run.plan.estimated_cost {
+        let plan = run.plan.as_ref().ok_or(TuiError::PlanRequired)?;
+        let (currency, maximum) = match &plan.estimated_cost {
             CostEstimateView::Known {
                 currency,
                 upper_minor_units,
@@ -789,10 +797,21 @@ impl App {
                 ApprovalInput {
                     currency,
                     max_minor_units: maximum,
-                    input_hash: run.plan.input_hash.clone(),
+                    input_hash: plan.input_hash.clone(),
                 },
             )
             .await
+    }
+
+    async fn plan_run(&mut self, client: &TuiClient) -> Result<ProjectView, TuiError> {
+        let revision = self.revision()?;
+        match client.plan(revision).await {
+            Ok(project) => Ok(project),
+            Err(error) => {
+                self.reload_after_partial_failure(client).await;
+                Err(error)
+            }
+        }
     }
 
     async fn execute_run(&mut self, client: &TuiClient) -> Result<ProjectView, TuiError> {
@@ -810,6 +829,7 @@ impl App {
         let project = self.project.as_ref().ok_or(TuiError::ProjectRequired)?;
         let run = project.agent_runs.last().ok_or(TuiError::RunRequired)?;
         let result = match run.status {
+            AgentRunStatusView::Planning => client.resume_planning(&run.id, project.revision).await,
             AgentRunStatusView::UnknownOutcome => client.reconcile(&run.id, project.revision).await,
             AgentRunStatusView::Submitted => client.refresh_run(&run.id, project.revision).await,
             _ => return Err(TuiError::RunRequired),

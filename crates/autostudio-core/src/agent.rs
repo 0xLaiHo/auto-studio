@@ -13,7 +13,8 @@ use crate::provider::{ThinkingControl, ThinkingLevel};
 pub struct AgentRunId(Uuid);
 
 impl AgentRunId {
-    fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
 
@@ -31,6 +32,12 @@ impl AgentRunId {
         Uuid::parse_str(value)
             .map(Self)
             .map_err(|_| AgentRunError::InvalidId)
+    }
+}
+
+impl Default for AgentRunId {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -247,6 +254,7 @@ pub struct CostApproval {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentRunStatus {
+    Planning,
     AwaitingApproval,
     ReadyToSubmit,
     Submitting,
@@ -267,6 +275,8 @@ impl AgentRunStatus {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentRunFailureKind {
+    HarnessUnavailable,
+    InferenceInterrupted,
     ProviderRejected,
     ProviderUnavailable,
     InvalidProviderResponse,
@@ -403,7 +413,8 @@ impl GenerationJob {
 pub struct AgentRun {
     id: AgentRunId,
     context_revision: u64,
-    plan: AgentPlan,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    plan: Option<AgentPlan>,
     status: AgentRunStatus,
     approval: Option<CostApproval>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -415,34 +426,52 @@ pub struct AgentRun {
 }
 
 impl AgentRun {
-    pub(crate) fn plan(
-        context_revision: u64,
-        draft: AgentPlanDraft,
-    ) -> Result<Self, AgentRunError> {
-        Ok(Self {
-            id: AgentRunId::new(),
+    #[must_use]
+    pub(crate) fn begin(id: AgentRunId, context_revision: u64) -> Self {
+        Self {
+            id,
             context_revision,
-            plan: AgentPlan::parse(draft)?,
-            status: AgentRunStatus::AwaitingApproval,
+            plan: None,
+            status: AgentRunStatus::Planning,
             approval: None,
             generation_job: None,
             generation_attempt: None,
             failure: None,
-        })
+        }
+    }
+
+    pub(crate) fn plan(
+        id: AgentRunId,
+        context_revision: u64,
+        draft: AgentPlanDraft,
+    ) -> Result<Self, AgentRunError> {
+        let mut run = Self::begin(id, context_revision);
+        run.record_plan(draft)?;
+        Ok(run)
+    }
+
+    pub(crate) fn record_plan(&mut self, draft: AgentPlanDraft) -> Result<(), AgentRunError> {
+        if self.status != AgentRunStatus::Planning || self.plan.is_some() {
+            return Err(AgentRunError::InvalidTransition);
+        }
+        self.plan = Some(AgentPlan::parse(draft)?);
+        self.status = AgentRunStatus::AwaitingApproval;
+        Ok(())
     }
 
     pub(crate) fn approve(&mut self, approval: CostApproval) -> Result<(), AgentRunError> {
         if self.status != AgentRunStatus::AwaitingApproval {
             return Err(AgentRunError::InvalidTransition);
         }
-        if approval.input_hash != self.plan.input_hash {
+        let plan = self.required_plan()?;
+        if approval.input_hash != plan.input_hash {
             return Err(AgentRunError::ApprovalInputChanged);
         }
         if let CostEstimate::Known {
             currency,
             upper_minor_units,
             ..
-        } = &self.plan.estimated_cost
+        } = &plan.estimated_cost
             && (approval.currency != *currency || approval.max_minor_units < *upper_minor_units)
         {
             return Err(AgentRunError::ApprovalBudgetTooLow);
@@ -473,11 +502,12 @@ impl AgentRun {
     }
 
     fn record_job(&mut self, draft: GenerationJobDraft) -> Result<(), AgentRunError> {
+        let plan = self.required_plan()?;
         let attempt = self
             .generation_attempt
             .as_ref()
             .ok_or(AgentRunError::InvalidGenerationJob)?;
-        if draft.request_hash != self.plan.input_hash
+        if draft.request_hash != plan.input_hash
             || draft.attempt_id != attempt.attempt_id
             || draft.provider_kind != attempt.provider_kind
             || draft.model != attempt.model
@@ -503,7 +533,8 @@ impl AgentRun {
         if self.status != AgentRunStatus::ReadyToSubmit {
             return Err(AgentRunError::InvalidTransition);
         }
-        if draft.request_hash != self.plan.input_hash
+        let plan = self.required_plan()?;
+        if draft.request_hash != plan.input_hash
             || draft.attempt_id.trim().is_empty()
             || draft.provider_kind.trim().is_empty()
             || draft.model.trim().is_empty()
@@ -543,7 +574,7 @@ impl AgentRun {
     pub(crate) fn fail(&mut self, draft: AgentRunFailureDraft) -> Result<(), AgentRunError> {
         if !matches!(
             self.status,
-            AgentRunStatus::Submitting | AgentRunStatus::Submitted
+            AgentRunStatus::Planning | AgentRunStatus::Submitting | AgentRunStatus::Submitted
         ) {
             return Err(AgentRunError::InvalidTransition);
         }
@@ -553,7 +584,7 @@ impl AgentRun {
     }
 
     pub(crate) fn validate_candidate_count(&self, actual: usize) -> Result<(), AgentRunError> {
-        let expected = match self.plan.decision() {
+        let expected = match self.required_plan()?.decision() {
             AgentDecision::GenerateMusic(intent) => usize::from(intent.candidate_count),
         };
         if actual == expected {
@@ -592,8 +623,8 @@ impl AgentRun {
     }
 
     #[must_use]
-    pub const fn plan_value(&self) -> &AgentPlan {
-        &self.plan
+    pub const fn plan_value(&self) -> Option<&AgentPlan> {
+        self.plan.as_ref()
     }
 
     #[must_use]
@@ -613,35 +644,57 @@ impl AgentRun {
 
     pub(crate) fn validate_restored(&self) -> Result<(), AgentRunError> {
         AgentRunId::parse(&self.id.as_str())?;
-        AgentPlan::parse(AgentPlanDraft {
-            visible_summary: self.plan.visible_summary.clone(),
-            decision: self.plan.decision.clone(),
-            estimated_cost: self.plan.estimated_cost.clone(),
-            usage: self.plan.usage.clone(),
-            inference: self.plan.inference.clone(),
-            input_hash: self.plan.input_hash.clone(),
-        })?;
+        self.validate_restored_plan()?;
+        self.validate_restored_generation()?;
+        if let Some(failure) = &self.failure {
+            AgentRunFailure::parse(AgentRunFailureDraft {
+                kind: failure.kind,
+                message: failure.message.clone(),
+            })?;
+        }
+        if self.has_valid_state_shape() {
+            Ok(())
+        } else {
+            Err(AgentRunError::InvalidTransition)
+        }
+    }
+
+    fn validate_restored_plan(&self) -> Result<(), AgentRunError> {
+        if let Some(plan) = &self.plan {
+            AgentPlan::parse(AgentPlanDraft {
+                visible_summary: plan.visible_summary.clone(),
+                decision: plan.decision.clone(),
+                estimated_cost: plan.estimated_cost.clone(),
+                usage: plan.usage.clone(),
+                inference: plan.inference.clone(),
+                input_hash: plan.input_hash.clone(),
+            })?;
+        }
 
         if let Some(approval) = &self.approval {
-            if approval.currency.trim().is_empty() || approval.input_hash != self.plan.input_hash {
+            let plan = self.required_plan()?;
+            if approval.currency.trim().is_empty() || approval.input_hash != plan.input_hash {
                 return Err(AgentRunError::ApprovalInputChanged);
             }
             if let CostEstimate::Known {
                 currency,
                 upper_minor_units,
                 ..
-            } = &self.plan.estimated_cost
+            } = &plan.estimated_cost
                 && (approval.currency != *currency || approval.max_minor_units < *upper_minor_units)
             {
                 return Err(AgentRunError::ApprovalBudgetTooLow);
             }
         }
+        Ok(())
+    }
 
+    fn validate_restored_generation(&self) -> Result<(), AgentRunError> {
         if let Some(attempt) = &self.generation_attempt
             && (attempt.attempt_id.trim().is_empty()
                 || attempt.provider_kind.trim().is_empty()
                 || attempt.model.trim().is_empty()
-                || attempt.request_hash != self.plan.input_hash)
+                || attempt.request_hash != self.required_plan()?.input_hash)
         {
             return Err(AgentRunError::InvalidGenerationJob);
         }
@@ -659,49 +712,61 @@ impl AgentRun {
                 return Err(AgentRunError::InvalidGenerationJob);
             }
         }
-        if let Some(failure) = &self.failure {
-            AgentRunFailure::parse(AgentRunFailureDraft {
-                kind: failure.kind,
-                message: failure.message.clone(),
-            })?;
-        }
+        Ok(())
+    }
 
-        let valid_shape = match self.status {
+    fn has_valid_state_shape(&self) -> bool {
+        match self.status {
+            AgentRunStatus::Planning => {
+                self.plan.is_none()
+                    && self.approval.is_none()
+                    && self.generation_attempt.is_none()
+                    && self.generation_job.is_none()
+                    && self.failure.is_none()
+            }
             AgentRunStatus::AwaitingApproval => {
-                self.approval.is_none()
+                self.plan.is_some()
+                    && self.approval.is_none()
                     && self.generation_attempt.is_none()
                     && self.generation_job.is_none()
                     && self.failure.is_none()
             }
             AgentRunStatus::ReadyToSubmit => {
-                self.approval.is_some()
+                self.plan.is_some()
+                    && self.approval.is_some()
                     && self.generation_attempt.is_none()
                     && self.generation_job.is_none()
                     && self.failure.is_none()
             }
             AgentRunStatus::Submitting | AgentRunStatus::UnknownOutcome => {
-                self.approval.is_some()
+                self.plan.is_some()
+                    && self.approval.is_some()
                     && self.generation_attempt.is_some()
                     && self.generation_job.is_none()
                     && self.failure.is_none()
             }
             AgentRunStatus::Failed => {
-                self.approval.is_some()
-                    && self.generation_attempt.is_some()
-                    && self.failure.is_some()
+                self.failure.is_some()
+                    && ((self.plan.is_none()
+                        && self.approval.is_none()
+                        && self.generation_attempt.is_none()
+                        && self.generation_job.is_none())
+                        || (self.plan.is_some()
+                            && self.approval.is_some()
+                            && self.generation_attempt.is_some()))
             }
             AgentRunStatus::Submitted | AgentRunStatus::Completed => {
-                self.approval.is_some()
+                self.plan.is_some()
+                    && self.approval.is_some()
                     && self.generation_attempt.is_some()
                     && self.generation_job.is_some()
                     && self.failure.is_none()
             }
-            AgentRunStatus::Cancelled => self.approval.is_some(),
-        };
-        if valid_shape {
-            Ok(())
-        } else {
-            Err(AgentRunError::InvalidTransition)
+            AgentRunStatus::Cancelled => self.plan.is_some() && self.approval.is_some(),
         }
+    }
+
+    fn required_plan(&self) -> Result<&AgentPlan, AgentRunError> {
+        self.plan.as_ref().ok_or(AgentRunError::InvalidTransition)
     }
 }

@@ -3,7 +3,9 @@ use std::sync::Arc;
 use autostudio_core::project::{CreativeBriefDraft, ProjectService};
 use autostudio_provider::constants::PROVIDER_DEEPSEEK;
 use autostudio_provider::llm::{HttpInferenceAdapter, LlmProviderConfig};
-use autostudio_provider::{InferenceAdapter, InferenceRequest};
+use autostudio_provider::{InferenceAdapter, InferenceTurnRequest};
+
+mod support;
 
 #[tokio::test]
 #[ignore = "requires an explicitly supplied DEEPSEEK_API_KEY and makes a billable request"]
@@ -19,15 +21,17 @@ async fn deepseek_returns_a_schema_valid_creative_plan() {
         .expect("live DeepSeek plan response");
 
     assert_eq!(adapter.descriptor().provider_kind, PROVIDER_DEEPSEEK);
-    assert!(!outcome.visible_summary.trim().is_empty());
+    assert!(!outcome.tool_calls.is_empty());
     assert!(outcome.response_id.is_some());
 }
 
-fn request() -> InferenceRequest {
+fn request() -> InferenceTurnRequest {
     let temp = tempfile::tempdir().expect("temporary project");
-    let store = autostudio_storage::SqliteProjectStore::open(&temp.path().join("live.autostudio"))
-        .expect("project store");
-    let projects = ProjectService::new(Arc::new(store));
+    let store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("live.autostudio"))
+            .expect("project store"),
+    );
+    let projects = ProjectService::new(store.clone());
     projects
         .create_project("DeepSeek live smoke")
         .expect("project");
@@ -47,8 +51,5 @@ fn request() -> InferenceRequest {
             },
         )
         .expect("brief");
-    InferenceRequest {
-        brief: project.brief().expect("saved brief").clone(),
-        context_revision: project.revision(),
-    }
+    support::inference_request(project.brief().expect("saved brief"), store)
 }

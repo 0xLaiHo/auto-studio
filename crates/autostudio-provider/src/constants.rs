@@ -50,11 +50,31 @@ pub const OPENAI_MODELS_PATH: &str = "models";
 pub const ANTHROPIC_MODELS_PATH: &str = "v1/models?limit=1000";
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 pub const PLAN_TOOL_NAME: &str = "submit_creative_plan";
-pub const PLAN_SYSTEM_PROMPT: &str = "You are the planning model inside Auto Studio. Return one concise, creator-visible music generation plan. Preserve the brief's intent, keep duration between 1 and 900 seconds, and request between 1 and 4 candidates. When a submit_creative_plan tool is available, call it exactly once. Do not reveal private chain-of-thought. Return only the requested structured fields.";
+pub const PLAN_TOOL_DESCRIPTION: &str = "Submit the creator-visible music generation plan";
+pub const PROJECT_DESCRIBE_TOOL_NAME: &str = "project.describe";
+pub const PROJECT_DESCRIBE_TOOL_DESCRIPTION: &str =
+    "Read the current authoritative Project facts before planning";
+pub const EMPTY_OBJECT_SCHEMA_JSON: &str =
+    r#"{"type":"object","additionalProperties":false,"properties":{}}"#;
+pub const PLAN_SCHEMA_JSON: &str = r#"{
+  "type":"object",
+  "additionalProperties":false,
+  "properties":{
+    "visibleSummary":{"type":"string","minLength":1},
+    "generationPrompt":{"type":"string","minLength":1},
+    "durationSeconds":{"type":"integer","minimum":1,"maximum":900},
+    "candidateCount":{"type":"integer","minimum":1,"maximum":4}
+  },
+  "required":["visibleSummary","generationPrompt","durationSeconds","candidateCount"]
+}"#;
+pub const PLAN_SYSTEM_PROMPT: &str = "You are the planning model inside Auto Studio. Use the one Tool supplied for the current step. First read authoritative Project facts with project.describe. Then submit one concise, creator-visible music generation plan with submit_creative_plan. Preserve the brief's intent, keep duration between 1 and 900 seconds, and request between 1 and 4 candidates. Do not reveal private chain-of-thought.";
 
 pub const PROVIDER_REQUEST_TIMEOUT: Duration = Duration::from_secs(90);
 pub const MAX_PROVIDER_ERROR_CHARS: usize = 1_024;
 pub const PLAN_MAX_OUTPUT_TOKENS: u32 = 4_096;
+pub const CONTEXT_SAFETY_MARGIN_TOKENS: u64 = 1_024;
+pub const PLANNING_MAX_TURNS: u8 = 8;
+pub const PLANNING_MAX_STEPS: u8 = 24;
 pub const LEGACY_THINKING_HIGH_TOKENS: u32 = 8_192;
 pub const LEGACY_THINKING_MAX_TOKENS: u32 = 16_384;
 pub const LLM_CONNECTION_SCHEMA_V1: &str = "autostudio.llm-connection/1";

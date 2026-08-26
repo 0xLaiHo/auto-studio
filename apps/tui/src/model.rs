@@ -28,13 +28,14 @@ pub struct CreativeBriefView {
 pub struct AgentRunView {
     pub id: String,
     pub status: AgentRunStatusView,
-    pub plan: AgentPlanView,
+    pub plan: Option<AgentPlanView>,
     pub failure: Option<AgentRunFailureView>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentRunStatusView {
+    Planning,
     AwaitingApproval,
     ReadyToSubmit,
     Submitting,

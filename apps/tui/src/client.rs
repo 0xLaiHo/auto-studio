@@ -163,6 +163,15 @@ impl TuiClient {
             .await
     }
 
+    pub async fn resume_planning(
+        &self,
+        run_id: &str,
+        revision: u64,
+    ) -> Result<ProjectView, TuiError> {
+        self.post_revision(&format!("/v1/agent-runs/{run_id}/resume"), revision)
+            .await
+    }
+
     pub async fn approve(
         &self,
         run_id: &str,

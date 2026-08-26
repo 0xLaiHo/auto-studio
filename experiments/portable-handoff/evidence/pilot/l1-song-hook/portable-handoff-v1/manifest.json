@@ -1,0 +1,21 @@
+{
+  "schema_version": "portable-handoff-evidence-v1",
+  "generated_at": "2026-08-25T03:09:57.477508912Z",
+  "artifacts": [
+    {
+      "path": "spec.json",
+      "bytes": 18880,
+      "sha256": "351647e537a34d121c3976a28ab062ed376903c190189dfb636313546783743c"
+    },
+    {
+      "path": "instrument-assignments.json",
+      "bytes": 1679,
+      "sha256": "f06ddc85d65301a55f86f4b92cfdfc04da63445e954b322039fde5e881ea9e64"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 1110,
+      "sha256": "ff67f617fed9ddbe5c531cefc7a7e868ddf663c3b1e051ebecd98d3d180bc3a9"
+    }
+  ]
+}

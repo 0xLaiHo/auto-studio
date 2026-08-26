@@ -12,6 +12,11 @@ pub type CreativeRuntimeFuture<'a> =
 /// Application seam used by transports to invoke the Creative Agent runtime.
 pub trait CreativeRuntime: Send + Sync {
     fn plan(&self, expected_revision: u64) -> CreativeRuntimeFuture<'_>;
+    fn resume_planning(
+        &self,
+        expected_revision: u64,
+        run_id: AgentRunId,
+    ) -> CreativeRuntimeFuture<'_>;
     fn execute_approved(
         &self,
         expected_revision: u64,

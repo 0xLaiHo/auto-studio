@@ -11,7 +11,8 @@ async fn deterministic_agent_plans_from_a_project_snapshot_without_private_reaso
         autostudio_storage::SqliteProjectStore::open(&temp.path().join("fake-agent.autostudio"))
             .expect("open project store"),
     );
-    let projects = Arc::new(ProjectService::new(store));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     projects.create_project("Night Drive").expect("project");
     projects
         .set_brief(
@@ -28,7 +29,7 @@ async fn deterministic_agent_plans_from_a_project_snapshot_without_private_reaso
             },
         )
         .expect("brief");
-    let planner = AgentPlanner::new(projects, Arc::new(DeterministicInferenceAdapter));
+    let planner = AgentPlanner::new(projects, contexts, Arc::new(DeterministicInferenceAdapter));
 
     let project = planner.plan(1).await.expect("plan Agent Run");
     let run = project.agent_runs().first().expect("Agent Run");
@@ -38,7 +39,12 @@ async fn deterministic_agent_plans_from_a_project_snapshot_without_private_reaso
     assert!(!json.contains("chainOfThought"));
     assert!(json.contains(r#""thinkingControl":"effort""#));
     assert!(json.contains(r#""modelEffort":"high""#));
-    assert!(json.contains(r#""inputTokens":42"#));
-    assert!(json.contains(r#""outputTokens":12"#));
-    assert!(run.plan_value().input_hash().starts_with("sha256:"));
+    assert!(json.contains(r#""inputTokens":84"#));
+    assert!(json.contains(r#""outputTokens":24"#));
+    assert!(
+        run.plan_value()
+            .expect("planned run")
+            .input_hash()
+            .starts_with("sha256:")
+    );
 }

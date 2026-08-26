@@ -1,0 +1,53 @@
+{
+  "schema_version": "portable-instrument-assignments-v1",
+  "catalog_schema_version": "q0-instrument-catalog-v1",
+  "catalog_sha256": "ef423d721186c580de6a055e02940c4908bb5973d42020c21317b7033cc7e127",
+  "mapping_policy": "Resolve an explicit approved profile first; otherwise match instrument_hint, role, then track name against normalized terms. Use the frozen fallback only when no approved term matches.",
+  "library": {
+    "id": "generaluser-gs-1.471",
+    "name": "GeneralUser GS v1.471",
+    "sha256": "f45b6b4a68b6bf3d792fcbb6d7de24dc701a0f89c5900a21ef3aaece993b839a",
+    "license_decision": "approved-for-local-q0-only"
+  },
+  "assignments": [
+    {
+      "track_id": "piano",
+      "track_name": "Piano Harmony",
+      "profile_id": "gm.acoustic-grand-piano",
+      "source": "instrument_hint",
+      "midi_channel": 1,
+      "bank_msb": 0,
+      "bank_lsb": 0,
+      "program": 0,
+      "soundfont_bank": 0,
+      "gm_name": "Acoustic Grand Piano",
+      "preset_name": "Stereo Grand"
+    },
+    {
+      "track_id": "melody",
+      "track_name": "Lead Melody",
+      "profile_id": "gm.square-lead",
+      "source": "instrument_hint",
+      "midi_channel": 2,
+      "bank_msb": 0,
+      "bank_lsb": 0,
+      "program": 80,
+      "soundfont_bank": 0,
+      "gm_name": "Lead 1 (square)",
+      "preset_name": "Square Lead"
+    },
+    {
+      "track_id": "bass",
+      "track_name": "Bass",
+      "profile_id": "gm.finger-bass",
+      "source": "instrument_hint",
+      "midi_channel": 3,
+      "bank_msb": 0,
+      "bank_lsb": 0,
+      "program": 33,
+      "soundfont_bank": 0,
+      "gm_name": "Electric Bass (finger)",
+      "preset_name": "Finger Bass"
+    }
+  ]
+}

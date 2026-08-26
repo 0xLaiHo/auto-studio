@@ -1,8 +1,8 @@
 # Auto Studio 文档导航
 
 > 基线日期：2026-08-25
-> 当前阶段：Q0 音乐内容可行性；M3 等待 Q0 `GO`  
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，真人/DAW Gate 仍为 `LIVE-PENDING`；Durable Harness、本地 production Tool loop、Music Project、Sampler、Audio Engine、Factory Pack、VST3、内容质量、DAW 与分发 Gate 尚未通过。
+> 当前阶段：Q0 真人内容 Gate；M3-A CM-1 固定 Planning Tool Loop 已完成
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project.describe → submit_creative_plan` 多轮链路及 Planning 恢复达到 `PASS（contract）`。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。真人内容 Gate、Continuity/compaction/长期 Run/Grant/Budget、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
 
 ## 权威顺序
 
@@ -21,11 +21,13 @@
 
 ## 当前唯一工程重点
 
-先执行 Q0：用 12 个 L1—L4 Brief、结构化 spec、MIDI 与固定 DAW/音色映射，验证 Keep、真实继续编辑、Tool 粒度和反馈价值。Q0 不建设 Audio Engine、Factory Pack、VST3 或 production Tool Interface；结果为 `GO` 后才开始 M3。
+当前并行执行两项有明确边界的工作：Q0 用 12 个 L1—L4 Brief、结构化 spec、可移植 MIDI 与冻结音色映射验证 Keep、真实继续编辑、Tool 粒度和反馈价值；M3-A 只建设与内容路线无关的 durable Harness Foundation。Q0 不建设 Audio Engine、Factory Pack、VST3 或 production Tool Interface；Portable Handoff 机器通过也不等于内容质量 `GO`。Music Project/Audio Engine 纵切仍等待 Q0 内容结论。
 
 [Q0 音乐内容可行性 Spike](planning/2026-08-24-music-quality-spike-design.md)
 
 [Q0 可运行实验与复现命令](../experiments/music-quality/README.md)
+
+[跨 DAW Portable Handoff 可运行实验](../experiments/portable-handoff/README.md)
 
 [Q0 结果与未完成真人 Gate](research/music-quality-q0-results-2026-08-24.md)
 

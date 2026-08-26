@@ -15,7 +15,8 @@ async fn approved_fake_generation_commits_local_candidates_and_survives_reopen()
     let staging = temp.path().join("provider-staging");
     let store =
         Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("project store"));
-    let projects = Arc::new(ProjectService::new(store));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     projects.create_project("Night Drive").expect("project");
     projects
         .set_brief(
@@ -32,15 +33,22 @@ async fn approved_fake_generation_commits_local_candidates_and_survives_reopen()
             },
         )
         .expect("brief");
-    let agent_planner =
-        AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter));
+    let agent_planner = AgentPlanner::new(
+        projects.clone(),
+        contexts,
+        Arc::new(DeterministicInferenceAdapter),
+    );
     let planned = agent_planner.plan(1).await.expect("plan");
     let run = &planned.agent_runs()[0];
     let run_id = run.id().clone();
-    let input_hash = run.plan_value().input_hash().to_owned();
+    let input_hash = run
+        .plan_value()
+        .expect("approved run has a plan")
+        .input_hash()
+        .to_owned();
     projects
         .approve_agent_run(
-            2,
+            planned.revision(),
             &run_id,
             CostApproval {
                 currency: "USD".to_owned(),
@@ -56,11 +64,12 @@ async fn approved_fake_generation_commits_local_candidates_and_survives_reopen()
         media,
     );
 
+    let approved = projects.open_project().expect("approved Project");
     let completed = generation
-        .execute_approved(3, &run_id)
+        .execute_approved(approved.revision(), &run_id)
         .await
         .expect("execute approved generation");
-    assert_eq!(completed.revision(), 6);
+    assert_eq!(completed.revision(), 7);
     assert_eq!(
         completed.agent_runs()[0].status(),
         AgentRunStatus::Completed

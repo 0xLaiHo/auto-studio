@@ -20,7 +20,8 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
     let staging = temp.path().join("provider-staging");
     let store =
         Arc::new(autostudio_storage::SqliteProjectStore::open(&package).expect("project store"));
-    let projects = Arc::new(ProjectService::new(store));
+    let projects = Arc::new(ProjectService::new(store.clone()));
+    let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     projects.create_project("Night Drive").expect("project");
     projects
         .set_brief(
@@ -37,8 +38,11 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
             },
         )
         .expect("brief");
-    let agent_planner =
-        AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter));
+    let agent_planner = AgentPlanner::new(
+        projects.clone(),
+        contexts,
+        Arc::new(DeterministicInferenceAdapter),
+    );
     let media = Arc::new(ProjectMedia::new(&package, &staging).expect("Project media"));
     let generation = GenerationCoordinator::new(
         projects.clone(),
@@ -72,7 +76,7 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
         &app,
         &format!("/v1/agent-runs/{run_id}/approval"),
         &format!(
-            r#"{{"expectedRevision":2,"approval":{{"currency":"USD","maxMinorUnits":100,"inputHash":"{input_hash}"}}}}"#
+            r#"{{"expectedRevision":3,"approval":{{"currency":"USD","maxMinorUnits":100,"inputHash":"{input_hash}"}}}}"#
         ),
     )
     .await;
@@ -82,11 +86,11 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
     let executed = command(
         &app,
         &format!("/v1/agent-runs/{run_id}/execute"),
-        r#"{"expectedRevision":3}"#,
+        r#"{"expectedRevision":4}"#,
     )
     .await;
     assert_eq!(executed.0, StatusCode::OK);
-    assert_eq!(executed.1["revision"], 6);
+    assert_eq!(executed.1["revision"], 7);
     assert_eq!(
         executed.1["candidates"]
             .as_array()
@@ -151,7 +155,7 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
     let stale_selection = command(
         &app,
         &format!("/v1/candidates/{candidate_id}/selection"),
-        r#"{"expectedRevision":5,"startMicros":0}"#,
+        r#"{"expectedRevision":6,"startMicros":0}"#,
     )
     .await;
     assert_eq!(stale_selection.0, StatusCode::CONFLICT);
@@ -160,7 +164,7 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
     let selected = command(
         &app,
         &format!("/v1/candidates/{candidate_id}/selection"),
-        r#"{"expectedRevision":6,"startMicros":0}"#,
+        r#"{"expectedRevision":7,"startMicros":0}"#,
     )
     .await;
     assert_eq!(selected.0, StatusCode::OK);
@@ -173,9 +177,9 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
         1
     );
 
-    let handed_off = command(&app, "/v1/handoffs", r#"{"expectedRevision":7}"#).await;
+    let handed_off = command(&app, "/v1/handoffs", r#"{"expectedRevision":8}"#).await;
     assert_eq!(handed_off.0, StatusCode::OK);
-    assert_eq!(handed_off.1["revision"], 8);
+    assert_eq!(handed_off.1["revision"], 9);
     assert_eq!(
         handed_off.1["exports"].as_array().expect("exports").len(),
         1
@@ -188,11 +192,11 @@ async fn desktop_can_complete_the_fake_ship_zero_creative_workflow() {
     let backed_up = command(
         &app,
         "/v1/projects/current/backup",
-        r#"{"expectedRevision":8}"#,
+        r#"{"expectedRevision":9}"#,
     )
     .await;
     assert_eq!(backed_up.0, StatusCode::OK);
-    assert_eq!(backed_up.1["sourceProjectRevision"], 8);
+    assert_eq!(backed_up.1["sourceProjectRevision"], 9);
     let backup_name = backed_up.1["backupName"].as_str().expect("backup name");
     assert!(backup_root.join(backup_name).join("project.db").is_file());
 }

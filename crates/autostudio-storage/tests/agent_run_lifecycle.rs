@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use autostudio_core::agent::{
-    AgentDecision, AgentPlanDraft, AgentRunStatus, CostApproval, CostEstimate, GenerationIntent,
-    InferenceProvenance, InferenceUsage,
+    AgentDecision, AgentPlanDraft, AgentRunFailureDraft, AgentRunFailureKind, AgentRunId,
+    AgentRunStatus, CostApproval, CostEstimate, GenerationIntent, InferenceProvenance,
+    InferenceUsage,
 };
 use autostudio_core::project::{CreativeBriefDraft, ProjectService};
 
@@ -86,6 +87,70 @@ fn agent_plan_and_creator_approval_are_distinct_durable_project_facts() {
             "brief.updated",
             "agent_run.planned",
             "agent_run.approved"
+        ]
+    );
+}
+
+#[test]
+fn planning_and_pre_plan_failure_shapes_survive_reopen() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("planning-run.autostudio"))
+            .expect("open project store"),
+    );
+    let projects = ProjectService::new(store);
+    projects.create_project("Planning Run").expect("project");
+    projects
+        .set_brief(
+            0,
+            CreativeBriefDraft {
+                summary: "Short cue".to_owned(),
+                purpose: None,
+                style: vec![],
+                mood: vec![],
+                instrumentation: vec![],
+                target_duration_seconds: Some(30),
+                lyrics: None,
+                constraints: vec![],
+            },
+        )
+        .expect("brief");
+
+    let run_id = AgentRunId::new();
+    let planning = projects
+        .begin_agent_run(1, run_id.clone())
+        .expect("begin Run");
+    assert_eq!(planning.agent_runs()[0].status(), AgentRunStatus::Planning);
+    assert!(planning.agent_runs()[0].plan_value().is_none());
+    assert_eq!(projects.open_project().expect("reopen planning"), planning);
+
+    let failed = projects
+        .fail_agent_run(
+            2,
+            &run_id,
+            AgentRunFailureDraft {
+                kind: AgentRunFailureKind::HarnessUnavailable,
+                message: "context store unavailable".to_owned(),
+            },
+        )
+        .expect("fail Run");
+    assert_eq!(failed.agent_runs()[0].status(), AgentRunStatus::Failed);
+    assert!(failed.agent_runs()[0].plan_value().is_none());
+    assert_eq!(projects.open_project().expect("reopen failed"), failed);
+
+    let event_names = projects
+        .events_after(0)
+        .expect("events")
+        .iter()
+        .map(|event| event.event().kind_name())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        event_names,
+        [
+            "project.created",
+            "brief.updated",
+            "agent_run.started",
+            "agent_run.failed"
         ]
     );
 }

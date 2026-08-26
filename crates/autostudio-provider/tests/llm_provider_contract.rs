@@ -6,11 +6,16 @@ use autostudio_provider::constants::{
     PROTOCOL_ANTHROPIC_MESSAGES, PROTOCOL_OPENAI_CHAT_COMPLETIONS, PROTOCOL_OPENAI_RESPONSES,
 };
 use autostudio_provider::llm::{HttpInferenceAdapter, LlmProtocol, LlmProviderConfig};
-use autostudio_provider::{InferenceAdapter, InferenceRequest};
+use autostudio_provider::{InferenceAdapter, InferenceTurnRequest};
+use axum::body::Body;
 use axum::http::HeaderMap;
+use axum::http::header;
+use axum::response::Response;
 use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::{Value, json};
+
+mod support;
 
 #[tokio::test]
 async fn deepseek_chat_contract_sends_bearer_auth_and_parses_plan() {
@@ -34,7 +39,9 @@ async fn deepseek_chat_contract_sends_bearer_auth_and_parses_plan() {
     let (headers, body) = request.recv().expect("captured request");
 
     assert_eq!(headers.get("authorization").unwrap(), "Bearer test-secret");
-    assert_eq!(body["response_format"]["type"], "json_object");
+    assert!(body.get("response_format").is_none());
+    assert_eq!(body["stream"], true);
+    assert_eq!(body["tool_choice"], "auto");
     assert_eq!(body["max_tokens"], 4_096);
     assert_eq!(body["thinking"]["type"], "enabled");
     assert_eq!(body["reasoning_effort"], "high");
@@ -48,7 +55,7 @@ async fn deepseek_chat_contract_sends_bearer_auth_and_parses_plan() {
 }
 
 #[tokio::test]
-async fn openai_responses_contract_uses_strict_schema_and_parses_nested_text() {
+async fn openai_responses_contract_streams_strict_tool_calls() {
     let response = json!({
         "id": "resp_123",
         "output": [{"content": [{
@@ -67,8 +74,10 @@ async fn openai_responses_contract_uses_strict_schema_and_parses_nested_text() {
     let (headers, body) = request.recv().expect("captured request");
 
     assert_eq!(headers.get("authorization").unwrap(), "Bearer test-secret");
-    assert_eq!(body["text"]["format"]["type"], "json_schema");
-    assert_eq!(body["text"]["format"]["strict"], true);
+    assert!(body.get("text").is_none());
+    assert_eq!(body["tools"][0]["strict"], true);
+    assert_eq!(body["tool_choice"], "required");
+    assert_eq!(body["stream"], true);
     assert_eq!(body["store"], false);
     assert_eq!(body["max_output_tokens"], 4_096);
     assert_eq!(body["reasoning"]["effort"], "high");
@@ -110,7 +119,8 @@ async fn anthropic_messages_contract_forces_the_typed_plan_tool() {
 
     assert_eq!(headers.get("x-api-key").unwrap(), "test-secret");
     assert_eq!(headers.get("anthropic-version").unwrap(), "2023-06-01");
-    assert_eq!(body["tool_choice"]["name"], "submit_creative_plan");
+    assert_eq!(body["tool_choice"]["type"], "any");
+    assert_eq!(body["stream"], true);
     assert_eq!(body["max_tokens"], 4_096);
     assert_eq!(body["thinking"]["type"], "adaptive");
     assert_eq!(body["output_config"]["effort"], "high");
@@ -257,11 +267,13 @@ fn adapter(
     .expect("test Provider adapter")
 }
 
-fn inference_request() -> InferenceRequest {
+fn inference_request() -> InferenceTurnRequest {
     let temp = tempfile::tempdir().expect("temporary project");
-    let store = autostudio_storage::SqliteProjectStore::open(&temp.path().join("brief.autostudio"))
-        .expect("project store");
-    let projects = ProjectService::new(std::sync::Arc::new(store));
+    let store = std::sync::Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("brief.autostudio"))
+            .expect("project store"),
+    );
+    let projects = ProjectService::new(store.clone());
     projects
         .create_project("Provider contract")
         .expect("project");
@@ -280,10 +292,7 @@ fn inference_request() -> InferenceRequest {
             },
         )
         .expect("brief");
-    InferenceRequest {
-        brief: project.brief().expect("saved brief").clone(),
-        context_revision: project.revision(),
-    }
+    support::inference_request(project.brief().expect("saved brief"), store)
 }
 
 async fn serve_once(
@@ -298,7 +307,10 @@ async fn serve_once(
             let response = response.clone();
             async move {
                 sender.send((headers, body)).expect("capture request");
-                Json(response)
+                Response::builder()
+                    .header(header::CONTENT_TYPE, "text/event-stream")
+                    .body(Body::from(sse_fixture(path, &response)))
+                    .expect("SSE response")
             }
         }),
     );
@@ -310,4 +322,83 @@ async fn serve_once(
         axum::serve(listener, app).await.expect("test server");
     });
     (format!("http://{address}"), receiver)
+}
+
+fn sse_fixture(path: &str, response: &Value) -> String {
+    match path {
+        "/chat/completions" => {
+            let id = response
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("chat_test");
+            let arguments = response
+                .pointer("/choices/0/message/content")
+                .and_then(Value::as_str)
+                .unwrap_or("{}");
+            let first = json!({
+                "id": id,
+                "choices": [{"delta": {"tool_calls": [{
+                    "index": 0,
+                    "id": format!("call_{id}"),
+                    "function": {"name": "submit_creative_plan", "arguments": arguments}
+                }]}}]
+            });
+            let usage = json!({"usage": response.get("usage").cloned().unwrap_or(Value::Null), "choices": []});
+            format!("data: {first}\n\ndata: {usage}\n\ndata: [DONE]\n\n")
+        }
+        "/responses" => {
+            let id = response
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("resp_test");
+            let arguments = response
+                .pointer("/output/0/content/0/text")
+                .and_then(Value::as_str)
+                .unwrap_or("{}");
+            let created = json!({"type":"response.created","response":{"id":id}});
+            let added = json!({
+                "type":"response.output_item.added",
+                "output_index":0,
+                "item":{"type":"function_call","id":"fc_test","call_id":format!("call_{id}"),"name":"submit_creative_plan","arguments":""}
+            });
+            let delta = json!({"type":"response.function_call_arguments.delta","output_index":0,"delta":arguments});
+            let completed = json!({"type":"response.completed","response":{"id":id,"usage":response.get("usage").cloned().unwrap_or(Value::Null)}});
+            format!(
+                "event: response.created\ndata: {created}\n\nevent: response.output_item.added\ndata: {added}\n\nevent: response.function_call_arguments.delta\ndata: {delta}\n\nevent: response.completed\ndata: {completed}\n\n"
+            )
+        }
+        "/v1/messages" => {
+            let id = response
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("msg_test");
+            let arguments = response
+                .get("content")
+                .and_then(Value::as_array)
+                .and_then(|items| {
+                    items
+                        .iter()
+                        .find(|item| item.get("type").and_then(Value::as_str) == Some("tool_use"))
+                })
+                .and_then(|item| item.get("input"))
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            let input_tokens = response
+                .pointer("/usage/input_tokens")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let output_tokens = response
+                .pointer("/usage/output_tokens")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let start = json!({"type":"message_start","message":{"id":id,"usage":{"input_tokens":input_tokens}}});
+            let block = json!({"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":format!("toolu_{id}"),"name":"submit_creative_plan","input":{}}});
+            let delta = json!({"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":arguments.to_string()}});
+            let usage = json!({"type":"message_delta","usage":{"output_tokens":output_tokens}});
+            format!(
+                "event: message_start\ndata: {start}\n\nevent: content_block_start\ndata: {block}\n\nevent: content_block_delta\ndata: {delta}\n\nevent: message_delta\ndata: {usage}\n\nevent: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n"
+            )
+        }
+        _ => panic!("unsupported SSE fixture path"),
+    }
 }

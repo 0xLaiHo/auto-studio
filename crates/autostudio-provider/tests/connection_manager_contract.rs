@@ -6,19 +6,24 @@ use autostudio_core::provider::{
     ThinkingLevel,
 };
 use autostudio_provider::connection::{ConnectionInferenceAdapter, FileLlmConnectionManager};
-use autostudio_provider::{InferenceAdapter, InferenceRequest};
+use autostudio_provider::{InferenceAdapter, InferenceTurnRequest};
+use axum::body::Body;
 use axum::http::HeaderMap;
+use axum::http::header;
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{Value, json};
 
+mod support;
+
 #[tokio::test]
 async fn a_private_connection_is_used_by_the_next_real_inference_request() {
-    let response = json!({
-        "id": "configured-response-1",
-        "choices": [{"message": {"content": "{\"visibleSummary\":\"Configured direction\",\"generationPrompt\":\"warm acoustic ensemble\",\"durationSeconds\":30,\"candidateCount\":2}"}}],
-        "usage": {"prompt_tokens": 17, "completion_tokens": 8}
-    });
+    let response = concat!(
+        "data: {\"id\":\"configured-response-1\",\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_configured\",\"function\":{\"name\":\"submit_creative_plan\",\"arguments\":\"{\\\"visibleSummary\\\":\\\"Configured direction\\\",\\\"generationPrompt\\\":\\\"warm acoustic ensemble\\\",\\\"durationSeconds\\\":30,\\\"candidateCount\\\":2}\"}}]}}]}\n\n",
+        "data: {\"usage\":{\"prompt_tokens\":17,\"completion_tokens\":8},\"choices\":[]}\n\n",
+        "data: [DONE]\n\n"
+    );
     let (base_url, request) = serve_once("/chat/completions", response).await;
     let temp = tempfile::tempdir().expect("temporary connection home");
     let connection_path = temp.path().join("config/llm-connection.json");
@@ -235,11 +240,13 @@ fn current_connection_cache_cannot_enable_an_unsupported_thinking_level() {
     );
 }
 
-fn inference_request() -> InferenceRequest {
+fn inference_request() -> InferenceTurnRequest {
     let temp = tempfile::tempdir().expect("temporary project");
-    let store = autostudio_storage::SqliteProjectStore::open(&temp.path().join("brief.autostudio"))
-        .expect("project store");
-    let projects = ProjectService::new(Arc::new(store));
+    let store = Arc::new(
+        autostudio_storage::SqliteProjectStore::open(&temp.path().join("brief.autostudio"))
+            .expect("project store"),
+    );
+    let projects = ProjectService::new(store.clone());
     projects
         .create_project("Connection contract")
         .expect("project");
@@ -258,25 +265,25 @@ fn inference_request() -> InferenceRequest {
             },
         )
         .expect("brief");
-    InferenceRequest {
-        brief: project.brief().expect("saved brief").clone(),
-        context_revision: project.revision(),
-    }
+    support::inference_request(project.brief().expect("saved brief"), store)
 }
 
 async fn serve_once(
     path: &'static str,
-    response: Value,
+    response: &'static str,
 ) -> (String, mpsc::Receiver<(HeaderMap, Value)>) {
     let (sender, receiver) = mpsc::channel();
     let app = Router::new().route(
         path,
         post(move |headers: HeaderMap, Json(body): Json<Value>| {
             let sender = sender.clone();
-            let response = response.clone();
+            let response = response.to_owned();
             async move {
                 sender.send((headers, body)).expect("capture request");
-                Json(response)
+                Response::builder()
+                    .header(header::CONTENT_TYPE, "text/event-stream")
+                    .body(Body::from(response))
+                    .expect("SSE response")
             }
         }),
     );

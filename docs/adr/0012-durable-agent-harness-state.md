@@ -5,6 +5,8 @@ date: 2026-08-24
 
 # 分离推理记录、Provider 连续性状态、授权凭据与运行预算
 
+> 实施状态（2026-08-25）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路和 crash-safe resume 已实现；Continuity Vault、Approval Grant、Run Budget、compaction/长期 Run 与通用 AgentStep/ToolExecution 仍未实现。本 ADR 的“背景”保留决策发生时的历史上下文。
+
 ## 背景
 
 Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 typed Planning Turn，但尚无通用 `Turn`、`Message`、`ToolCall`、Tool Registry 或多轮 Tool loop。现有设计要求“不持久化 private reasoning”，同时又要求 Agent Run 可暂停和恢复。

@@ -22,8 +22,8 @@ interface CreativeBrief {
 
 interface AgentRun {
   id: string;
-  status: "awaiting_approval" | "ready_to_submit" | "submitting" | "submitted" | "unknown_outcome" | "completed" | "failed" | "cancelled";
-  plan: {
+  status: "planning" | "awaiting_approval" | "ready_to_submit" | "submitting" | "submitted" | "unknown_outcome" | "completed" | "failed" | "cancelled";
+  plan?: {
     visibleSummary: string;
     inputHash: string;
     estimatedCost: {
@@ -45,7 +45,7 @@ interface AgentRun {
     };
   };
   failure?: {
-    kind: "provider_rejected" | "provider_unavailable" | "invalid_provider_response" | "provider_confirmed_not_found";
+    kind: "harness_unavailable" | "provider_rejected" | "provider_unavailable" | "invalid_provider_response" | "provider_confirmed_not_found";
     message: string;
   };
 }
@@ -231,20 +231,22 @@ export default function App() {
     if (!project) return;
     const updated = await command("Agent 规划", () =>
       invoke<Project>("plan_agent_run", { expectedRevision: project.revision }),
+      true,
     );
     if (updated) setProject(updated);
   }
 
   async function approveRun() {
-    if (!project || !activeRun) return;
-    const estimate = activeRun.plan.estimatedCost;
+    if (!project || !activeRun?.plan) return;
+    const plan = activeRun.plan;
+    const estimate = plan.estimatedCost;
     const updated = await command("确认费用", () =>
       invoke<Project>("approve_agent_run", {
         runId: activeRun.id,
         expectedRevision: project.revision,
         currency: estimate.currency ?? "USD",
         maxMinorUnits: estimate.upper_minor_units ?? approvalBudgetMinor,
-        inputHash: activeRun.plan.inputHash,
+        inputHash: plan.inputHash,
       }),
     );
     if (updated) setProject(updated);
@@ -254,6 +256,18 @@ export default function App() {
     if (!project || !activeRun) return;
     const updated = await command("生成音乐", () =>
       invoke<Project>("execute_agent_run", {
+        runId: activeRun.id,
+        expectedRevision: project.revision,
+      }),
+      true,
+    );
+    if (updated) setProject(updated);
+  }
+
+  async function resumePlanningRun() {
+    if (!project || !activeRun) return;
+    const updated = await command("恢复规划", () =>
+      invoke<Project>("resume_planning_run", {
         runId: activeRun.id,
         expectedRevision: project.revision,
       }),
@@ -403,9 +417,9 @@ export default function App() {
 
                 {activeRun && (
                   <div className="agent-plan">
-                    <div><span className="panel-kicker">AGENT PLAN</span><h3>{activeRun.plan.visibleSummary}</h3></div>
+                    <div><span className="panel-kicker">AGENT RUN</span><h3>{activeRun.plan?.visibleSummary ?? (activeRun.status === "planning" ? "正在准备上下文与计划" : "本次规划未生成可执行计划")}</h3></div>
                     <span className={`run-state state-${activeRun.status}`}>{activeRun.status.replaceAll("_", " ")}</span>
-                    <p className="plan-evidence">
+                    {activeRun.plan && <p className="plan-evidence">
                       预计上限 {activeRun.plan.estimatedCost.availability === "known"
                         ? `${activeRun.plan.estimatedCost.currency} ${((activeRun.plan.estimatedCost.upper_minor_units ?? 0) / 100).toFixed(2)}`
                         : "未知"}
@@ -413,8 +427,8 @@ export default function App() {
                         ? ` · Agent ${activeRun.plan.usage.inputTokens + (activeRun.plan.usage.outputTokens ?? 0)} tokens`
                         : " · Agent 用量未知"}
                       {` · ${activeRun.plan.inference.providerKind}/${activeRun.plan.inference.model}`}
-                    </p>
-                    {activeRun.status === "awaiting_approval" && (
+                    </p>}
+                    {activeRun.status === "awaiting_approval" && activeRun.plan && (
                       <div>
                         {activeRun.plan.estimatedCost.availability === "unknown" && (
                           <label>
@@ -429,6 +443,9 @@ export default function App() {
                         )}
                         <button className="primary action" onClick={() => void approveRun()} disabled={busy !== null}>确认计划与费用上限</button>
                       </div>
+                    )}
+                    {activeRun.status === "planning" && (
+                      <button className="secondary action" onClick={() => void resumePlanningRun()} disabled={busy !== null}>从工程记录恢复规划</button>
                     )}
                     {activeRun.status === "ready_to_submit" && (
                       <button className="primary action" onClick={() => void executeRun()} disabled={busy !== null}>开始生成音乐</button>

@@ -2,8 +2,11 @@
 
 pub mod connection;
 pub mod constants;
+pub mod context;
 mod error;
 pub mod llm;
+mod planning_tools;
+pub mod stream;
 pub mod thinking;
 
 use std::future::Future;
@@ -21,9 +24,12 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use autostudio_core::agent::{
-    AgentDecision, AgentPlanDraft, AgentRunFailureDraft, AgentRunFailureKind, AgentRunId,
-    AgentRunStatus, CostEstimate, GenerationAttemptDraft, GenerationIntent, GenerationJobDraft,
-    InferenceProvenance, InferenceUsage,
+    AgentDecision, AgentRunFailureDraft, AgentRunFailureKind, AgentRunId, AgentRunStatus,
+    GenerationAttemptDraft, GenerationIntent, GenerationJobDraft, InferenceUsage,
+};
+use autostudio_core::context::{
+    CanonicalMessage, ContextId, InferenceFinishReason, InferenceItemDraft, InferenceTurnId,
+    PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
 use autostudio_core::production::{
     CandidateDraft, GeneratedAssetSink, ProvenanceRecord, RightsDeclaration,
@@ -32,7 +38,6 @@ use autostudio_core::project::{CreativeBrief, Project, ProjectService};
 use autostudio_core::provider::{ThinkingControl, ThinkingLevel};
 use autostudio_core::runtime::{CreativeRuntime, CreativeRuntimeError, CreativeRuntimeFuture};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub use error::{
@@ -45,7 +50,7 @@ pub type InferenceFuture<'a> =
 
 pub trait InferenceAdapter: Send + Sync {
     fn descriptor(&self) -> InferenceProviderDescriptor;
-    fn infer(&self, request: InferenceRequest) -> InferenceFuture<'_>;
+    fn infer(&self, request: InferenceTurnRequest) -> InferenceFuture<'_>;
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -64,18 +69,16 @@ pub struct InferenceProviderDescriptor {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InferenceRequest {
-    pub brief: CreativeBrief,
-    pub context_revision: u64,
+pub struct InferenceTurnRequest {
+    pub prepared: PreparedContext,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InferenceOutcome {
     pub provider: InferenceProviderDescriptor,
-    pub visible_summary: String,
-    pub decision: AgentDecision,
-    pub estimated_cost: CostEstimate,
+    pub visible_text: Option<String>,
+    pub tool_calls: Vec<autostudio_core::context::CanonicalToolCall>,
     pub usage: Usage,
     pub response_id: Option<String>,
 }
@@ -84,14 +87,28 @@ pub type Usage = InferenceUsage;
 
 pub struct AgentPlanner {
     projects: Arc<ProjectService>,
+    contexts: Arc<context::ContextManager>,
     inference: Arc<dyn InferenceAdapter>,
+}
+
+struct PreparedPlanningTurn {
+    run_id: AgentRunId,
+    turn_id: InferenceTurnId,
+    context_id: ContextId,
+    journal_revision: u64,
+    request: InferenceTurnRequest,
 }
 
 impl AgentPlanner {
     #[must_use]
-    pub fn new(projects: Arc<ProjectService>, inference: Arc<dyn InferenceAdapter>) -> Self {
+    pub fn new(
+        projects: Arc<ProjectService>,
+        contexts: Arc<context::ContextManager>,
+        inference: Arc<dyn InferenceAdapter>,
+    ) -> Self {
         Self {
             projects,
+            contexts,
             inference,
         }
     }
@@ -118,42 +135,299 @@ impl AgentPlanner {
             .brief()
             .cloned()
             .ok_or(AgentPlannerError::MissingBrief)?;
-        let snapshot_bytes =
-            serde_json::to_vec(&(project.id().as_str(), project.revision(), &brief))
-                .map_err(|error| AdapterError::InvalidResponse(error.to_string()))?;
-        let input_hash = format!("sha256:{:x}", Sha256::digest(snapshot_bytes));
-        let outcome = self
-            .inference
-            .infer(InferenceRequest {
-                brief,
-                context_revision: expected_revision,
-            })
-            .await?;
-        let descriptor = outcome.provider;
+        let run_id = AgentRunId::new();
         self.projects
-            .plan_agent_run(
-                expected_revision,
-                AgentPlanDraft {
-                    visible_summary: outcome.visible_summary,
-                    decision: outcome.decision,
-                    estimated_cost: outcome.estimated_cost,
-                    usage: outcome.usage,
-                    inference: InferenceProvenance {
-                        provider_kind: descriptor.provider_kind,
-                        model: descriptor.model,
-                        thinking_level: descriptor.thinking_level,
-                        thinking_control: descriptor.thinking_control,
-                        thinking_budget_tokens: descriptor.thinking_budget_tokens,
-                        capability_revision: descriptor.capability_revision,
-                        mapping_revision: descriptor.mapping_revision,
-                        protocol: descriptor.protocol,
-                        response_id: outcome.response_id,
-                    },
-                    input_hash,
-                },
-            )
-            .map_err(Into::into)
+            .begin_agent_run(expected_revision, run_id.clone())?;
+        match self.drive(run_id.clone(), &brief).await {
+            Ok(project) => Ok(project),
+            Err(error) => {
+                self.fail_planning_run(&run_id, &error)?;
+                Err(error)
+            }
+        }
     }
+
+    /// Resumes a durable Planning Run using only the Project and transcript.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AgentPlannerError`] for a missing/non-Planning Run, revision
+    /// conflict, ambiguous prepared Provider turn, or failed next step.
+    pub async fn resume(
+        &self,
+        expected_revision: u64,
+        run_id: &AgentRunId,
+    ) -> Result<Project, AgentPlannerError> {
+        let project = self.projects.open_project()?;
+        if project.revision() != expected_revision {
+            return Err(AgentPlannerError::Project(
+                autostudio_core::project::ProjectStoreError::RevisionConflict {
+                    expected: expected_revision,
+                    actual: project.revision(),
+                }
+                .into(),
+            ));
+        }
+        let run = project
+            .agent_runs()
+            .iter()
+            .find(|run| run.id() == run_id)
+            .ok_or(AgentPlannerError::RunNotFound)?;
+        if run.status() != AgentRunStatus::Planning {
+            return Err(AgentPlannerError::RunNotPlanning);
+        }
+        let brief = project
+            .brief()
+            .cloned()
+            .ok_or(AgentPlannerError::MissingBrief)?;
+        match self.drive(run_id.clone(), &brief).await {
+            Ok(project) => Ok(project),
+            Err(error) => {
+                self.fail_planning_run(run_id, &error)?;
+                Err(error)
+            }
+        }
+    }
+
+    async fn drive(
+        &self,
+        run_id: AgentRunId,
+        brief: &CreativeBrief,
+    ) -> Result<Project, AgentPlannerError> {
+        for _ in 0..constants::PLANNING_MAX_STEPS {
+            let project = self.projects.open_project()?;
+            let run = project
+                .agent_runs()
+                .iter()
+                .find(|run| run.id() == &run_id)
+                .ok_or(AgentPlannerError::RunNotFound)?;
+            if run.status() != AgentRunStatus::Planning {
+                return Err(AgentPlannerError::RunNotPlanning);
+            }
+            let projection = self.contexts.inspect_run(&run_id)?;
+            if let Some(plan) = planning_tools::completed_plan(&projection)? {
+                return self
+                    .projects
+                    .record_agent_plan(project.revision(), &run_id, plan)
+                    .map_err(Into::into);
+            }
+            if projection.prepared_turn_without_output().is_some() {
+                return Err(AgentPlannerError::InterruptedTurn);
+            }
+            if !projection.pending_tools().is_empty() {
+                let results = projection
+                    .pending_tools()
+                    .iter()
+                    .map(|request| planning_tools::execute(&project, request))
+                    .collect();
+                self.contexts
+                    .record_tool_results(context::RecordToolResults {
+                        run_id: run_id.clone(),
+                        expected_journal_revision: projection.journal_revision(),
+                        results,
+                    })?;
+                continue;
+            }
+            if projection.manifests().len() >= usize::from(constants::PLANNING_MAX_TURNS) {
+                return Err(AgentPlannerError::TurnLimitExceeded);
+            }
+            let prepared = self.prepare_planning_turn(
+                &project,
+                brief,
+                run_id.clone(),
+                projection.items().is_empty(),
+                &projection,
+            )?;
+            self.infer_planning_turn(prepared).await?;
+        }
+        Err(AgentPlannerError::TurnLimitExceeded)
+    }
+
+    fn prepare_planning_turn(
+        &self,
+        project: &Project,
+        brief: &CreativeBrief,
+        run_id: AgentRunId,
+        initial_turn: bool,
+        projection: &context::ContextProjection,
+    ) -> Result<PreparedPlanningTurn, AgentPlannerError> {
+        let turn_id = InferenceTurnId::new();
+        let descriptor = self.inference.descriptor();
+        let tools = planning_tools::catalog(projection)?;
+        let provider_binding = ProviderBinding {
+            provider_kind: descriptor.provider_kind.clone(),
+            model: descriptor.model.clone(),
+            protocol: descriptor.protocol.clone(),
+            thinking_level: descriptor.thinking_level,
+            thinking_control: descriptor.thinking_control,
+            thinking_budget_tokens: descriptor.thinking_budget_tokens,
+            capability_revision: descriptor.capability_revision.clone(),
+            mapping_revision: descriptor.mapping_revision.clone(),
+            tool_catalog_fingerprint: context::fingerprint_tool_catalog(&tools),
+        };
+        let brief_message = serde_json::to_string(&brief)
+            .map_err(|error| AdapterError::InvalidResponse(error.to_string()))?;
+        let instructions = format!(
+            "{}\nAuthoritative Project binding: id={}, revision={}.",
+            constants::PLAN_SYSTEM_PROMPT,
+            project.id().as_str(),
+            project.revision()
+        );
+        let prepared = self.contexts.prepare_turn(context::PrepareContext {
+            run_id: run_id.clone(),
+            turn_id: turn_id.clone(),
+            project_id: project.id().as_str(),
+            project_revision: project.revision(),
+            instructions,
+            new_user_messages: if initial_turn {
+                vec![brief_message]
+            } else {
+                Vec::new()
+            },
+            provider_binding,
+            tools,
+            token_budget: TokenBudgetPlan::unknown(
+                u64::from(constants::PLAN_MAX_OUTPUT_TOKENS),
+                constants::CONTEXT_SAFETY_MARGIN_TOKENS,
+            ),
+        })?;
+        let context_id = prepared.manifest().context_id().clone();
+        let journal_revision = prepared.journal_revision();
+        Ok(PreparedPlanningTurn {
+            run_id,
+            turn_id,
+            context_id,
+            journal_revision,
+            request: InferenceTurnRequest { prepared },
+        })
+    }
+
+    async fn infer_planning_turn(
+        &self,
+        turn: PreparedPlanningTurn,
+    ) -> Result<(), AgentPlannerError> {
+        let outcome = match self.inference.infer(turn.request.clone()).await {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                self.contexts.record_turn(context::RecordInferenceTurn {
+                    run_id: turn.run_id,
+                    turn_id: turn.turn_id,
+                    context_id: turn.context_id,
+                    expected_journal_revision: turn.journal_revision,
+                    items: vec![InferenceItemDraft::Finish {
+                        reason: finish_reason_for_error(&error),
+                        detail: Some(error.to_string()),
+                    }],
+                })?;
+                return Err(error.into());
+            }
+        };
+        if !descriptor_matches_binding(
+            &outcome.provider,
+            turn.request.prepared.manifest().provider_binding(),
+        ) {
+            let error = AdapterError::InvalidResponse(
+                "Provider output descriptor changed after Context preparation".to_owned(),
+            );
+            self.contexts.record_turn(context::RecordInferenceTurn {
+                run_id: turn.run_id,
+                turn_id: turn.turn_id,
+                context_id: turn.context_id,
+                expected_journal_revision: turn.journal_revision,
+                items: vec![InferenceItemDraft::Finish {
+                    reason: finish_reason_for_error(&error),
+                    detail: Some(error.to_string()),
+                }],
+            })?;
+            return Err(error.into());
+        }
+        let mut items = Vec::new();
+        if let Some(content) = &outcome.visible_text {
+            items.push(InferenceItemDraft::VisibleMessage {
+                role: VisibleMessageRole::Assistant,
+                content: content.clone(),
+            });
+        }
+        for call in &outcome.tool_calls {
+            let Some(descriptor_fingerprint) = turn
+                .request
+                .prepared
+                .tools()
+                .iter()
+                .find(|tool| tool.name == call.name)
+                .map(|tool| tool.descriptor_fingerprint.clone())
+            else {
+                let error = AdapterError::InvalidResponse(format!(
+                    "Provider requested unavailable Tool '{}'",
+                    call.name
+                ));
+                self.contexts.record_turn(context::RecordInferenceTurn {
+                    run_id: turn.run_id,
+                    turn_id: turn.turn_id,
+                    context_id: turn.context_id,
+                    expected_journal_revision: turn.journal_revision,
+                    items: vec![InferenceItemDraft::Finish {
+                        reason: finish_reason_for_error(&error),
+                        detail: Some(error.to_string()),
+                    }],
+                })?;
+                return Err(error.into());
+            };
+            items.push(InferenceItemDraft::ToolRequest {
+                call_id: call.call_id.clone(),
+                name: call.name.clone(),
+                arguments_json: call.arguments_json.clone(),
+                descriptor_fingerprint,
+            });
+        }
+        items.push(InferenceItemDraft::Usage {
+            usage: outcome.usage,
+        });
+        items.push(InferenceItemDraft::Finish {
+            reason: InferenceFinishReason::Completed,
+            detail: outcome.response_id,
+        });
+        self.contexts.record_turn(context::RecordInferenceTurn {
+            run_id: turn.run_id.clone(),
+            turn_id: turn.turn_id,
+            context_id: turn.context_id,
+            expected_journal_revision: turn.journal_revision,
+            items,
+        })?;
+        Ok(())
+    }
+
+    fn fail_planning_run(
+        &self,
+        run_id: &AgentRunId,
+        error: &AgentPlannerError,
+    ) -> Result<(), AgentPlannerError> {
+        let project = self.projects.open_project()?;
+        if project
+            .agent_runs()
+            .iter()
+            .find(|run| run.id() == run_id)
+            .is_some_and(|run| run.status() == AgentRunStatus::Planning)
+        {
+            self.projects
+                .fail_agent_run(project.revision(), run_id, planning_failure(error))?;
+        }
+        Ok(())
+    }
+}
+
+fn descriptor_matches_binding(
+    descriptor: &InferenceProviderDescriptor,
+    binding: &ProviderBinding,
+) -> bool {
+    descriptor.provider_kind == binding.provider_kind
+        && descriptor.model == binding.model
+        && descriptor.protocol == binding.protocol
+        && descriptor.thinking_level == binding.thinking_level
+        && descriptor.thinking_control == binding.thinking_control
+        && descriptor.thinking_budget_tokens == binding.thinking_budget_tokens
+        && descriptor.capability_revision == binding.capability_revision
+        && descriptor.mapping_revision == binding.mapping_revision
 }
 
 /// Deterministic planning fixture. This item is excluded from release builds
@@ -177,22 +451,46 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
         }
     }
 
-    fn infer(&self, request: InferenceRequest) -> InferenceFuture<'_> {
+    fn infer(&self, request: InferenceTurnRequest) -> InferenceFuture<'_> {
         Box::pin(async move {
+            let brief = request
+                .prepared
+                .messages()
+                .iter()
+                .rev()
+                .find_map(|message| match message {
+                    CanonicalMessage::User { content } => {
+                        serde_json::from_str::<CreativeBrief>(content).ok()
+                    }
+                    CanonicalMessage::Assistant { .. } | CanonicalMessage::Tool { .. } => None,
+                })
+                .ok_or_else(|| {
+                    AdapterError::InvalidResponse(
+                        "deterministic fixture requires a Creative Brief message".to_owned(),
+                    )
+                })?;
+            let tool = request.prepared.tools().first().ok_or_else(|| {
+                AdapterError::InvalidResponse("fixture requires a Tool".to_owned())
+            })?;
+            let arguments_json = if tool.name == constants::PROJECT_DESCRIBE_TOOL_NAME {
+                "{}".to_owned()
+            } else {
+                serde_json::to_string(&serde_json::json!({
+                    "visibleSummary": "Generate two contrasting music Candidates for A/B review",
+                    "generationPrompt": brief.summary(),
+                    "durationSeconds": brief.target_duration_seconds().unwrap_or(60),
+                    "candidateCount": 2
+                }))
+                .map_err(|error| AdapterError::InvalidResponse(error.to_string()))?
+            };
             Ok(InferenceOutcome {
                 provider: self.descriptor(),
-                visible_summary: "Generate two contrasting music Candidates for A/B review"
-                    .to_owned(),
-                decision: AgentDecision::GenerateMusic(GenerationIntent {
-                    prompt: request.brief.summary().to_owned(),
-                    duration_seconds: request.brief.target_duration_seconds().unwrap_or(60),
-                    candidate_count: 2,
-                }),
-                estimated_cost: CostEstimate::Known {
-                    currency: "USD".to_owned(),
-                    lower_minor_units: 50,
-                    upper_minor_units: 100,
-                },
+                visible_text: None,
+                tool_calls: vec![autostudio_core::context::CanonicalToolCall {
+                    call_id: Uuid::new_v4().to_string(),
+                    name: tool.name.clone(),
+                    arguments_json,
+                }],
                 usage: Usage {
                     input_tokens: Some(42),
                     output_tokens: Some(12),
@@ -202,6 +500,41 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
                 response_id: Some("deterministic-response".to_owned()),
             })
         })
+    }
+}
+
+fn finish_reason_for_error(error: &AdapterError) -> InferenceFinishReason {
+    match error {
+        AdapterError::Rejected(_) => InferenceFinishReason::ProviderRejected,
+        AdapterError::UnknownOutcome(_) => InferenceFinishReason::UnknownConsumption,
+        AdapterError::InvalidResponse(_) => InferenceFinishReason::InvalidResponse,
+        AdapterError::Unavailable(_) => InferenceFinishReason::ProviderUnavailable,
+    }
+}
+
+fn planning_failure(error: &AgentPlannerError) -> AgentRunFailureDraft {
+    let kind = match error {
+        AgentPlannerError::Adapter(AdapterError::Rejected(_)) => {
+            AgentRunFailureKind::ProviderRejected
+        }
+        AgentPlannerError::Adapter(AdapterError::InvalidResponse(_)) => {
+            AgentRunFailureKind::InvalidProviderResponse
+        }
+        AgentPlannerError::Adapter(
+            AdapterError::Unavailable(_) | AdapterError::UnknownOutcome(_),
+        ) => AgentRunFailureKind::ProviderUnavailable,
+        AgentPlannerError::InterruptedTurn => AgentRunFailureKind::InferenceInterrupted,
+        AgentPlannerError::Context(_)
+        | AgentPlannerError::Project(_)
+        | AgentPlannerError::MissingBrief
+        | AgentPlannerError::RunNotFound
+        | AgentPlannerError::RunNotPlanning
+        | AgentPlannerError::TurnLimitExceeded
+        | AgentPlannerError::PlanningTool(_) => AgentRunFailureKind::HarnessUnavailable,
+    };
+    AgentRunFailureDraft {
+        kind,
+        message: error.to_string(),
     }
 }
 
@@ -304,10 +637,11 @@ impl GenerationCoordinator {
         if run.status() != AgentRunStatus::ReadyToSubmit {
             return Err(GenerationCoordinatorError::RunNotApproved);
         }
-        let (intent, input_hash) = match run.plan_value().decision() {
-            AgentDecision::GenerateMusic(intent) => {
-                (intent.clone(), run.plan_value().input_hash().to_owned())
-            }
+        let plan = run
+            .plan_value()
+            .ok_or(GenerationCoordinatorError::MissingPlan)?;
+        let (intent, input_hash) = match plan.decision() {
+            AgentDecision::GenerateMusic(intent) => (intent.clone(), plan.input_hash().to_owned()),
         };
         let attempt_id = Uuid::new_v4().to_string();
         let prepared = self.projects.prepare_generation(
@@ -549,7 +883,10 @@ impl GenerationCoordinator {
             .iter()
             .find(|run| run.id() == run_id)
             .ok_or(GenerationCoordinatorError::RunNotFound)?;
-        let expected = match run.plan_value().decision() {
+        let plan = run
+            .plan_value()
+            .ok_or(GenerationCoordinatorError::MissingPlan)?;
+        let expected = match plan.decision() {
             AgentDecision::GenerateMusic(intent) => usize::from(intent.candidate_count),
         };
         let actual = artifacts.len();
@@ -781,6 +1118,19 @@ impl CreativeRuntime for LocalCreativeRuntime {
         })
     }
 
+    fn resume_planning(
+        &self,
+        expected_revision: u64,
+        run_id: AgentRunId,
+    ) -> CreativeRuntimeFuture<'_> {
+        Box::pin(async move {
+            self.planner
+                .resume(expected_revision, &run_id)
+                .await
+                .map_err(runtime_planner_error)
+        })
+    }
+
     fn execute_approved(
         &self,
         expected_revision: u64,
@@ -843,7 +1193,16 @@ fn runtime_planner_error(error: AgentPlannerError) -> CreativeRuntimeError {
             CreativeRuntimeError::Rejected("Creative Brief is required".to_owned())
         }
         AgentPlannerError::Adapter(error) => runtime_adapter_error(error),
+        AgentPlannerError::Context(error) => CreativeRuntimeError::Unavailable(error.to_string()),
         AgentPlannerError::Project(error) => CreativeRuntimeError::Project(error),
+        AgentPlannerError::RunNotFound | AgentPlannerError::RunNotPlanning => {
+            CreativeRuntimeError::Rejected(error.to_string())
+        }
+        AgentPlannerError::TurnLimitExceeded
+        | AgentPlannerError::InterruptedTurn
+        | AgentPlannerError::PlanningTool(_) => {
+            CreativeRuntimeError::Unavailable(error.to_string())
+        }
     }
 }
 
@@ -851,6 +1210,9 @@ fn runtime_generation_error(error: GenerationCoordinatorError) -> CreativeRuntim
     match error {
         GenerationCoordinatorError::RunNotFound => {
             CreativeRuntimeError::Rejected("Agent Run was not found".to_owned())
+        }
+        GenerationCoordinatorError::MissingPlan => {
+            CreativeRuntimeError::Unavailable("Agent Plan is missing".to_owned())
         }
         GenerationCoordinatorError::RunNotApproved => {
             CreativeRuntimeError::Rejected("Agent Run requires Approval".to_owned())

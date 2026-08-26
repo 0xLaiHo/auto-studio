@@ -17,7 +17,7 @@ async fn known_submit_failure_is_durable_and_a_new_run_can_be_planned() {
 
     let error = rig
         .coordinator
-        .execute_approved(3, &rig.run_id)
+        .execute_approved(4, &rig.run_id)
         .await
         .expect_err("known rejection must fail execution");
     assert!(matches!(
@@ -26,11 +26,12 @@ async fn known_submit_failure_is_durable_and_a_new_run_can_be_planned() {
     ));
 
     let failed = rig.projects.open_project().expect("failed Project");
-    assert_eq!(failed.revision(), 5);
+    assert_eq!(failed.revision(), 6);
     assert_eq!(failed.agent_runs()[0].status(), AgentRunStatus::Failed);
 
     let replanned = AgentPlanner::new(
         rig.projects.clone(),
+        rig.contexts.clone(),
         Arc::new(DeterministicInferenceAdapter),
     )
     .plan(failed.revision())
@@ -48,9 +49,10 @@ async fn a_second_plan_is_rejected_while_a_run_is_active() {
     let rig = Rig::new(AdapterMode::RejectSubmit).await;
     let error = AgentPlanner::new(
         rig.projects.clone(),
+        rig.contexts.clone(),
         Arc::new(DeterministicInferenceAdapter),
     )
-    .plan(3)
+    .plan(4)
     .await
     .expect_err("an approved Run is still active");
     assert!(error.to_string().contains("active Agent Run"));
@@ -62,7 +64,7 @@ async fn provider_result_must_match_the_planned_candidate_count() {
 
     let error = rig
         .coordinator
-        .execute_approved(3, &rig.run_id)
+        .execute_approved(4, &rig.run_id)
         .await
         .expect_err("one artifact cannot satisfy a two-Candidate Plan");
     assert!(
@@ -72,7 +74,7 @@ async fn provider_result_must_match_the_planned_candidate_count() {
     );
 
     let failed = rig.projects.open_project().expect("failed Project");
-    assert_eq!(failed.revision(), 6);
+    assert_eq!(failed.revision(), 7);
     assert_eq!(failed.agent_runs()[0].status(), AgentRunStatus::Failed);
     assert!(failed.candidates().is_empty());
 }
@@ -80,6 +82,7 @@ async fn provider_result_must_match_the_planned_candidate_count() {
 struct Rig {
     _temp: tempfile::TempDir,
     projects: Arc<ProjectService>,
+    contexts: Arc<autostudio_provider::context::ContextManager>,
     coordinator: GenerationCoordinator,
     run_id: AgentRunId,
 }
@@ -90,9 +93,11 @@ impl Rig {
         let package = temp.path().join("failure.autostudio");
         let staging = temp.path().join("staging");
         fs::create_dir_all(&staging).expect("staging");
-        let projects = Arc::new(ProjectService::new(Arc::new(
+        let store = Arc::new(
             autostudio_storage::SqliteProjectStore::open(&package).expect("project store"),
-        )));
+        );
+        let projects = Arc::new(ProjectService::new(store.clone()));
+        let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
         projects
             .create_project("Failure Contract")
             .expect("project");
@@ -111,10 +116,14 @@ impl Rig {
                 },
             )
             .expect("brief");
-        let planned = AgentPlanner::new(projects.clone(), Arc::new(DeterministicInferenceAdapter))
-            .plan(1)
-            .await
-            .expect("plan");
+        let planned = AgentPlanner::new(
+            projects.clone(),
+            contexts.clone(),
+            Arc::new(DeterministicInferenceAdapter),
+        )
+        .plan(1)
+        .await
+        .expect("plan");
         let run = &planned.agent_runs()[0];
         let run_id = run.id().clone();
         projects
@@ -124,7 +133,11 @@ impl Rig {
                 CostApproval {
                     currency: "USD".to_owned(),
                     max_minor_units: 100,
-                    input_hash: run.plan_value().input_hash().to_owned(),
+                    input_hash: run
+                        .plan_value()
+                        .expect("approved run has a plan")
+                        .input_hash()
+                        .to_owned(),
                 },
             )
             .expect("approval");
@@ -139,6 +152,7 @@ impl Rig {
         Self {
             _temp: temp,
             projects,
+            contexts,
             coordinator,
             run_id,
         }

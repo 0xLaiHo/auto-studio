@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-25
 > 产品方向：LLM 驱动的本地专业音乐创作 Agent  
-> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与一次真实 Planning Turn 已实现；Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，真人/DAW Gate 尚未完成；Agent Harness Foundation、本地 production 作曲工具、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未实现，当前产品版本仍不能真实生成音乐。
+> 当前状态：本地 Core、TUI、Project、LLM Connection/Model/Thinking 与真实 Planning 已实现；M3-A CM-0/CM-1 已落地 durable Transcript、Context Manifest、三协议 SSE assembler、完整 ToolRequest/ToolResult、固定 `project.describe → submit_creative_plan` 多轮链路与 Planning 恢复。它证明 Agent Harness 能可靠调用真实本地只读工具，但还没有 continuity、compaction/长期 Run、Grant/Budget、通用 Tool Runtime 或本地作曲工具。Q0 v2 的真实 DeepSeek → ExperimentalMusicSpec → MIDI 正式 A/B 机器 Gate 已达到 11/12，v3 全量 L4 重基线达到 6/6，Portable Handoff v1 已能生成乐器分配清单与带 Bank/Program 的 Type-1 MIDI；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 的精确版本实测仍为 `not_run`。真人内容 Gate、Music Project Model、Sampler、Audio Engine 与 VST3 Host 尚未完成，当前产品版本仍不能真实生成音乐。
 
 ## 1. 产品摘要
 
@@ -201,15 +201,23 @@ Selection 只由创作者发起。未采用 Candidate 保留为可追溯版本�
 
 ### 7.7 导出与继续制作
 
-MVP Export 包含：
+Agent 在 Auto Studio Project 内完成轨道、乐器和音色决定；它不通过鼠标操作 Bitwig、Cubase、Studio One 或 FL Studio，也不为每个 DAW 编写脆弱的 UI Adapter。MVP Export 按能力等级交付：
+
+**Portable Handoff（所有冻结目标 DAW 的最低层）**：
 
 - stereo WAV；
 - 按支持范围输出的 stems；
-- MIDI 文件；
+- Type-1 Standard MIDI，包含语义轨道名、Bank Select、Program Change、note 与受支持 CC；
 - Tempo、拍号与 section markers；
-- instrument/content/plugin lock；
+- `instrument-assignments.json` 与 instrument/content/plugin lock；
 - credits、license 与 provenance manifest；
-- 通用 DAW 导入说明。
+- Cubase、Studio One Pro、FL Studio 等冻结版本的导入说明与实测兼容状态。
+
+Portable Handoff 保证“可导入的音乐结构和可追溯的音色意图”，不保证不同 DAW 用各自内置音源时声音一致。某个 DAW 忽略 Program Change 时，用户仍可按 assignment manifest 选择本地音色；WAV/stems 保留听感参考。
+
+**Structured Handoff（按 DAW 能力逐一验证）**：对官方支持并通过实测的目标版本输出 DAWproject；不为不支持该格式的 DAW 虚构兼容性，也不承诺写出 Cubase、Studio One 或 FL Studio 的专有原生工程。
+
+**Sound-identical Handoff（依赖一致时）**：使用 freeze/stems，或在目标 DAW 安装相同版本的 Auto Studio Sampler VST3、Content Pack 和 preset state。依赖缺失时明确降级到 Portable Handoff，不静默换音色。
 
 导出不包含无权再分发的底层商业采样或用户插件二进制。
 
@@ -333,7 +341,7 @@ Corpus 固定 LLM Provider/Model/Thinking、系统提示、工具版本、Factor
 5. 用户可以针对一个局部提出修改，未选区域保持不变；
 6. Candidate 绑定 Project Snapshot、Preview、指标、内容与插件依赖；
 7. Selection 由用户执行，Agent 不能自动采用；
-8. 导出 WAV、stems、MIDI 和 manifest，并在冻结目标 DAW 中继续编辑；
+8. 同一个 Selection 导出 WAV、stems、Type-1 MIDI、assignment/provenance manifest，并在冻结版本的 Cubase、Studio One Pro、FL Studio 中继续编辑；每个 DAW 分别声明 Portable/Structured/Sound-identical 等级；
 9. 一个隔离 VST3 instrument/effect 路径通过固定 corpus、恢复、freeze 和 crash containment；
 10. 固定 Brief corpus 完成机器 Gate 与人工盲听，结果达到预先冻结阈值；
 11. production composition root 不包含 Music Provider、Fake 音乐生成或外部 prompt-to-WAV fallback；

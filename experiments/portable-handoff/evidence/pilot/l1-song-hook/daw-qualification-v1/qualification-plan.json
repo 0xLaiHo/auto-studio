@@ -1,0 +1,61 @@
+{
+  "schema_version": "daw-qualification-plan-v1",
+  "handoff_manifest_sha256": "1585e54a993136b8204d29d403f893aa604d91734597d046c12ed0e5ebc15f6d",
+  "handoff_artifacts": [
+    {
+      "path": "spec.json",
+      "bytes": 18880,
+      "sha256": "351647e537a34d121c3976a28ab062ed376903c190189dfb636313546783743c"
+    },
+    {
+      "path": "instrument-assignments.json",
+      "bytes": 1679,
+      "sha256": "f06ddc85d65301a55f86f4b92cfdfc04da63445e954b322039fde5e881ea9e64"
+    },
+    {
+      "path": "composition.mid",
+      "bytes": 1110,
+      "sha256": "ff67f617fed9ddbe5c531cefc7a7e868ddf663c3b1e051ebecd98d3d180bc3a9"
+    }
+  ],
+  "targets_frozen_at": "2026-08-25",
+  "targets": [
+    {
+      "id": "steinberg-cubase",
+      "product": "Steinberg Cubase",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "Cubase is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    },
+    {
+      "id": "presonus-studio-one-pro",
+      "product": "PreSonus Studio One Pro",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "Studio One Pro is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    },
+    {
+      "id": "image-line-fl-studio",
+      "product": "Image-Line FL Studio",
+      "exact_version": null,
+      "platform": null,
+      "readiness": "blocked",
+      "blocked_reason": "FL Studio is not installed on the current qualification host; freeze an exact version and executable hash before testing.",
+      "required_for_mvp": true
+    }
+  ],
+  "required_checks": [
+    "import_without_repair",
+    "semantic_tracks_preserved",
+    "tempo_meter_preserved",
+    "midi_events_preserved_before_edit",
+    "markers_not_lost",
+    "program_change_observed",
+    "save_reopen",
+    "intentional_edit_export"
+  ]
+}

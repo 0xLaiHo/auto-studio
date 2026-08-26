@@ -1,3 +1,4 @@
+use autostudio_core::context::ContextError;
 use autostudio_core::project::ProjectError;
 use thiserror::Error;
 
@@ -5,10 +6,34 @@ use thiserror::Error;
 pub enum AgentPlannerError {
     #[error("Project must contain a Creative Brief before starting an Agent Run")]
     MissingBrief,
+    #[error("Agent Run was not found")]
+    RunNotFound,
+    #[error("Agent Run is not in Planning state")]
+    RunNotPlanning,
+    #[error("planning exceeded the bounded Inference Turn limit")]
+    TurnLimitExceeded,
+    #[error(
+        "a prepared Inference Turn has no durable Provider output; automatic resubmission is unsafe"
+    )]
+    InterruptedTurn,
     #[error(transparent)]
     Adapter(#[from] AdapterError),
     #[error(transparent)]
+    Context(#[from] ContextError),
+    #[error(transparent)]
     Project(#[from] ProjectError),
+    #[error(transparent)]
+    PlanningTool(#[from] PlanningToolError),
+}
+
+#[derive(Debug, Error)]
+pub enum PlanningToolError {
+    #[error("planning Tool '{0}' is not available")]
+    UnknownTool(String),
+    #[error("planning Tool arguments are invalid: {0}")]
+    InvalidArguments(String),
+    #[error("planning Tool state is inconsistent: {0}")]
+    InconsistentState(String),
 }
 
 #[derive(Debug, Error)]
@@ -27,6 +52,8 @@ pub enum AdapterError {
 pub enum GenerationCoordinatorError {
     #[error("Agent Run was not found")]
     RunNotFound,
+    #[error("Agent Run does not contain a completed Agent Plan")]
+    MissingPlan,
     #[error("Agent Run requires Creator Approval before generation")]
     RunNotApproved,
     #[error("Agent Run is not waiting for Unknown Outcome reconciliation")]

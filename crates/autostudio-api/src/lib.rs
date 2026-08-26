@@ -173,6 +173,7 @@ fn build_router(
                 .put(select_llm_model),
         )
         .route("/v1/agent-runs", post(plan_agent_run))
+        .route("/v1/agent-runs/{run_id}/resume", post(resume_agent_run))
         .route("/v1/agent-runs/{run_id}/approval", post(approve_agent_run))
         .route("/v1/agent-runs/{run_id}/execute", post(execute_agent_run))
         .route(
@@ -388,6 +389,24 @@ async fn approve_agent_run(
         &run_id,
         request.approval,
     )?))
+}
+
+async fn resume_agent_run(
+    State(state): State<ApiState>,
+    AxumPath(run_id): AxumPath<String>,
+    Json(request): Json<ExpectedRevisionRequest>,
+) -> Result<Json<Project>, ApiError> {
+    let runtime = state.runtime.as_ref().ok_or_else(runtime_unavailable)?;
+    let run_id = AgentRunId::parse(&run_id).map_err(|error| ApiError {
+        status: StatusCode::UNPROCESSABLE_ENTITY,
+        code: "invalid_agent_run_id",
+        message: error.to_string(),
+    })?;
+    Ok(Json(
+        runtime
+            .resume_planning(request.expected_revision, run_id)
+            .await?,
+    ))
 }
 
 async fn execute_agent_run(

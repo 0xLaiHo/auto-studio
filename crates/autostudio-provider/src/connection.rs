@@ -25,7 +25,7 @@ use crate::llm::{HttpInferenceAdapter, LlmProviderConfig, LlmProviderConnection}
 use crate::thinking::model_capability;
 use crate::{
     AdapterError, ConnectionStoreError, InferenceAdapter, InferenceFuture,
-    InferenceProviderDescriptor, InferenceRequest, ProviderConfigError,
+    InferenceProviderDescriptor, InferenceTurnRequest, ProviderConfigError,
 };
 
 pub struct FileLlmConnectionManager {
@@ -350,8 +350,8 @@ impl LlmConnectionControl for FileLlmConnectionManager {
             return Err(ProviderConnectionError::ModelNotAvailable(model.to_owned()));
         }
         let lock = self.lock_file().map_err(|error| storage_error(&error))?;
-        let result = (|| {
-            let mut document = self
+        let result: Result<LlmConnectionStatus, ProviderConnectionError> = (|| {
+            let mut document: StoredConnectionDocument = self
                 .read_document()
                 .map_err(|error| storage_error(&error))?
                 .ok_or_else(unconfigured_error)?;
@@ -427,7 +427,7 @@ impl InferenceAdapter for ConnectionInferenceAdapter {
         )
     }
 
-    fn infer(&self, request: InferenceRequest) -> InferenceFuture<'_> {
+    fn infer(&self, request: InferenceTurnRequest) -> InferenceFuture<'_> {
         Box::pin(async move {
             let (config, _) = self
                 .connections

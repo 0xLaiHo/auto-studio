@@ -1,0 +1,30 @@
+{
+  "schema_version": "daw-qualification-summary-v1",
+  "plan_sha256": "3f67624439e41af95011c7319635c2b969c9e720c3c3ff06433f760c4693184d",
+  "total": 3,
+  "passed": 0,
+  "failed": 0,
+  "not_run": 3,
+  "required_targets": 3,
+  "all_required_targets_passed": false,
+  "targets": [
+    {
+      "target_id": "steinberg-cubase",
+      "product": "Steinberg Cubase",
+      "required_for_mvp": true,
+      "outcome": "not_run"
+    },
+    {
+      "target_id": "presonus-studio-one-pro",
+      "product": "PreSonus Studio One Pro",
+      "required_for_mvp": true,
+      "outcome": "not_run"
+    },
+    {
+      "target_id": "image-line-fl-studio",
+      "product": "Image-Line FL Studio",
+      "required_for_mvp": true,
+      "outcome": "not_run"
+    }
+  ]
+}

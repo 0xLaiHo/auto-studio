@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::thread::{self, JoinHandle};
 
+use autostudio_core::agent::AgentRunId;
+use autostudio_core::context::{
+    ContextEvent, ContextEventEnvelope, ContextEventStore, ContextStoreError,
+};
 use autostudio_core::project::{
     Project, ProjectBackupDraft, ProjectBackupSink, ProjectEvent, ProjectEventEnvelope,
     ProjectStore, ProjectStoreError,
@@ -78,6 +82,12 @@ impl SqliteProjectStore {
     fn sender(&self) -> Result<&SyncSender<Command>, ProjectStoreError> {
         self.sender.as_ref().ok_or_else(|| {
             ProjectStoreError::Unavailable("project DB actor has stopped".to_owned())
+        })
+    }
+
+    fn context_sender(&self) -> Result<&SyncSender<Command>, ContextStoreError> {
+        self.sender.as_ref().ok_or_else(|| {
+            ContextStoreError::Unavailable("project DB actor has stopped".to_owned())
         })
     }
 }
@@ -266,6 +276,44 @@ impl ProjectStore for SqliteProjectStore {
     }
 }
 
+impl ContextEventStore for SqliteProjectStore {
+    fn append_context_events(
+        &self,
+        run_id: &AgentRunId,
+        expected_revision: u64,
+        events: &[ContextEvent],
+    ) -> Result<u64, ContextStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.context_sender()?
+            .send(Command::AppendContextEvents {
+                run_id: run_id.clone(),
+                expected_revision,
+                events: events.to_vec(),
+                response: response_sender,
+            })
+            .map_err(|_| context_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| context_actor_stopped())?
+    }
+
+    fn context_events(
+        &self,
+        run_id: &AgentRunId,
+    ) -> Result<Vec<ContextEventEnvelope>, ContextStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.context_sender()?
+            .send(Command::ContextEvents {
+                run_id: run_id.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| context_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| context_actor_stopped())?
+    }
+}
+
 impl Drop for SqliteProjectStore {
     fn drop(&mut self) {
         self.sender.take();
@@ -293,6 +341,16 @@ enum Command {
     EventsAfter {
         after_sequence: u64,
         response: SyncSender<Result<Vec<ProjectEventEnvelope>, ProjectStoreError>>,
+    },
+    AppendContextEvents {
+        run_id: AgentRunId,
+        expected_revision: u64,
+        events: Vec<ContextEvent>,
+        response: SyncSender<Result<u64, ContextStoreError>>,
+    },
+    ContextEvents {
+        run_id: AgentRunId,
+        response: SyncSender<Result<Vec<ContextEventEnvelope>, ContextStoreError>>,
     },
 }
 
@@ -323,6 +381,22 @@ fn run_actor(connection: &Connection, receiver: &Receiver<Command>) {
                 response,
             } => {
                 let _ = response.send(select_events(connection, after_sequence));
+            }
+            Command::AppendContextEvents {
+                run_id,
+                expected_revision,
+                events,
+                response,
+            } => {
+                let _ = response.send(append_context_events(
+                    connection,
+                    &run_id,
+                    expected_revision,
+                    &events,
+                ));
+            }
+            Command::ContextEvents { run_id, response } => {
+                let _ = response.send(select_context_events(connection, &run_id));
             }
         }
     }
@@ -358,6 +432,18 @@ fn migrate(connection: &Connection) -> Result<(), ProjectPackageError> {
                  event_sequence INTEGER PRIMARY KEY REFERENCES project_events(sequence),
                  event_json TEXT NOT NULL,
                  delivered INTEGER NOT NULL DEFAULT 0 CHECK (delivered IN (0, 1))
+             );
+             CREATE TABLE IF NOT EXISTS inference_context_streams (
+                 run_id TEXT PRIMARY KEY,
+                 revision INTEGER NOT NULL CHECK (revision >= 0)
+             );
+             CREATE TABLE IF NOT EXISTS inference_context_events (
+                 run_id TEXT NOT NULL REFERENCES inference_context_streams(run_id),
+                 sequence INTEGER NOT NULL CHECK (sequence > 0),
+                 event_type TEXT NOT NULL,
+                 event_json TEXT NOT NULL,
+                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                 PRIMARY KEY (run_id, sequence)
              );",
         )
         .map_err(ProjectPackageError::Migrate)
@@ -561,6 +647,129 @@ fn select_events(
     Ok(events)
 }
 
+fn append_context_events(
+    connection: &Connection,
+    run_id: &AgentRunId,
+    expected_revision: u64,
+    events: &[ContextEvent],
+) -> Result<u64, ContextStoreError> {
+    let run_id = run_id.as_str();
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| context_unavailable(&error))?;
+    let stored_revision = transaction
+        .query_row(
+            "SELECT revision FROM inference_context_streams WHERE run_id = ?1",
+            [&run_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(|error| context_unavailable(&error))?;
+    let actual_revision = stored_revision
+        .map(context_sqlite_revision)
+        .transpose()?
+        .unwrap_or(0);
+    if actual_revision != expected_revision {
+        return Err(ContextStoreError::RevisionConflict {
+            expected: expected_revision,
+            actual: actual_revision,
+        });
+    }
+    if stored_revision.is_none() {
+        transaction
+            .execute(
+                "INSERT INTO inference_context_streams (run_id, revision) VALUES (?1, 0)",
+                [&run_id],
+            )
+            .map_err(|error| context_unavailable(&error))?;
+    }
+
+    let event_count = u64::try_from(events.len()).map_err(|_| {
+        ContextStoreError::Unavailable("context event batch exceeds platform range".to_owned())
+    })?;
+    let next_revision = expected_revision.checked_add(event_count).ok_or_else(|| {
+        ContextStoreError::Unavailable("context journal revision is exhausted".to_owned())
+    })?;
+    for (offset, event) in events.iter().enumerate() {
+        let offset = u64::try_from(offset).map_err(|_| {
+            ContextStoreError::Unavailable("context event batch exceeds platform range".to_owned())
+        })?;
+        let sequence = expected_revision
+            .checked_add(offset)
+            .and_then(|value| value.checked_add(1))
+            .ok_or_else(|| {
+                ContextStoreError::Unavailable("context event sequence is exhausted".to_owned())
+            })?;
+        let sequence = i64::try_from(sequence).map_err(|_| {
+            ContextStoreError::Unavailable("context event sequence exceeds SQLite range".to_owned())
+        })?;
+        let event_json = serde_json::to_string(event)
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+        transaction
+            .execute(
+                "INSERT INTO inference_context_events
+                 (run_id, sequence, event_type, event_json) VALUES (?1, ?2, ?3, ?4)",
+                params![run_id, sequence, event.kind_name(), event_json],
+            )
+            .map_err(|error| context_unavailable(&error))?;
+    }
+    let next_revision_sql = i64::try_from(next_revision).map_err(|_| {
+        ContextStoreError::Unavailable("context journal revision exceeds SQLite range".to_owned())
+    })?;
+    let changed = transaction
+        .execute(
+            "UPDATE inference_context_streams SET revision = ?1
+             WHERE run_id = ?2 AND revision = ?3",
+            params![
+                next_revision_sql,
+                run_id,
+                i64::try_from(expected_revision).map_err(|_| {
+                    ContextStoreError::Unavailable(
+                        "expected context revision exceeds SQLite range".to_owned(),
+                    )
+                })?
+            ],
+        )
+        .map_err(|error| context_unavailable(&error))?;
+    if changed != 1 {
+        return Err(ContextStoreError::RevisionConflict {
+            expected: expected_revision,
+            actual: actual_revision,
+        });
+    }
+    transaction
+        .commit()
+        .map_err(|error| context_unavailable(&error))?;
+    Ok(next_revision)
+}
+
+fn select_context_events(
+    connection: &Connection,
+    run_id: &AgentRunId,
+) -> Result<Vec<ContextEventEnvelope>, ContextStoreError> {
+    let run_id = run_id.as_str();
+    let mut statement = connection
+        .prepare(
+            "SELECT sequence, event_json FROM inference_context_events
+             WHERE run_id = ?1 ORDER BY sequence ASC",
+        )
+        .map_err(|error| context_unavailable(&error))?;
+    let rows = statement
+        .query_map([run_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| context_unavailable(&error))?;
+    let mut events = Vec::new();
+    for row in rows {
+        let (sequence, json) = row.map_err(|error| context_unavailable(&error))?;
+        let sequence = context_sqlite_revision(sequence)?;
+        let event = serde_json::from_str(&json)
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+        events.push(ContextEventEnvelope::new(sequence, event));
+    }
+    Ok(events)
+}
+
 fn select_revision(connection: &Connection) -> Result<u64, ProjectStoreError> {
     connection
         .query_row(
@@ -579,6 +788,19 @@ fn sqlite_revision(revision: i64) -> Result<u64, ProjectStoreError> {
 
 fn actor_stopped() -> ProjectStoreError {
     ProjectStoreError::Unavailable("project DB actor stopped unexpectedly".to_owned())
+}
+
+fn context_actor_stopped() -> ContextStoreError {
+    ContextStoreError::Unavailable("project DB actor stopped unexpectedly".to_owned())
+}
+
+fn context_unavailable(error: &rusqlite::Error) -> ContextStoreError {
+    ContextStoreError::Unavailable(error.to_string())
+}
+
+fn context_sqlite_revision(revision: i64) -> Result<u64, ContextStoreError> {
+    u64::try_from(revision)
+        .map_err(|_| ContextStoreError::Corrupt("stored context revision is negative".to_owned()))
 }
 
 fn unavailable(error: &rusqlite::Error) -> ProjectStoreError {

@@ -3,10 +3,10 @@
 use std::env;
 use std::fmt;
 
-use autostudio_core::agent::{AgentDecision, CostEstimate, GenerationIntent};
+use autostudio_core::context::CanonicalMessage;
 use autostudio_core::provider::{LlmModelDescriptor, ThinkingControl, ThinkingLevel};
+use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, Url};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use zeroize::Zeroize;
 
@@ -19,15 +19,19 @@ use crate::constants::{
     ENV_KIMI_CODE_API_KEY, ENV_KIMI_CODE_BASE_URL, ENV_KIMI_CODE_MODEL, ENV_MOONSHOT_API_KEY,
     ENV_MOONSHOT_BASE_URL, ENV_MOONSHOT_MODEL, ENV_OPENAI_API_KEY, ENV_OPENAI_BASE_URL,
     ENV_OPENAI_MODEL, KIMI_CODE_CATALOG_SNAPSHOT_DATE, MAX_PROVIDER_ERROR_CHARS,
-    OPENAI_MODELS_PATH, OPENAI_RESPONSES_PATH, PLAN_MAX_OUTPUT_TOKENS, PLAN_SYSTEM_PROMPT,
-    PLAN_TOOL_NAME, PROTOCOL_ANTHROPIC_MESSAGES, PROTOCOL_OPENAI_CHAT_COMPLETIONS,
-    PROTOCOL_OPENAI_RESPONSES, PROVIDER_ANTHROPIC, PROVIDER_DEEPSEEK, PROVIDER_KIMI_CODE,
-    PROVIDER_KIMI_OPEN, PROVIDER_OPENAI, PROVIDER_REQUEST_TIMEOUT,
+    OPENAI_MODELS_PATH, OPENAI_RESPONSES_PATH, PLAN_MAX_OUTPUT_TOKENS, PROTOCOL_ANTHROPIC_MESSAGES,
+    PROTOCOL_OPENAI_CHAT_COMPLETIONS, PROTOCOL_OPENAI_RESPONSES, PROVIDER_ANTHROPIC,
+    PROVIDER_DEEPSEEK, PROVIDER_KIMI_CODE, PROVIDER_KIMI_OPEN, PROVIDER_OPENAI,
+    PROVIDER_REQUEST_TIMEOUT,
+};
+use crate::stream::{
+    InferenceDelta, SseDecoder, SseEvent, StreamingTurnAssembler, anthropic_deltas,
+    openai_chat_deltas, openai_responses_deltas,
 };
 use crate::thinking::{apply_to_request, model_capability};
 use crate::{
     AdapterError, InferenceAdapter, InferenceFuture, InferenceOutcome, InferenceProviderDescriptor,
-    InferenceRequest, ProviderConfigError, Usage,
+    InferenceTurnRequest, ProviderConfigError,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -448,7 +452,7 @@ impl HttpInferenceAdapter {
 
     async fn infer_inner(
         &self,
-        request: InferenceRequest,
+        request: InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
         match self.config.protocol {
             LlmProtocol::OpenAiChatCompletions => self.infer_chat_completions(&request).await,
@@ -459,25 +463,29 @@ impl HttpInferenceAdapter {
 
     async fn infer_chat_completions(
         &self,
-        request: &InferenceRequest,
+        request: &InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
         let endpoint = endpoint(&self.config.base_url, CHAT_COMPLETIONS_PATH)?;
+        let messages = openai_chat_messages(request);
+        let tools = openai_chat_tools(request)?;
         let mut body = json!({
             "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": PLAN_SYSTEM_PROMPT},
-                {"role": "user", "content": brief_prompt(request)?}
-            ],
-            "response_format": {"type": "json_object"},
-            "stream": false,
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": "required",
+            "stream": true,
+            "stream_options": {"include_usage": true},
             "max_tokens": PLAN_MAX_OUTPUT_TOKENS
         });
-        apply_to_request(
+        let effective = apply_to_request(
             &mut body,
             &self.config.provider_kind,
             &self.config.model,
             self.config.thinking_level,
         );
+        if self.config.provider_kind == PROVIDER_DEEPSEEK && effective.level != ThinkingLevel::Off {
+            body["tool_choice"] = Value::String("auto".to_owned());
+        }
         let response = self
             .client
             .post(endpoint)
@@ -486,38 +494,32 @@ impl HttpInferenceAdapter {
             .send()
             .await
             .map_err(map_transport_error)?;
-        let value = decode_response(response, &self.config.api_key).await?;
-        let content = value
-            .pointer("/choices/0/message/content")
-            .and_then(Value::as_str)
-            .ok_or_else(|| invalid_response("missing choices[0].message.content"))?;
-        let output = parse_plan_output(content)?;
-        Ok(output.into_inference_outcome(
-            self.descriptor(),
-            usage_from_chat(&value),
-            value.get("id").and_then(Value::as_str).map(str::to_owned),
-        ))
+        let assembled = decode_stream(response, &self.config.api_key, openai_chat_deltas).await?;
+        Ok(InferenceOutcome {
+            provider: self.descriptor(),
+            visible_text: assembled.visible_text,
+            tool_calls: assembled.tool_calls,
+            usage: assembled.usage,
+            response_id: assembled.response_id,
+        })
     }
 
     async fn infer_openai_responses(
         &self,
-        request: &InferenceRequest,
+        request: &InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
         let endpoint = endpoint(&self.config.base_url, OPENAI_RESPONSES_PATH)?;
+        let input = openai_responses_input(request);
+        let tools = openai_responses_tools(request)?;
         let mut body = json!({
             "model": self.config.model,
-            "instructions": PLAN_SYSTEM_PROMPT,
-            "input": brief_prompt(request)?,
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "name": "creative_plan",
-                    "strict": true,
-                    "schema": plan_schema()
-                }
-            },
+            "instructions": request.prepared.instructions(),
+            "input": input,
+            "tools": tools,
+            "tool_choice": "required",
             "max_output_tokens": PLAN_MAX_OUTPUT_TOKENS,
-            "store": false
+            "store": false,
+            "stream": true
         });
         apply_to_request(
             &mut body,
@@ -533,41 +535,32 @@ impl HttpInferenceAdapter {
             .send()
             .await
             .map_err(map_transport_error)?;
-        let value = decode_response(response, &self.config.api_key).await?;
-        let content = openai_response_text(&value)
-            .ok_or_else(|| invalid_response("missing Responses API output text"))?;
-        let output = parse_plan_output(&content)?;
-        let usage = Usage {
-            input_tokens: value.pointer("/usage/input_tokens").and_then(Value::as_u64),
-            output_tokens: value
-                .pointer("/usage/output_tokens")
-                .and_then(Value::as_u64),
-            actual_cost_minor_units: None,
-            currency: None,
-        };
-        Ok(output.into_inference_outcome(
-            self.descriptor(),
-            usage,
-            value.get("id").and_then(Value::as_str).map(str::to_owned),
-        ))
+        let assembled =
+            decode_stream(response, &self.config.api_key, openai_responses_deltas).await?;
+        Ok(InferenceOutcome {
+            provider: self.descriptor(),
+            visible_text: assembled.visible_text,
+            tool_calls: assembled.tool_calls,
+            usage: assembled.usage,
+            response_id: assembled.response_id,
+        })
     }
 
     async fn infer_anthropic_messages(
         &self,
-        request: &InferenceRequest,
+        request: &InferenceTurnRequest,
     ) -> Result<InferenceOutcome, AdapterError> {
         let endpoint = endpoint(&self.config.base_url, ANTHROPIC_MESSAGES_PATH)?;
+        let messages = anthropic_messages(request)?;
+        let tools = anthropic_tools(request)?;
         let mut body = json!({
             "model": self.config.model,
             "max_tokens": PLAN_MAX_OUTPUT_TOKENS,
-            "system": PLAN_SYSTEM_PROMPT,
-            "messages": [{"role": "user", "content": brief_prompt(request)?}],
-            "tools": [{
-                "name": PLAN_TOOL_NAME,
-                "description": "Submit the creator-visible music generation plan",
-                "input_schema": plan_schema()
-            }],
-            "tool_choice": {"type": "tool", "name": PLAN_TOOL_NAME}
+            "system": request.prepared.instructions(),
+            "messages": messages,
+            "tools": tools,
+            "tool_choice": {"type": "any"},
+            "stream": true
         });
         let effective = apply_to_request(
             &mut body,
@@ -590,33 +583,14 @@ impl HttpInferenceAdapter {
             .send()
             .await
             .map_err(map_transport_error)?;
-        let value = decode_response(response, &self.config.api_key).await?;
-        let input = value
-            .get("content")
-            .and_then(Value::as_array)
-            .and_then(|items| {
-                items.iter().find(|item| {
-                    item.get("type").and_then(Value::as_str) == Some("tool_use")
-                        && item.get("name").and_then(Value::as_str) == Some(PLAN_TOOL_NAME)
-                })
-            })
-            .and_then(|item| item.get("input"))
-            .ok_or_else(|| invalid_response("missing required Anthropic plan tool result"))?;
-        let output: PlanOutput = serde_json::from_value(input.clone())
-            .map_err(|error| invalid_response(&error.to_string()))?;
-        let usage = Usage {
-            input_tokens: value.pointer("/usage/input_tokens").and_then(Value::as_u64),
-            output_tokens: value
-                .pointer("/usage/output_tokens")
-                .and_then(Value::as_u64),
-            actual_cost_minor_units: None,
-            currency: None,
-        };
-        Ok(output.into_inference_outcome(
-            self.descriptor(),
-            usage,
-            value.get("id").and_then(Value::as_str).map(str::to_owned),
-        ))
+        let assembled = decode_stream(response, &self.config.api_key, anthropic_deltas).await?;
+        Ok(InferenceOutcome {
+            provider: self.descriptor(),
+            visible_text: assembled.visible_text,
+            tool_calls: assembled.tool_calls,
+            usage: assembled.usage,
+            response_id: assembled.response_id,
+        })
     }
 }
 
@@ -641,112 +615,223 @@ impl InferenceAdapter for HttpInferenceAdapter {
         }
     }
 
-    fn infer(&self, request: InferenceRequest) -> InferenceFuture<'_> {
+    fn infer(&self, request: InferenceTurnRequest) -> InferenceFuture<'_> {
         Box::pin(async move { self.infer_inner(request).await })
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PlanOutput {
-    visible_summary: String,
-    generation_prompt: String,
-    duration_seconds: u32,
-    candidate_count: u8,
-}
-
-impl PlanOutput {
-    fn into_inference_outcome(
-        self,
-        provider: InferenceProviderDescriptor,
-        usage: Usage,
-        response_id: Option<String>,
-    ) -> InferenceOutcome {
-        InferenceOutcome {
-            provider,
-            visible_summary: self.visible_summary,
-            decision: AgentDecision::GenerateMusic(GenerationIntent {
-                prompt: self.generation_prompt,
-                duration_seconds: self.duration_seconds,
-                candidate_count: self.candidate_count,
-            }),
-            estimated_cost: CostEstimate::Unknown,
-            usage,
-            response_id,
+fn openai_chat_messages(request: &InferenceTurnRequest) -> Vec<Value> {
+    let mut messages = vec![json!({
+        "role": "system",
+        "content": request.prepared.instructions()
+    })];
+    for message in request.prepared.messages() {
+        match message {
+            CanonicalMessage::User { content } => {
+                messages.push(json!({"role": "user", "content": content}));
+            }
+            CanonicalMessage::Assistant {
+                content,
+                tool_calls,
+            } => {
+                let tool_calls = tool_calls
+                    .iter()
+                    .map(|call| {
+                        json!({
+                            "id": call.call_id,
+                            "type": "function",
+                            "function": {
+                                "name": call.name,
+                                "arguments": call.arguments_json
+                            }
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                messages.push(json!({
+                    "role": "assistant",
+                    "content": content,
+                    "tool_calls": tool_calls
+                }));
+            }
+            CanonicalMessage::Tool {
+                call_id, content, ..
+            } => messages.push(json!({
+                "role": "tool",
+                "tool_call_id": call_id,
+                "content": content
+            })),
         }
     }
+    messages
 }
 
-fn plan_schema() -> Value {
-    json!({
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-            "visibleSummary": {"type": "string", "minLength": 1},
-            "generationPrompt": {"type": "string", "minLength": 1},
-            "durationSeconds": {"type": "integer", "minimum": 1, "maximum": 900},
-            "candidateCount": {"type": "integer", "minimum": 1, "maximum": 4}
-        },
-        "required": [
-            "visibleSummary",
-            "generationPrompt",
-            "durationSeconds",
-            "candidateCount"
-        ]
-    })
-}
-
-fn brief_prompt(request: &InferenceRequest) -> Result<String, AdapterError> {
-    let brief = serde_json::to_string(&request.brief)
-        .map_err(|error| invalid_response(&error.to_string()))?;
-    Ok(format!(
-        "Project context revision: {}\nCreative Brief JSON: {brief}\nReturn the requested plan JSON.",
-        request.context_revision
-    ))
-}
-
-fn parse_plan_output(content: &str) -> Result<PlanOutput, AdapterError> {
-    let content = strip_json_fence(content.trim());
-    serde_json::from_str(content).map_err(|error| invalid_response(&error.to_string()))
-}
-
-fn strip_json_fence(value: &str) -> &str {
-    let Some(rest) = value.strip_prefix("```") else {
-        return value;
-    };
-    let rest = rest.strip_prefix("json").unwrap_or(rest);
-    rest.trim_start_matches([' ', '\t', '\r', '\n'])
-        .strip_suffix("```")
-        .map_or(value, str::trim_end)
-}
-
-fn usage_from_chat(value: &Value) -> Usage {
-    Usage {
-        input_tokens: value
-            .pointer("/usage/prompt_tokens")
-            .and_then(Value::as_u64),
-        output_tokens: value
-            .pointer("/usage/completion_tokens")
-            .and_then(Value::as_u64),
-        actual_cost_minor_units: None,
-        currency: None,
-    }
-}
-
-fn openai_response_text(value: &Value) -> Option<String> {
-    if let Some(text) = value.get("output_text").and_then(Value::as_str) {
-        return Some(text.to_owned());
-    }
-    let output = value.get("output")?.as_array()?;
-    let mut text = output
+fn openai_chat_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
+    request
+        .prepared
+        .tools()
         .iter()
-        .filter_map(|item| item.get("content").and_then(Value::as_array))
-        .flatten()
-        .filter(|item| item.get("type").and_then(Value::as_str) == Some("output_text"))
-        .filter_map(|item| item.get("text").and_then(Value::as_str))
-        .peekable();
-    text.peek()?;
-    Some(text.collect())
+        .map(|tool| {
+            let parameters = serde_json::from_str::<Value>(&tool.input_schema_json)
+                .map_err(|error| invalid_response(&error.to_string()))?;
+            Ok(json!({
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": parameters
+                }
+            }))
+        })
+        .collect()
+}
+
+fn openai_responses_input(request: &InferenceTurnRequest) -> Vec<Value> {
+    let mut input = Vec::new();
+    for message in request.prepared.messages() {
+        match message {
+            CanonicalMessage::User { content } => {
+                input.push(json!({"role": "user", "content": content}));
+            }
+            CanonicalMessage::Assistant {
+                content,
+                tool_calls,
+            } => {
+                if let Some(content) = content {
+                    input.push(json!({"role": "assistant", "content": content}));
+                }
+                input.extend(tool_calls.iter().map(|call| {
+                    json!({
+                        "type": "function_call",
+                        "call_id": call.call_id,
+                        "name": call.name,
+                        "arguments": call.arguments_json
+                    })
+                }));
+            }
+            CanonicalMessage::Tool {
+                call_id, content, ..
+            } => input.push(json!({
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": content
+            })),
+        }
+    }
+    input
+}
+
+fn openai_responses_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
+    request
+        .prepared
+        .tools()
+        .iter()
+        .map(|tool| {
+            let parameters = serde_json::from_str::<Value>(&tool.input_schema_json)
+                .map_err(|error| invalid_response(&error.to_string()))?;
+            Ok(json!({
+                "type": "function",
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": parameters,
+                "strict": true
+            }))
+        })
+        .collect()
+}
+
+fn anthropic_messages(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
+    let mut messages = Vec::new();
+    for message in request.prepared.messages() {
+        match message {
+            CanonicalMessage::User { content } => {
+                messages.push(json!({"role": "user", "content": content}));
+            }
+            CanonicalMessage::Assistant {
+                content,
+                tool_calls,
+            } => {
+                let mut blocks = Vec::new();
+                if let Some(content) = content {
+                    blocks.push(json!({"type": "text", "text": content}));
+                }
+                for call in tool_calls {
+                    let input = serde_json::from_str::<Value>(&call.arguments_json)
+                        .map_err(|error| invalid_response(&error.to_string()))?;
+                    blocks.push(json!({
+                        "type": "tool_use",
+                        "id": call.call_id,
+                        "name": call.name,
+                        "input": input
+                    }));
+                }
+                messages.push(json!({"role": "assistant", "content": blocks}));
+            }
+            CanonicalMessage::Tool {
+                call_id,
+                content,
+                is_error,
+                ..
+            } => messages.push(json!({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": call_id,
+                    "content": content,
+                    "is_error": is_error
+                }]
+            })),
+        }
+    }
+    Ok(messages)
+}
+
+fn anthropic_tools(request: &InferenceTurnRequest) -> Result<Vec<Value>, AdapterError> {
+    request
+        .prepared
+        .tools()
+        .iter()
+        .map(|tool| {
+            let input_schema = serde_json::from_str::<Value>(&tool.input_schema_json)
+                .map_err(|error| invalid_response(&error.to_string()))?;
+            Ok(json!({
+                "name": tool.name,
+                "description": tool.description,
+                "input_schema": input_schema
+            }))
+        })
+        .collect()
+}
+
+async fn decode_stream(
+    response: reqwest::Response,
+    api_key: &str,
+    translate: fn(&SseEvent) -> Result<Vec<InferenceDelta>, AdapterError>,
+) -> Result<crate::stream::AssembledInferenceTurn, AdapterError> {
+    let status = response.status();
+    if !status.is_success() {
+        let text = response
+            .text()
+            .await
+            .map_err(|error| AdapterError::UnknownOutcome(error.to_string()))?;
+        return Err(status_error(status, &text, api_key));
+    }
+    let mut decoder = SseDecoder::default();
+    let mut assembler = StreamingTurnAssembler::default();
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(map_transport_error)?;
+        for event in decoder.push(&chunk)? {
+            for delta in translate(&event)? {
+                assembler.push(delta);
+            }
+        }
+    }
+    for event in decoder.finish()? {
+        for delta in translate(&event)? {
+            assembler.push(delta);
+        }
+    }
+    assembler.finish()
 }
 
 async fn decode_response(
@@ -879,34 +964,4 @@ fn parse_base_url(
 
 fn invalid_response(message: &str) -> AdapterError {
     AdapterError::InvalidResponse(message.to_owned())
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::{openai_response_text, parse_plan_output, strip_json_fence};
-
-    #[test]
-    fn parses_fenced_plan_json_without_accepting_prose() {
-        let output = parse_plan_output(
-            "```json\n{\"visibleSummary\":\"A/B\",\"generationPrompt\":\"warm piano\",\"durationSeconds\":30,\"candidateCount\":2}\n```",
-        )
-        .expect("valid plan");
-        assert_eq!(output.candidate_count, 2);
-        assert_eq!(strip_json_fence("not fenced"), "not fenced");
-    }
-
-    #[test]
-    fn extracts_nested_openai_responses_text() {
-        let response = json!({
-            "output": [{
-                "content": [{"type": "output_text", "text": "first"}, {"type": "output_text", "text": "second"}]
-            }]
-        });
-        assert_eq!(
-            openai_response_text(&response).as_deref(),
-            Some("firstsecond")
-        );
-    }
 }
