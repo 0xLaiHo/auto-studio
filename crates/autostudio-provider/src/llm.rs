@@ -635,7 +635,9 @@ fn openai_chat_messages(request: &InferenceTurnRequest) -> Vec<Value> {
     })];
     for message in request.prepared.messages() {
         match message {
-            CanonicalMessage::ContextSummary { content } | CanonicalMessage::User { content } => {
+            CanonicalMessage::ContextSummary { content }
+            | CanonicalMessage::RetrievedContext { content }
+            | CanonicalMessage::User { content } => {
                 messages.push(json!({"role": "user", "content": content}));
             }
             CanonicalMessage::Assistant {
@@ -702,7 +704,9 @@ fn openai_responses_input(request: &InferenceTurnRequest) -> Result<Vec<Value>, 
     let mut continuity_used = false;
     for message in request.prepared.messages() {
         match message {
-            CanonicalMessage::ContextSummary { content } | CanonicalMessage::User { content } => {
+            CanonicalMessage::ContextSummary { content }
+            | CanonicalMessage::RetrievedContext { content }
+            | CanonicalMessage::User { content } => {
                 input.push(json!({"role": "user", "content": content}));
             }
             CanonicalMessage::Assistant {
@@ -781,7 +785,9 @@ fn anthropic_messages(request: &InferenceTurnRequest) -> Result<Vec<Value>, Adap
     let mut continuity_used = false;
     for message in request.prepared.messages() {
         match message {
-            CanonicalMessage::ContextSummary { content } | CanonicalMessage::User { content } => {
+            CanonicalMessage::ContextSummary { content }
+            | CanonicalMessage::RetrievedContext { content }
+            | CanonicalMessage::User { content } => {
                 messages.push(json!({"role": "user", "content": content}));
             }
             CanonicalMessage::Assistant {

@@ -3,7 +3,7 @@
 > 类型：Research，不定义发布资格
 > 日期：2026-08-25
 > 源码快照：Pi `c5ad7c1`、OpenAI Codex `d52478c`、DeepSeek Harness `b150a55`
-> 结论状态：研究基线；截至 2026-08-26，CM-0—CM-3 Planning slice 已实现，CM-3 包含 automatic safe-cut、bounded summary、有效缩短、原子 crash/retry、Tool Result spill 与单次 overflow recovery；CM-4 仍未实现
+> 结论状态：研究基线；截至 2026-08-26，CM-0—CM-4 Planning machine slice 已实现；CM-4 包含 Run 内 exact/FTS5-BM25 retrieval、source-linked provenance、Manifest 选择审计、可重建 projection 与 100-step long-run corpus。真实音乐 Tool 的长 Run 质量 Gate 仍待后续纵切
 
 ## 1. 结论
 
@@ -26,7 +26,7 @@ Auto Studio 不应完整复制其中任一实现，最合适的是一套分层�
 - 没有 durable `Turn`、`Message`、`ToolCall`、`ToolResult`、`ContextSnapshot`、`CompactionCheckpoint` 或 `ProviderContinuity` 实现；
 - 因此当前不是“上下文策略需要优化”，而是 agent tool loop 的上下文地基尚未实现。
 
-截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。CM-3 planning slice 已进一步实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash/retry、大 Tool Result spill 与单次 overflow recovery。长期 Run retrieval、Approval Grant、Run Budget 与通用 ToolExecution 仍只是规格，不能报告为已交付能力。
+截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。CM-3 planning slice 已进一步实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash/retry、大 Tool Result spill 与单次 overflow recovery。CM-4 planning slice 现已实现 Run 内 exact/FTS5-BM25 retrieval、source-linked hit、Manifest Selection、summary/current-tail 去重与可重建 SQLite projection；冻结合同完成 100 steps、10 compactions、3 restarts 与模拟 cross-day recovery，并覆盖旧约束、Creator decision、artifact 与 unresolved Tool Result 召回。真实音乐 Tool 正确率、Approval Grant、Run Budget 与通用 ToolExecution 仍只是后续规格，不能报告为已交付能力。
 
 ## 3. 三者对比
 
@@ -349,8 +349,8 @@ CM-4 至少实现：
 6. Project package、Export、日志和客户端事件中找不到 private reasoning/secret payload；
 7. 相同 Project/Transcript revision、catalog 和 policy 能生成相同 `ContextManifest.content_hash`；
 8. overflow recovery 没有产生无限 compaction/retry；
-9. 被移出 current surface 的早期约束、Creator 决定和 artifact 可通过 source-linked retrieval 找回；关键约束不得漏召回；
-10. 真实音乐任务盲测中，compaction 与 retrieval 后的约束保持率和工具正确率达到预先冻结的门槛。
+9. `PASS（machine corpus）`：被移出 current surface 的早期约束、Creator 决定、artifact 和 unresolved Tool Result 可通过 source-linked retrieval 找回；
+10. `LIVE-PENDING`：真实音乐任务盲测中，compaction 与 retrieval 后的约束保持率和工具正确率达到预先冻结的门槛。
 
 ## 11. 不建议做的事
 
@@ -364,6 +364,6 @@ CM-4 至少实现：
 
 ## 12. 结论性建议
 
-CM-0—CM-3 的 Planning slice 已完成。下一步立即实现必做的 **CM-4 Long-Run Retrieval**：以现有 durable Transcript、ContextManifest、CompactionCheckpoint 和 Continuity binding 为基础，加入 source-linked、可重建、可审计的本地检索；不能把摘要或索引升级成第二份工程事实。
+CM-0—CM-4 的 Planning machine slice 已完成。CM-4 以现有 durable Transcript、ContextManifest、CompactionCheckpoint 和 Continuity binding 为基础，加入 source-linked、可重建、可审计的本地检索，没有把摘要或索引升级成第二份工程事实，也没有引入跨项目向量记忆平台。
 
-CM-4 不能从产品范围删除，也不能等上线后才决定是否需要。第一版以可重建的本地全文/结构化检索为主，不把“长 Run 必须可持续”误解成“必须立即建设跨项目向量记忆平台”。
+下一步应实现 Approval Grant / Run Budget，再进入通用 ToolExecution；真实音乐 Tool 落地后，必须继续执行本报告 Gate 10 的 compaction/retrieval 约束保持率和工具正确率盲测。CM-4 的 machine PASS 不能替代该真人内容资格。

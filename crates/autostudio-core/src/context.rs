@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::agent::{AgentRunId, InferenceUsage};
 use crate::compaction::{CompactionCheckpoint, CompactionId};
 use crate::constants::MAX_PROVIDER_TOOL_NAME_CHARS;
+use crate::context_retrieval::{ContextRetrievalQuery, ContextRetrievalSelection};
 use crate::context_surface::{ContextPreparationReason, ContextSpillBlob, ContextSurfaceMetrics};
 use crate::continuity::ContinuityReference;
 pub use crate::error::{ContextError, ContextStoreError};
@@ -71,6 +72,9 @@ pub struct CanonicalToolCall {
 #[serde(tag = "role", rename_all = "snake_case")]
 pub enum CanonicalMessage {
     ContextSummary {
+        content: String,
+    },
+    RetrievedContext {
         content: String,
     },
     User {
@@ -303,6 +307,11 @@ impl InferenceItem {
     pub fn content_hash(&self) -> &str {
         &self.content_hash
     }
+
+    #[must_use]
+    pub const fn created_at_unix_millis(&self) -> u64 {
+        self.created_at_unix_millis
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -426,6 +435,8 @@ pub struct ContextManifest {
     #[serde(default)]
     preparation_reason: ContextPreparationReason,
     #[serde(default)]
+    retrieval_selection: Option<ContextRetrievalSelection>,
+    #[serde(default)]
     continuity_reference: Option<ContinuityReference>,
     token_budget: TokenBudgetPlan,
     content_hash: String,
@@ -452,6 +463,7 @@ impl ContextManifest {
         compaction_checkpoint: Option<CompactionId>,
         surface_metrics: Option<ContextSurfaceMetrics>,
         preparation_reason: ContextPreparationReason,
+        retrieval_selection: Option<ContextRetrievalSelection>,
         continuity_reference: Option<ContinuityReference>,
         token_budget: TokenBudgetPlan,
         content_hash: String,
@@ -471,6 +483,7 @@ impl ContextManifest {
             compaction_checkpoint,
             surface_metrics,
             preparation_reason,
+            retrieval_selection,
             continuity_reference,
             token_budget,
             content_hash,
@@ -517,6 +530,11 @@ impl ContextManifest {
     #[must_use]
     pub const fn preparation_reason(&self) -> ContextPreparationReason {
         self.preparation_reason
+    }
+
+    #[must_use]
+    pub const fn retrieval_selection(&self) -> Option<&ContextRetrievalSelection> {
+        self.retrieval_selection.as_ref()
     }
 
     #[must_use]
@@ -610,6 +628,19 @@ impl ContextManifest {
                     return Err(ContextError::InconsistentJournal(
                         "Context Surface spill must reference one included item exactly once"
                             .to_owned(),
+                    ));
+                }
+            }
+        }
+        if let Some(selection) = &self.retrieval_selection {
+            selection.validate()?;
+            let mut retrieved_ids = std::collections::HashSet::new();
+            for hit in selection.hits() {
+                if self.included_item_ids.contains(hit.item_id())
+                    || !retrieved_ids.insert(hit.item_id())
+                {
+                    return Err(ContextError::InvalidRetrievalResult(
+                        "retrieval must be unique and outside the current transcript tail",
                     ));
                 }
             }
@@ -731,6 +762,20 @@ pub trait ContextEventStore: Send + Sync {
     ) -> Result<Option<ContextSpillBlob>, ContextStoreError> {
         Err(ContextStoreError::Unavailable(
             "context spill storage is unavailable".to_owned(),
+        ))
+    }
+
+    /// Searches one Run's rebuildable local Transcript projection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContextStoreError`] for unavailable or corrupt retrieval storage.
+    fn retrieve_context(
+        &self,
+        _query: &ContextRetrievalQuery,
+    ) -> Result<Option<ContextRetrievalSelection>, ContextStoreError> {
+        Err(ContextStoreError::Unavailable(
+            "context retrieval storage is unavailable".to_owned(),
         ))
     }
 }

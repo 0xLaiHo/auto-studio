@@ -10,13 +10,17 @@ use autostudio_core::compaction::{
 use autostudio_core::constants::{
     CONTEXT_COMPACTION_MIN_RECENT_TURNS, CONTEXT_COMPACTION_SUMMARY_ITEM_CHARS,
     CONTEXT_COMPACTION_SUMMARY_MAX_ITEMS, CONTEXT_COMPACTION_SUMMARY_OBJECTIVE_CHARS,
-    CONTEXT_COMPACTION_UNKNOWN_TARGET_PERCENT, CONTEXT_TOOL_RESULT_PREVIEW_CHARS,
+    CONTEXT_COMPACTION_UNKNOWN_TARGET_PERCENT, CONTEXT_RETRIEVAL_DEFAULT_MAX_HITS,
+    CONTEXT_RETRIEVAL_DEFAULT_MAX_TOKENS, CONTEXT_TOOL_RESULT_PREVIEW_CHARS,
     CONTEXT_TOOL_RESULT_SPILL_THRESHOLD_BYTES,
 };
 use autostudio_core::context::{
     CanonicalMessage, CanonicalToolCall, CanonicalToolDefinition, ContextError, ContextEvent,
     ContextEventStore, ContextId, ContextManifest, InferenceItem, InferenceItemDraft,
     InferenceTurnId, PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
+};
+use autostudio_core::context_retrieval::{
+    ContextRetrievalQuery, ContextRetrievalReason, ContextRetrievalSelection,
 };
 use autostudio_core::context_surface::{
     ContextFootprint, ContextPreparationReason, ContextPressure, ContextSpillBlob,
@@ -154,6 +158,7 @@ impl ContextManager {
     ///
     /// Returns [`ContextError`] for malformed input, corrupt replay, a stale
     /// journal revision, serialization failure, or unavailable storage.
+    #[allow(clippy::too_many_lines)]
     pub fn prepare_turn(&self, request: PrepareContext) -> Result<PreparedContext, ContextError> {
         validate_prepare_request(&request)?;
         let state = replay(self.store.context_events(&request.run_id)?, &request.run_id)?;
@@ -176,13 +181,26 @@ impl ContextManager {
         let previous_checkpoint = state.checkpoints.last().cloned();
         let mut all_items = state.items.clone();
         all_items.extend(items.iter().cloned());
+        let retrieval_selection = plan_context_retrieval(
+            self.store.as_ref(),
+            &request,
+            &all_items,
+            previous_checkpoint.as_ref(),
+        )?;
         let SelectedPreparedSurface {
             new_checkpoint,
             surface_start,
             prepared_surface,
             preparation_reason,
             source_journal_revision,
-        } = select_prepared_surface(&request, &state, &all_items, items.len(), created_at)?;
+        } = select_prepared_surface(
+            &request,
+            &state,
+            &all_items,
+            items.len(),
+            retrieval_selection.as_ref(),
+            created_at,
+        )?;
         let checkpoint = new_checkpoint.as_ref().or(previous_checkpoint.as_ref());
         let surface_items = &all_items[surface_start..];
         let PreparedSurfaceArtifacts {
@@ -204,6 +222,7 @@ impl ContextManager {
             compaction_checkpoint_hash: checkpoint.map(CompactionCheckpoint::content_hash),
             surface_metrics: &surface_metrics,
             preparation_reason,
+            retrieval_selection: retrieval_selection.as_ref(),
             continuity_reference: request.continuity_reference.as_ref(),
             token_budget: &request.token_budget,
         })?;
@@ -221,6 +240,7 @@ impl ContextManager {
             checkpoint.map(|checkpoint| checkpoint.id().clone()),
             Some(surface_metrics),
             preparation_reason,
+            retrieval_selection,
             request.continuity_reference,
             request.token_budget,
             content_hash,
@@ -318,6 +338,21 @@ impl ContextManager {
     pub fn inspect_run(&self, run_id: &AgentRunId) -> Result<ContextProjection, ContextError> {
         let state = replay(self.store.context_events(run_id)?, run_id)?;
         Ok(project_state(state))
+    }
+
+    /// Searches source-linked history through the same rebuildable Run-local
+    /// retrieval projection used by automatic Context preparation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContextError`] when retrieval storage is unavailable or corrupt.
+    pub fn retrieve_context(
+        &self,
+        query: &ContextRetrievalQuery,
+    ) -> Result<Option<ContextRetrievalSelection>, ContextError> {
+        self.store
+            .retrieve_context(query)
+            .map_err(ContextError::from)
     }
 
     /// Validates and atomically appends a host-owned compaction checkpoint.
@@ -809,10 +844,49 @@ fn build_user_items(
     Ok(items)
 }
 
+fn plan_context_retrieval(
+    store: &dyn ContextEventStore,
+    request: &PrepareContext,
+    all_items: &[InferenceItem],
+    checkpoint: Option<&CompactionCheckpoint>,
+) -> Result<Option<ContextRetrievalSelection>, ContextError> {
+    let Some(checkpoint) = checkpoint else {
+        return Ok(None);
+    };
+    if request.new_user_messages.is_empty() {
+        return Ok(None);
+    }
+    let surface_items = current_surface_items(all_items, Some(checkpoint))?;
+    let mut excluded_item_ids = surface_items
+        .iter()
+        .map(|item| item.id().clone())
+        .collect::<Vec<_>>();
+    let summary = serde_json::to_string(checkpoint.summary())
+        .map_err(|error| ContextError::Serialization(error.to_string()))?;
+    for item in all_items {
+        if (summary.contains(&item.id().as_str()) || summary.contains(item.content_hash()))
+            && !excluded_item_ids.contains(item.id())
+        {
+            excluded_item_ids.push(item.id().clone());
+        }
+    }
+    let query = ContextRetrievalQuery::new(
+        request.run_id.clone(),
+        Some(request.new_user_messages.join("\n")),
+        Vec::new(),
+        excluded_item_ids,
+        ContextRetrievalReason::CurrentInputSimilarity,
+        CONTEXT_RETRIEVAL_DEFAULT_MAX_HITS,
+        CONTEXT_RETRIEVAL_DEFAULT_MAX_TOKENS,
+    )?;
+    store.retrieve_context(&query).map_err(ContextError::from)
+}
+
 fn project_messages(
     items: &[InferenceItem],
     checkpoint: Option<&CompactionCheckpoint>,
     spills: &[ToolResultSpillReference],
+    retrieval_selection: Option<&ContextRetrievalSelection>,
 ) -> Result<Vec<CanonicalMessage>, ContextError> {
     let mut messages = Vec::new();
     if let Some(checkpoint) = checkpoint {
@@ -826,6 +900,13 @@ fn project_messages(
         }))
         .map_err(|error| ContextError::Serialization(error.to_string()))?;
         messages.push(CanonicalMessage::ContextSummary { content });
+    }
+    if let Some(selection) = retrieval_selection {
+        for hit in selection.hits() {
+            messages.push(CanonicalMessage::RetrievedContext {
+                content: hit.model_visible_content(),
+            });
+        }
     }
     let mut assistant_turn: Option<InferenceTurnId> = None;
     for item in items {
@@ -927,6 +1008,7 @@ fn select_prepared_surface(
     state: &ReplayState,
     all_items: &[InferenceItem],
     new_item_count: usize,
+    retrieval_selection: Option<&ContextRetrievalSelection>,
     created_at_unix_millis: u64,
 ) -> Result<SelectedPreparedSurface, ContextError> {
     let provider_overflow_recovery = state.items.last().is_some_and(|item| {
@@ -953,6 +1035,7 @@ fn select_prepared_surface(
         previous_checkpoint,
         None,
         false,
+        retrieval_selection,
     )?;
     let preparation_reason = if provider_overflow_recovery {
         ContextPreparationReason::ProviderOverflowRecovery
@@ -985,6 +1068,7 @@ fn select_prepared_surface(
         previous_checkpoint,
         source_journal_revision,
         standard_surface.metrics.initial_footprint(),
+        retrieval_selection,
         created_at_unix_millis,
     )?;
     Ok(SelectedPreparedSurface {
@@ -1002,8 +1086,9 @@ fn prepare_surface(
     checkpoint: Option<&CompactionCheckpoint>,
     initial_footprint: Option<ContextFootprint>,
     compaction_applied: bool,
+    retrieval_selection: Option<&ContextRetrievalSelection>,
 ) -> Result<PreparedSurfaceArtifacts, ContextError> {
-    let initial_messages = project_messages(items, checkpoint, &[])?;
+    let initial_messages = project_messages(items, checkpoint, &[], retrieval_selection)?;
     let initial_footprint = initial_footprint.map_or_else(
         || {
             ContextFootprint::measure(
@@ -1020,7 +1105,7 @@ fn prepare_surface(
     let messages = if spill_references.is_empty() {
         initial_messages
     } else {
-        project_messages(items, checkpoint, &spill_references)?
+        project_messages(items, checkpoint, &spill_references, retrieval_selection)?
     };
     let prepared_footprint = ContextFootprint::measure(
         &request.instructions,
@@ -1049,6 +1134,7 @@ fn automatic_compaction(
     previous: Option<&CompactionCheckpoint>,
     source_journal_revision: u64,
     initial_footprint: &ContextFootprint,
+    retrieval_selection: Option<&ContextRetrievalSelection>,
     created_at_unix_millis: u64,
 ) -> Result<AutomaticCompaction, ContextError> {
     let minimum_cut = previous
@@ -1095,6 +1181,7 @@ fn automatic_compaction(
             Some(&checkpoint),
             Some(initial_footprint.clone()),
             true,
+            retrieval_selection,
         )?;
         if compaction_recovers_surface(
             surface.metrics.initial_footprint(),
@@ -1536,6 +1623,7 @@ struct ContextHashInput<'a> {
     compaction_checkpoint_hash: Option<&'a str>,
     surface_metrics: &'a ContextSurfaceMetrics,
     preparation_reason: ContextPreparationReason,
+    retrieval_selection: Option<&'a ContextRetrievalSelection>,
     continuity_reference: Option<&'a ContinuityReference>,
     token_budget: &'a TokenBudgetPlan,
 }

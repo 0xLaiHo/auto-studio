@@ -24,6 +24,7 @@ reqwest.workspace = true
 autostudio-media = { path = "../autostudio-media" }
 autostudio-storage = { path = "../autostudio-storage" }
 axum.workspace = true
+rusqlite.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 

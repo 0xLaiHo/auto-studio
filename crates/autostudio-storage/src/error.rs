@@ -35,6 +35,8 @@ pub enum ProjectPackageError {
     },
     #[error("failed to migrate Project database: {0}")]
     Migrate(rusqlite::Error),
+    #[error("failed to rebuild Context retrieval projection: {0}")]
+    RebuildContextRetrieval(String),
     #[error("failed to start Project DB actor: {0}")]
     StartActor(std::io::Error),
 }

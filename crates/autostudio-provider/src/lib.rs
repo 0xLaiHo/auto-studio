@@ -517,6 +517,7 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
                         serde_json::from_str::<CreativeBrief>(content).ok()
                     }
                     CanonicalMessage::ContextSummary { .. }
+                    | CanonicalMessage::RetrievedContext { .. }
                     | CanonicalMessage::Assistant { .. }
                     | CanonicalMessage::Tool { .. } => None,
                 })

@@ -43,6 +43,10 @@ pub enum ContextError {
     AutomaticCompactionUnavailable,
     #[error("Provider context overflow recovery was already attempted for this Run")]
     OverflowRecoveryExhausted,
+    #[error("context retrieval query is invalid: {0}")]
+    InvalidRetrievalQuery(&'static str),
+    #[error("context retrieval result is invalid: {0}")]
+    InvalidRetrievalResult(&'static str),
     #[error(transparent)]
     Surface(#[from] ContextSurfaceError),
     #[error(transparent)]

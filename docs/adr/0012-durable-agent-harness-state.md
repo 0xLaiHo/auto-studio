@@ -5,7 +5,7 @@ date: 2026-08-24
 
 # 分离推理记录、Provider 连续性状态、授权凭据与运行预算
 
-> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、大 Tool Result spill、同事务 crash/retry 与最多一次 Provider overflow recovery；完整 Transcript 不改写。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Provider-specific tokenizer/overflow live、CM-4 长期 Run、Approval Grant、Run Budget 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
+> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、大 Tool Result spill、同事务 crash/retry 与最多一次 Provider overflow recovery；CM-4 planning slice 已实现 Run 内精确/FTS5-BM25 检索、source-linked provenance、Manifest 选择审计、可重建 projection 与 100-step/10-compaction/3-restart/cross-day machine corpus；完整 Transcript 不改写。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Provider-specific tokenizer/overflow live、真实音乐 Tool 长 Run 质量、Approval Grant、Run Budget 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
 
 ## 背景
 
@@ -34,6 +34,9 @@ Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 
 15. Creator 新输入、Compaction Checkpoint、Context Manifest 与 spill blob 必须由同一 Context journal transaction 原子发布。压缩不调用外部收费服务，因此事务前失败不写 attempt 事实；相同 source facts 的安全重试必须得到相同 checkpoint content hash。
 16. Provider 只有返回明确的 context-window 机器码/短语才进入 `ContextOverflow`。Harness 必须先记录 Finish 并清除旧 Continuity，再执行一次必须推进 surface 的恢复；同一 Run 第二次 overflow 必须停止，不能无限重提。
 17. Planning 的 `16,384` token context window 是 host-owned 保守 safety ceiling，不是模型能力声明。Provider-specific tokenizer 可以校准 footprint，但不能绕过 hard/overflow、effectiveness 或单次恢复合同。
+18. Long-Run Retrieval 只查询同一 Run 的完整 Transcript。第一版支持精确 source item 和本地 FTS5/BM25；不引入跨 Project 人格记忆、向量知识库或远端索引。
+19. 每个 Retrieval Hit 必须携带 source item id/type/time、Project revision、内容 hash、可选 Tool execution/error provenance、稳定排名与注入 token 成本。实际 Selection 连同 query fingerprint 和选择原因进入 Context Manifest，并参与 canonical input hash。
+20. Retrieval index 是可删除、可从 Transcript 重建的 SQLite projection，不是事实源。current raw tail 与 summary 已显式引用的 source 必须排除；retrieved Creator/Tool 内容在所有 Provider wire 上都映射为 untrusted user context，不能覆盖 system、policy 或 Project facts。
 
 ## Considered Options
 
@@ -72,6 +75,8 @@ Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 
 7. Candidate/Cancelled/Failed 的最终语义提交与 continuity purge 具备故障注入测试，清理失败不会被误报为成功。
 8. 相同 canonical input 产生相同 footprint/pressure；超过阈值的 Tool Result 在模型视图中变短，但完整 Transcript 和 content-addressed blob 可恢复，篡改 hash 被拒绝。
 9. stale Context revision 不留下孤儿 spill；Project backup 恢复后，相同 hash 必须读出相同完整内容。
+10. 删除 FTS projection 后重新打开 Project，精确 source query 与内容 hash 必须从 Transcript 重建为相同结果；BM25 命中必须携带完整 provenance 并写入 Manifest。
+11. 冻结 machine corpus 必须完成至少 100 个 inference step、10 次 compaction、3 次重启和一次跨日恢复，并召回旧约束、Creator 决定、artifact 与未解决 Tool Result；真实音乐 Tool 正确率另由 Music Project 纵切验证。
 
 ## 关联
 

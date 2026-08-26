@@ -149,8 +149,9 @@ async fn anthropic_messages_contract_forces_the_typed_plan_tool() {
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-async fn compaction_summary_stays_untrusted_user_context_in_every_wire_protocol() {
+async fn compaction_and_retrieval_stay_untrusted_user_context_in_every_wire_protocol() {
     const SUMMARY_SENTINEL: &str = "AUTO_STUDIO_COMPACTION_SUMMARY_SENTINEL";
+    const RETRIEVAL_SENTINEL: &str = "AUTO_STUDIO_RETRIEVAL_SENTINEL";
 
     let chat_response = json!({
         "id": "chat_summary",
@@ -163,13 +164,19 @@ async fn compaction_summary_stays_untrusted_user_context_in_every_wire_protocol(
         &base_url,
         "deepseek-v4-flash",
     )
-    .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+    .infer(inference_request_with_untrusted_context(
+        SUMMARY_SENTINEL,
+        RETRIEVAL_SENTINEL,
+    ))
     .await
     .expect("OpenAI-compatible summary request");
     let (_, body) = captured.recv().expect("captured Chat request");
     assert_eq!(body["messages"][1]["role"], "user");
     assert_eq!(body["messages"][1]["content"], SUMMARY_SENTINEL);
+    assert_eq!(body["messages"][2]["role"], "user");
+    assert_eq!(body["messages"][2]["content"], RETRIEVAL_SENTINEL);
     assert_ne!(body["messages"][0]["content"], SUMMARY_SENTINEL);
+    assert_ne!(body["messages"][0]["content"], RETRIEVAL_SENTINEL);
 
     let responses_response = json!({
         "id": "resp_summary",
@@ -180,13 +187,19 @@ async fn compaction_summary_stays_untrusted_user_context_in_every_wire_protocol(
     });
     let (base_url, captured) = serve_once("/responses", responses_response).await;
     adapter("openai", LlmProtocol::OpenAiResponses, &base_url, "gpt-5.2")
-        .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+        .infer(inference_request_with_untrusted_context(
+            SUMMARY_SENTINEL,
+            RETRIEVAL_SENTINEL,
+        ))
         .await
         .expect("Responses summary request");
     let (_, body) = captured.recv().expect("captured Responses request");
     assert_eq!(body["input"][0]["role"], "user");
     assert_eq!(body["input"][0]["content"], SUMMARY_SENTINEL);
+    assert_eq!(body["input"][1]["role"], "user");
+    assert_eq!(body["input"][1]["content"], RETRIEVAL_SENTINEL);
     assert_ne!(body["instructions"], SUMMARY_SENTINEL);
+    assert_ne!(body["instructions"], RETRIEVAL_SENTINEL);
 
     let anthropic_response = json!({
         "id": "msg_summary",
@@ -208,13 +221,19 @@ async fn compaction_summary_stays_untrusted_user_context_in_every_wire_protocol(
         &base_url,
         "claude-sonnet-4-6",
     )
-    .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+    .infer(inference_request_with_untrusted_context(
+        SUMMARY_SENTINEL,
+        RETRIEVAL_SENTINEL,
+    ))
     .await
     .expect("Anthropic summary request");
     let (_, body) = captured.recv().expect("captured Anthropic request");
     assert_eq!(body["messages"][0]["role"], "user");
     assert_eq!(body["messages"][0]["content"], SUMMARY_SENTINEL);
+    assert_eq!(body["messages"][1]["role"], "user");
+    assert_eq!(body["messages"][1]["content"], RETRIEVAL_SENTINEL);
     assert_ne!(body["system"], SUMMARY_SENTINEL);
+    assert_ne!(body["system"], RETRIEVAL_SENTINEL);
 }
 
 #[tokio::test]
@@ -464,13 +483,22 @@ fn inference_request() -> InferenceTurnRequest {
     support::inference_request(project.brief().expect("saved brief"), store)
 }
 
-fn inference_request_with_summary(summary: &str) -> InferenceTurnRequest {
+fn inference_request_with_untrusted_context(
+    summary: &str,
+    retrieval: &str,
+) -> InferenceTurnRequest {
     let request = inference_request();
     let mut messages = request.prepared.messages().to_vec();
     messages.insert(
         0,
         CanonicalMessage::ContextSummary {
             content: summary.to_owned(),
+        },
+    );
+    messages.insert(
+        1,
+        CanonicalMessage::RetrievedContext {
+            content: retrieval.to_owned(),
         },
     );
     InferenceTurnRequest {

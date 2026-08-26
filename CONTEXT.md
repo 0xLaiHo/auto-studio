@@ -177,7 +177,7 @@ _Avoid_: Token、Private Reasoning
 **Context Snapshot（上下文快照）**：某个 Agent Step 使用的不可变 Brief、Project facts、相关对话和 Tool Result 集合。  
 _Avoid_: Prompt String、Entire Project
 
-**Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision、Context Preparation Reason、surface transform 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
+**Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision、Context Preparation Reason、surface transform、Context Retrieval Selection 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
 _Avoid_: Prompt Cache、Project Snapshot、Provider Continuity State
 
 **Context Surface（上下文表面）**：Context Manager 从完整 Inference Transcript、最新 Compaction Checkpoint、当前 Project facts 与本轮输入派生出的有界模型视图。它可以由结构化摘要和最近原文 tail 组成，可在重启后重建，但不是 Project 或 Transcript 的第二份事实源。
@@ -197,6 +197,15 @@ _Avoid_: Arbitrary Token Truncation、Delete History、Split Tool Pair
 
 **Provider Overflow Recovery（Provider 溢出恢复）**：Provider 明确报告 context window 耗尽后，Harness 先持久化 `ContextOverflow` Finish、清除不再兼容的 Continuity，再用推进后的 Context Surface 重试一次。第二次 overflow 必须停止；普通 Provider 400 错误不属于此恢复。
 _Avoid_: Blind Retry、Unlimited Compaction Loop、Unknown Outcome Retry
+
+**Context Retrieval Query（上下文检索查询）**：在同一 Agent Run 的完整 Inference Transcript 上执行的有界精确 item 查询或全文查询。它绑定查询原因、排除的 current-tail/source item、命中数量与 token 上限；不搜索其他 Project，也不取得工程事实权威。
+_Avoid_: Global Memory Search、Cross-project Personality、Vector Knowledge Base
+
+**Context Retrieval Hit（上下文检索命中）**：从 durable Inference Item 派生的有界片段，带稳定 source item id、来源类型、记录时间、Project Revision、内容 hash、Tool execution/error provenance、排名与模型输入 token 估算。命中内容始终是不可信 user context，不能覆盖 system、policy 或 Project facts。
+_Avoid_: Project Fact、System Prompt、Trusted Tool Result
+
+**Context Retrieval Selection（上下文检索选择）**：某个 Inference Turn 实际注入的 Context Retrieval Hit 集合及其 query fingerprint、选择原因和 token 成本。它作为 Context Manifest 的一部分接受审计；检索索引只是可由 Transcript 重建的 projection，Selection 也不能成为第二份工程事实源。
+_Avoid_: Silent Memory Injection、Search Cache、Project Snapshot
 
 **Agent Decision（代理决策）**：Agent Step 输出的结构化可见内容或下一步 Tool 意图；不包含模型的私有推理过程。  
 _Avoid_: Chain of Thought

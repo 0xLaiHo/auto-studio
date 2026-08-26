@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-26
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0/CM-1/CM-2 已把 Run/Turn/Item identity、durable Inference Transcript、Context Manifest、三种协议的 SSE assembler、完整 ToolRequest/ToolResult、每步 replay、Planning resume 与 Project 外加密 Continuity Vault 接入 production 路径。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash 语义、大 Tool Result spill 与最多一次 Provider overflow recovery；完整 Transcript、Project facts 与 Tool Result 不改写。固定链路先执行真实只读 `project_describe`，再接受 `submit_creative_plan`；仅有 `ContextPrepared` 而无 Provider 输出的中断不会自动重提。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live，包括跨 Turn replay 与终态 Vault purge。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。CM-4 长 Run retrieval、Approval Grant、Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn 无安全 cut 时会 fail closed，Provider-specific tokenizer 与真实 overflow live 仍待资格验证。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 Run/Turn/Item identity、durable Inference Transcript、Context Manifest、三种协议 SSE assembler、完整 ToolRequest/ToolResult、每步 replay、Planning resume、Project 外加密 Continuity Vault、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production 路径。每个 Retrieval Hit 带 source provenance，实际 Selection 与 token cost 进入 Manifest；SQLite 检索 projection 可从完整 Transcript 重建。冻结合同已通过 100 inference steps、10 次 compaction、3 次重启和一次模拟跨日恢复；完整 Transcript、Project facts 与 Tool Result 不改写，摘要和检索内容都按 untrusted user context 发送。固定链路先执行真实只读 `project_describe`，再接受 `submit_creative_plan`；仅有 `ContextPrepared` 而无 Provider 输出的中断不会自动重提。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live，包括跨 Turn replay 与终态 Vault purge。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。Approval Grant、Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -65,7 +65,7 @@ Creator
 
 Agent Harness 同时把规范化条目写入 Inference Transcript，并让 Provider Adapter 把 opaque continuity 写入 Project 外的 Continuity Vault。两者不能互相替代。`BYOK LLM` 是唯一跨出设备的必需连接；图中没有 Music Provider、远端音乐 Job 或 prompt-to-WAV fallback。
 
-### 2.3 当前 CM-3 Context Surface 实例化架构图
+### 2.3 当前 CM-4 Context Surface 与 Long-Run Retrieval 实例化架构图
 
 下面这张图只画已经进入 production Planning 路径的代码，不把目标模块伪装为现状。非技术读法是：每走一步，系统都先翻开“工程事实”和“工作记录”，再决定下一步；Provider 只给出工具请求，本地 Core 负责执行和落盘。
 
@@ -78,16 +78,22 @@ flowchart LR
     Planner -->|每一步重新打开| Project[ProjectService\nplanning Run / Brief / revision]
     Planner -->|inspect / prepare / append| Context[ContextManager]
     Context <--> SQLite[(Project SQLite\nTranscript + Manifest + Checkpoint + Spill Blob)]
+    SQLite -.->|打开时从 Transcript 重建| Retrieval[(FTS5 / BM25 Projection\nRun-local + rebuildable)]
+    Context -->|新输入 + exact source| Query[Context Retrieval Query\n排除 current tail / summary refs\nhit + token 上限]
+    Query --> Retrieval
+    Retrieval --> Selection[Context Retrieval Selection\nsource item/type/time/revision/hash\nreason + rank + token cost]
     Context --> Checkpoint[Compaction Checkpoint\nstructured summary + prefix cut + hash]
     Checkpoint -->|单事件 CAS 原子提交| SQLite
     SQLite -->|重启 replay| Context
     Context --> Initial[Initial Context Surface\nlatest summary + kept raw tail]
+    Selection -->|UNTRUSTED user context| Initial
     Initial --> SpillPolicy[Deterministic Spill Policy\nTool Result > 16 KiB]
     SpillPolicy -->|完整内容 + SHA-256\n同事务提交| SQLite
     SpillPolicy --> Surface[Prepared Context Surface\n512-char preview + stable reference]
     Surface --> Footprint[Request Footprint\nbytes + host safety ceiling\nnormal / soft / hard / overflow]
 
     Footprint -->|normal / soft| Prepared[ContextPrepared Manifest]
+    Selection -->|query fingerprint + exact hits| Prepared
     Footprint -->|hard / overflow| AutoCompact[Automatic Compaction Policy]
     AutoCompact --> Cut[Safe cut\n完整 Turn 边界 + Tool pair\n保留新输入和最近两轮]
     Cut --> Summary[Bounded Structured Summary\nobjective / decisions / constraints\ncompleted work / artifact refs]
@@ -120,11 +126,13 @@ flowchart LR
 
     classDef pending fill:#2b2238,stroke:#ff4fd8,color:#ffffff;
     classDef durable fill:#102b38,stroke:#39ffdf,color:#ffffff;
+    classDef derived fill:#13223d,stroke:#56a8ff,color:#ffffff,stroke-dasharray: 5 5;
     class SQLite,Project,Vault,Checkpoint durable;
-    class Adapter,Wire,Assembler,Initial,SpillPolicy,Surface,Footprint,AutoCompact,Cut,Summary,Verify,Atomic,Prepared,Overflow,Purge,Stop,FixedTools,Describe,Submit pending;
+    class Retrieval derived;
+    class Adapter,Wire,Assembler,Query,Selection,Initial,SpillPolicy,Surface,Footprint,AutoCompact,Cut,Summary,Verify,Atomic,Prepared,Overflow,Purge,Stop,FixedTools,Describe,Submit pending;
 ```
 
-图中的 Vault 与 Project SQLite 是两个存储域：SQLite 保存可审计 Transcript、Manifest、不含 payload 的 `ContinuityReference`、只改变模型视图的 Compaction Checkpoint Event，以及可由 hash 校验的 Tool Result spill blob；Provider 私密 payload 只进入应用私有 Vault。Checkpoint 和 spill 都不删除 Transcript，也不修改 Project facts。Context Manager 在 hard/overflow 压力下自动选择完整 Turn 边界的安全 cut，至少保留新输入和最近两轮；只有压缩后实际更短并回到 `Normal` 才把新输入、Checkpoint、Manifest 与 spill 同事务发布。明确的 Provider overflow 会先落盘 Finish 并清除旧 Continuity，只允许一次恢复。三种 Provider wire 都把摘要作为 untrusted user context，不能提升成 system/policy。图中仍没有 CM-4 retrieval、Music Project、Audio Engine 或通用 Tool Runtime。`project_describe` 和 `submit_creative_plan` 是固定内部 Tool Module，不替代 M3-C 的版本化 Registry、Policy、Grant、Budget 与 durable ToolExecution。
+图中的 Vault 与 Project SQLite 是两个存储域：SQLite 保存可审计 Transcript、Manifest、不含 payload 的 `ContinuityReference`、只改变模型视图的 Compaction Checkpoint Event，以及可由 hash 校验的 Tool Result spill blob；Provider 私密 payload 只进入应用私有 Vault。FTS5/BM25 是第三种性质不同的本地 projection：它只索引同一 Run 的可见消息和完整 Tool Request/Result，删除后在 Project 打开时从 Transcript 重建，不拥有事实。Checkpoint 和 spill 都不删除 Transcript，也不修改 Project facts。Context Manager 在 hard/overflow 压力下自动选择完整 Turn 边界的安全 cut，至少保留新输入和最近两轮；已有 checkpoint 时，它还以本轮输入查询已退出 current surface 的历史，排除 raw tail 和摘要已显式引用的 source。实际命中以 `ContextRetrievalSelection` 进入 Manifest，并带 source item/type/time、Project revision、hash、Tool execution/error provenance、原因、rank 与 token cost。只有压缩后实际更短并回到 `Normal` 才把新输入、Checkpoint、Manifest 与 spill 同事务发布。明确的 Provider overflow 会先落盘 Finish 并清除旧 Continuity，只允许一次恢复。三种 Provider wire 都把摘要与 retrieved content 映射成 untrusted user context，不能提升成 system/policy。图中仍没有 Music Project、Audio Engine 或通用 Tool Runtime。`project_describe` 和 `submit_creative_plan` 是固定内部 Tool Module，不替代 M3-C 的版本化 Registry、Policy、Grant、Budget 与 durable ToolExecution。
 
 ## 3. 当前实例化架构与目标架构
 
@@ -140,7 +148,7 @@ flowchart LR
 | LLM Adapter | `PASS（contract + DeepSeek/OpenAI live）` | OpenAI/Anthropic/DeepSeek 等协议合同；2026-08-25 `deepseek-v4-flash` 真实流式 Tool Call smoke；2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live |
 | LLM Planning | `PASS（CM-1 contract）` | SSE canonical Turn；`project_describe → submit_creative_plan` 两轮链路；typed Plan 与 Approval 已接 production composition root |
 | Q0 实验 Harness | `PASS（v2/v3/portable machine）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订与 formal verifier 通过；Portable v1 增加 InstrumentAssignment、CC0/CC32/Program Change 和 assignment manifest |
-| Inference Transcript/Context Manifest | `PASS（CM-3 planning slice）` | Run/Turn/Item、完整 Visible/Tool/Usage/Finish、SQLite append/CAS、精确 Manifest、三协议 stream assembler、完整 pair 校验、重启 replay；automatic safe-cut、bounded summary、effectiveness Gate、atomic crash/retry、spill/backup 与单次 overflow recovery | CM-4 长 Run retrieval、exact tokenizer/live overflow qualification 未实现 |
+| Inference Transcript/Context Manifest | `PASS（CM-0—CM-4 planning machine slices）` | Run/Turn/Item、完整 Visible/Tool/Usage/Finish、SQLite append/CAS、精确 Manifest、三协议 stream assembler、完整 pair 校验与重启 replay；automatic compaction/spill/overflow recovery；Run 内 exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、projection rebuild 与 100-step long-run corpus | 真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification 未通过 |
 | Agent Run lifecycle | `PASS（CM-1/CM-2 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；终态前清理 continuity |
 | Provider Continuity Vault | `PASS（CM-2 contract + OpenAI live）` / `LIVE-PENDING（Anthropic / OS Vault）` | OpenAI Responses reasoning/function item、Anthropic signed thinking/tool-use block；XChaCha20-Poly1305、独立密钥、精确 binding、TTL、启动/周期 janitor、错配/损坏清理、终态 purge 与 sentinel 隔离测试；`gpt-5-mini` 实测完成 2 Turn、777 input/385 output tokens 和终态 purge |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
@@ -294,7 +302,7 @@ pub enum InferenceItem {
 
 每个 item 带 `item_id`、`run_id`、`turn_id`、单调 sequence、时间与内容 hash。partial text/tool JSON 只存在于 `StreamingTurnAssembler` 内存缓冲；完成事件到达、Tool identity 完整且参数可解析为 JSON 后，才会产生 canonical ToolRequest。OpenAI Chat、OpenAI Responses、Anthropic Messages 分别只负责把厂商 SSE event 映射成统一 delta；private reasoning/thinking/signature 没有 Transcript variant。支持协议连续性的完整 opaque item/block 会交给 Adapter-owned Continuity State，其他私密 delta 被忽略，二者都不会变成可见消息。Transcript 可供 Creator 审计和 Context 重建，但不能直接改变 Project。
 
-当前 Context Module 收进五个窄 Interface；压缩策略仍由 Module 内部拥有，调用者不能直接改写 Transcript：
+当前 Context Module 收进六个窄 Interface；压缩与自动检索策略仍由 Module 内部拥有，调用者不能直接改写 Transcript 或 FTS projection：
 
 ```rust
 ContextManager::prepare_turn(PrepareContext) -> PreparedContext
@@ -302,9 +310,10 @@ ContextManager::record_turn(RecordInferenceTurn) -> RecordedInferenceTurn
 ContextManager::record_tool_results(RecordToolResults) -> RecordedInferenceTurn
 ContextManager::inspect_run(run_id) -> ContextProjection
 ContextManager::commit_compaction(CommitCompaction) -> RecordedCompaction
+ContextManager::retrieve_context(ContextRetrievalQuery) -> ContextRetrievalSelection?
 ```
 
-`prepare_turn` 先从 `ContextEventStore` replay 当前 Run，校验 event/item sequence、内容 hash、Tool pair 与 checkpoint 链，拒绝在 pending ToolRequest 尚未完成时准备下一轮；再加入新的 Creator 消息并派生 current surface。没有 checkpoint 时 surface 是完整历史；存在 checkpoint 时是一个 `ContextSummary` 加上 `first_kept_item_id` 起的原文 tail。Context Manager 随后完成测量、spill 和压力判定，最后把当前 Project id/revision binding、本轮 Tool schema、精确 surface 与审计指标写入不可变 `ContextManifest`。Manifest 绑定 Provider/Model/Protocol/Thinking/capability/mapping/tool-catalog、token budget、最新 checkpoint identity、`ContextSurfaceMetrics` 与整份 canonical input hash。只有 Manifest 与本轮 spill blob 成功落盘，`InferenceTurnRequest` 才能交给 Provider Adapter。
+`prepare_turn` 先从 `ContextEventStore` replay 当前 Run，校验 event/item sequence、内容 hash、Tool pair 与 checkpoint 链，拒绝在 pending ToolRequest 尚未完成时准备下一轮；再加入新的 Creator 消息并派生 current surface。没有 checkpoint 时 surface 是完整历史；存在 checkpoint 时是一个 `ContextSummary`、可选 `RetrievedContext` 和从 `first_kept_item_id` 起的原文 tail。Context Manager 随后完成检索去重、测量、spill 和压力判定，最后把当前 Project id/revision binding、本轮 Tool schema、精确 surface 与审计指标写入不可变 `ContextManifest`。Manifest 绑定 Provider/Model/Protocol/Thinking/capability/mapping/tool-catalog、token budget、最新 checkpoint identity、`ContextSurfaceMetrics`、可选 `ContextRetrievalSelection` 与整份 canonical input hash。只有 Manifest 与本轮 spill blob 成功落盘，`InferenceTurnRequest` 才能交给 Provider Adapter。
 
 `ContextFootprint` 不声称等于 Provider 的最终计费 token。它先用 canonical JSON 序列化分别记录 instructions、messages、Tool schema 和总字节数，再以版本化的保守系数 `3 bytes/token` 向上估算，并加上 Adapter 从 opaque continuity payload 大小推导的 allowance；Core 不读取或记录私密 payload。输入预算未知时标记 `unknown`，已知时按 `<75% normal`、`>=75% soft`、`>=90% hard`、`>100% overflow` 分级。production Planning 当前统一使用 `16,384` token 的 host-owned safety ceiling，预留 `4,096` output 和 `1,024` safety；这是 Harness 自身的保守上限，不是对任一模型窗口的能力声明。`soft` 允许本轮继续；`hard/overflow` 先进入 automatic compaction，只有无法找到安全且有效的 cut 才在 Provider 前失败。未来可在不改变压力合同的前提下，用 Provider-specific tokenizer 校准 estimator。
 
@@ -316,7 +325,19 @@ automatic compaction 不建立可中断的付费外部任务，因此不需要�
 
 Provider Adapter 只把明确的机器码或错误短语（例如 `context_length_exceeded`、`context_window_exceeded`、`prompt_too_long`、`maximum context length`）分类为 `ContextOverflow`；普通 HTTP 400 仍是 `Rejected`，避免把 schema/Tool 错误误判为可重试。overflow Finish 先进入 Transcript，旧 Provider Continuity 随即清除；下一次 `prepare_turn` 即使本地估算为 Normal 也必须推进 compaction。一个 Run 只允许一份 `ProviderOverflowRecovery` Manifest；若 Provider 再次 overflow，下一步返回 `OverflowRecoveryExhausted`，因此不存在无限重提。OpenAI Responses/Anthropic SSE 与 HTTP 错误分类已有本地 contract，但真实 Provider overflow live 仍是资格验证项。
 
-CM-3 planning slice 到此完成。已知限制是：Provider-specific 精确 tokenizer 尚未校准；超长 single-turn 因必须保留新输入和最近 Turn，在没有安全 cut 时 fail closed；CM-4 才负责从已经退出 current surface 的历史中检索 source-linked 事实。对模型可见的 summary 在 OpenAI Chat、OpenAI Responses、Anthropic Messages 中都映射为 user content，外部内容不能借 compaction 升级为 system/policy。
+CM-3 planning slice 到此完成。已知限制是：Provider-specific 精确 tokenizer 尚未校准；超长 single-turn 因必须保留新输入和最近 Turn，在没有安全 cut 时 fail closed。
+
+#### 4.3.2 CM-4 Long-Run Retrieval
+
+CM-4 不增加一个面向调用者的“记忆平台”。`ContextManager::prepare_turn` 在存在 checkpoint 且本轮有新 Creator 输入时自动构造 `ContextRetrievalQuery`；公开 `retrieve_context` 只为 exact-source 审计和受控内部调用提供同一 seam。Query 固定绑定 `run_id`、search text 或 exact item ids、排除 ids、reason、最大 hit 数与 token ceiling，并计算 deterministic fingerprint。默认自动策略最多选择 4 个 hit、占用不超过 1,200 个估算 token；领域上限是 8 hit / 2,048 token。
+
+`SqliteProjectStore` 使用 bundled SQLite FTS5 的 `unicode61` tokenizer 和 `bm25()` 排名，索引 Creator/Assistant 可见消息、完整 Tool Request 和 Tool Result；Usage、Finish 与 private continuity 不进入索引。每个 row 保留 item/turn/sequence、source type、created-at、对应 Turn 的 Project revision、原始 content hash、可选 execution id 与 error 标记。精确 item 查询绕过全文排名，但仍走同一 selection/budget/validation 合同。检索结果只保留 768 个 Unicode 字符的 bounded excerpt；`ContextRetrievalHit::estimated_tokens` 按最终带 provenance 的 `RetrievedContext` 内容计算，而不是只计算正文。
+
+索引表与 turn→Project revision 映射都是 projection：每次 Context append 在同一 SQLite transaction 增量更新，Project 打开时先删除并从 `inference_context_events` 全量重建。因此复制、backup 或删除索引后仍以 Transcript 为唯一事实源；缺少 Turn 的 Project revision binding、未知 source type、损坏 item/hash 或不一致 token cost 都会 fail closed。自动 Query 排除 current raw tail，并扫描最新 structured summary 中已有的 source item/hash，防止同一个显式来源重复占用模型视图。
+
+实际选中的 hit 连同 query fingerprint、reason、rank 与总 token cost 写入 `ContextManifest` 并参与 canonical content hash。Hit id 不能与 `included_item_ids` 重叠。OpenAI Chat、OpenAI Responses 与 Anthropic Messages 都把 `RetrievedContext` 映射为普通 user content，并在正文前加入 `[UNTRUSTED RETRIEVED CONTEXT]` 与完整 provenance；它不能变成 system message、Policy、Project fact 或直接 Tool execution input。
+
+机器 Gate `context_retrieval_contract` 已覆盖：删除 projection 后重开得到相同 exact hit；旧约束、Creator decision、成功 artifact Tool Result 和失败/unresolved Tool Result 可召回；100 inference steps、10 次连续前缀 compaction、3 次进程重启和一次模拟跨日恢复后，第一轮 source id/hash 仍可查询且可在第 100 步自动注入。该 Gate 证明 Planning Transcript 的长 Run 机制，不证明尚未存在的 Music Project Semantic Tool 在真实音乐任务中的约束保持率或工具正确率；后者必须随 M3-B/M3-C 另行盲测。
 
 `record_turn` 使用 journal expected revision 防止两个写入者覆盖，只接收完整 Provider Turn，并校验每个 ToolRequest 都存在于该 Manifest 的 Tool catalog、descriptor fingerprint 完全相同。ToolResult 不能走这个入口；`record_tool_results` 必须把每个结果匹配到一个 pending Request，拒绝 orphan、重复 call id 和名称错配。`inspect_run` 输出 journal revision、完整 items/manifests、pending Tool 列表和“已准备但无输出”的 Turn，用作唯一恢复投影。
 
@@ -496,7 +517,7 @@ Context Snapshot 只包含完成当前决策所需的：Brief、选中 Project f
 
 Compaction 只能压缩可重建的对话语义，不能改变 Project Revision、完整 Tool Request/Result、ToolExecution、Approval Grant、budget ledger、Candidate 或 Selection。Provider continuity 不参与 compaction，由 Vault 独立保存和清理。
 
-CM-3 已完成“完整 log + 派生 surface”的 Planning 纵切：SQLite Context journal 是唯一语义事实源；checkpoint 只遮蔽旧 surface 前缀，spill 只把大 Tool Result 替换为可追溯的有界视图，`ContextManifest` 记录模型实际看到的 checkpoint、保留 item ids、preparation reason、surface transform、spill references 与 initial/prepared footprint。automatic policy、安全 cut、有界摘要、有效缩短、原子 crash/retry 和单次 overflow recovery 都封装在 `prepare_turn` 内，调用者不管理微策略。下一切片是必做的 CM-4 Long-Run Retrieval：从已经退出 current surface 的完整 Transcript 中检索 source-linked 历史，并把选择理由与 token 成本写入 Manifest；索引仍是可重建 projection，不成为第二事实源。
+CM-3/CM-4 已完成“完整 log + 派生 surface + source-linked retrieval”的 Planning machine 纵切：SQLite Context journal 是唯一语义事实源；checkpoint 只遮蔽旧 surface 前缀，spill 只把大 Tool Result 替换为可追溯的有界视图，FTS5/BM25 只索引可从 Transcript 重建的 Run-local 内容。`ContextManifest` 记录模型实际看到的 checkpoint、保留 item ids、preparation reason、surface transform、spill references、retrieval query fingerprint/selection/token cost 与 initial/prepared footprint。automatic policy、安全 cut、有界摘要、有效缩短、原子 crash/retry、单次 overflow recovery、检索去重和 untrusted 注入都封装在 `prepare_turn` 内，调用者不管理微策略。下一 Harness 切片是 Approval Grant / Run Budget；真实 Music Project Tool 落地后还必须补长 Run 约束保持率与工具正确率 Gate。
 
 ### 5.5 中断、恢复与终态清理
 
@@ -974,15 +995,17 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 4. 冻结旧 `GenerationAdapter/Coordinator`，停止扩展 submit/observe/reconcile，但暂不删除；
 5. `PASS（CM-1 planning slice）`：Inference Item/Transcript、Context Manifest、canonical request、SSE assembler、完整 Tool pair、每步 restart replay 与 Planning resume 已实现；
 6. `PASS（CM-2 planning slice）`：OpenAI Responses/Anthropic Messages continuity capture/replay、Project 外加密 Vault、binding、TTL、janitor、错配/损坏处理、终态 purge 与 secret-sentinel 隔离合同已实现；
-7. `PASS（CM-3 planning slice）`：checkpoint/replay、完整 Transcript、automatic safe-cut、bounded summary、effectiveness Gate、deterministic footprint/pressure、大 Tool Result spill、原子 crash/retry、backup 恢复和单次 overflow recovery 已实现；下一步进入必做的 CM-4 长 Run retrieval；
-8. 在 `autostudio-core` 建立 Music Project commands、Tool Descriptor/Request/Result 与 RunProjection；
-9. 在 storage 增加 Music Project/Grant/Budget/ToolExecution/Snapshot migration 与 non-terminal query；
-10. 实现固定本地 Tool Registry 与两种真实 Tool Adapter：Project/MIDI 与 Render/Analysis；
-11. `PASS（固定 Planning slice）`：LLM Planning 已扩展为 `project_describe → submit_creative_plan` 有界 Tool loop；Music Project 阶段再迁移到通用 Tool Runtime；
-12. 以最小内置音源完成离线 render，再接 Factory Pack/Sampler；
-13. 把 Candidate 从 Audio-only 升级为 Project Snapshot，并让新纵切通过 production composition root；
-14. 用端到端、恢复和架构守护测试证明新路径后，再删除 Generation 状态/API 与误导命名，把仍需的 WAV fixture 移入 test support；
-15. Factory 质量 corpus 通过后进入 VST3 隔离 Host。
+7. `PASS（CM-3 planning slice）`：checkpoint/replay、完整 Transcript、automatic safe-cut、bounded summary、effectiveness Gate、deterministic footprint/pressure、大 Tool Result spill、原子 crash/retry、backup 恢复和单次 overflow recovery 已实现；
+8. `PASS（CM-4 planning machine slice）`：Run-local exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、projection rebuild、untrusted wire mapping 与 100-step long-run corpus 已实现；
+9. 实现 Approval Grant 与 Run Budget 领域合同和 ledger/enforcement；
+10. 在 `autostudio-core` 建立 Music Project commands、Tool Descriptor/Request/Result 与 RunProjection；
+11. 在 storage 增加 Music Project/Grant/Budget/ToolExecution/Snapshot migration 与 non-terminal query；
+12. 实现固定本地 Tool Registry 与两种真实 Tool Adapter：Project/MIDI 与 Render/Analysis；
+13. `PASS（固定 Planning slice）`：LLM Planning 已扩展为 `project_describe → submit_creative_plan` 有界 Tool loop；Music Project 阶段再迁移到通用 Tool Runtime；
+14. 以最小内置音源完成离线 render，再接 Factory Pack/Sampler；
+15. 把 Candidate 从 Audio-only 升级为 Project Snapshot，并让新纵切通过 production composition root；
+16. 用端到端、恢复和架构守护测试证明新路径后，再删除 Generation 状态/API 与误导命名，把仍需的 WAV fixture 移入 test support；
+17. Factory 质量 corpus 通过后进入 VST3 隔离 Host。
 
 迁移期间不能把旧 Fixture 接回 production 来保持演示“能发声”。如果本地音乐 Tool 未准备好，产品应明确显示 `local music runtime not available`。
 

@@ -1,8 +1,8 @@
 # Auto Studio Roadmap
 
 > 基线日期：2026-08-26
-> 当前执行 Gate：Q0 真人内容 Gate；下一 Harness 主线为 M3-A CM-4 Long-Run Retrieval
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0/CM-1/CM-2 已落地 durable Planning 与 Project 外加密 Continuity Vault；CM-3 planning slice 现已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash 语义、大 Tool Result spill 与单次 Provider overflow recovery。超长 single-turn 无安全 cut 时明确失败，Provider-specific tokenizer 与真实 overflow live 仍待资格验证。CM-4 长期 Run、Grant/Budget 与通用 Tool Runtime 尚未实现，因此当前产品仍不能真实生成音乐。
+> 当前执行 Gate：Q0 真人内容 Gate；下一 Harness 主线为 M3-A Approval Grant / Run Budget
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0—CM-4 planning machine slices 已落地 durable Planning、Project 外加密 Continuity Vault、automatic compaction/spill/overflow recovery，以及 Run 内 exact/FTS5-BM25 retrieval、Manifest 选择审计和 100-step long-run corpus。超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的长 Run 正确率仍待资格验证。Grant/Budget 与通用 Tool Runtime 尚未实现，因此当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -26,7 +26,7 @@
 | TUI | `PASS` | `autostudio`、Composer、`/connect`、`/model`、Thinking、`/exit` | Project/Run/Candidate/Render 视图 |
 | LLM Provider | `PASS（contract + DeepSeek/OpenAI live）` | OpenAI/Anthropic/DeepSeek/Kimi 协议与目录；2026-08-25 `deepseek-v4-flash` 流式 Tool Call smoke；2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live | Anthropic/Kimi exact-model `LIVE-PENDING` |
 | LLM Planning | `PASS（CM-1 contract）` | typed Plan、Approval、真实 composition root、固定两轮本地 Tool 链路 | 接 Music Project Semantic Tool，而非扩大固定规划工具 |
-| Harness Foundation | `PARTIAL（CM-3 planning slice PASS；CM-4 NOT IMPLEMENTED）` | Context domain、SQLite Transcript/Manifest、SSE assembler、完整 Tool pair、每步 replay、加密 Continuity Vault；automatic safe-cut、bounded summary、有效缩短、原子 checkpoint、spill、重启及单次 overflow recovery | CM-4 长 Run retrieval、Approval Grant、Run Budget、通用 ToolExecution；exact tokenizer/live overflow qualification |
+| Harness Foundation | `PARTIAL（CM-0—CM-4 planning machine slices PASS）` | Context domain、SQLite Transcript/Manifest、SSE assembler、完整 Tool pair、每步 replay、加密 Continuity Vault；automatic compaction/spill/overflow recovery；exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、可重建 projection 与 100-step long-run corpus | Approval Grant、Run Budget、通用 ToolExecution；真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification |
 | 旧 GenerationAdapter | `LEGACY` | Fixture 状态机、WAV ingest、Candidate contract | 停止 production 扩展并迁移/删除 |
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
@@ -47,7 +47,7 @@
 | M1 Local Product Shell | `autostudio` 启动、Connection、Model/Thinking、Project | `PASS` |
 | M2 LLM Planning Contract | 真实 LLM typed Plan、Approval、本地持久化合同 | `PASS（live 需 Key）` |
 | Q0 Music Content Feasibility | 用可移植 MIDI/冻结 DAW matrix 验证 L1—L4 Keep 与真实继续编辑 | `PASS（v2 11/12 + v3 L4 6/6 + portable handoff machine）` / `LIVE-PENDING（human/cross-DAW）` |
-| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `IN PROGRESS（M3-A CM-0—CM-3 planning slices PASS；CM-4/Grant/Budget/Tool Runtime 未实现；音乐纵切仍等待 Q0 GO）` |
+| M3 LLM-Authored Local Music Foundation | Durable Harness + 本地 Tool + 可编辑 Music Project + 离线发声 | `IN PROGRESS（M3-A CM-0—CM-4 planning machine slices PASS；Grant/Budget/Tool Runtime 未实现；音乐纵切仍等待 Q0 GO）` |
 | M4 Factory Quality Vertical Slice | Sampler/Factory Pack/Mix/Analysis/Candidate 质量闭环 | `NOT IMPLEMENTED` |
 | M5 Professional MVP Handoff | 受限 VST3、freeze、WAV/stems/MIDI、目标 DAW | `NOT IMPLEMENTED` |
 | M6 Release Qualification | 固定 corpus、盲听、设计伙伴、Vault、安装签名 | `BLOCKED` |
@@ -141,18 +141,21 @@ M3 不接入 Music Provider。完成定义是：
 
 CM-1 完成边界：固定 Planning 纵切可持久化规范化 Transcript、执行真实本地只读 Tool、跨进程继续，并对结果不明的 Provider Turn 明确放弃而不重提。
 
-CM-2 Planning slice 完成边界：OpenAI Responses 的完整 reasoning/function item 与 Anthropic Messages 的 signed thinking/tool-use block 由 Adapter 捕获并原样回传；XChaCha20-Poly1305 Vault 位于 Project 外，使用独立本地密钥，绑定 run/provider/model/protocol/thinking/capability/mapping/tool catalog，支持 7 天 TTL、启动和每小时 janitor、错配/损坏删除与终态 purge。composition root 拒绝工程内或经符号链接落入工程的 Vault/key 路径。契约测试证明 sentinel 不进入 Project SQLite、Context Event、backup 或 Debug；purge 失败不会提交成功 Plan。OpenAI `gpt-5-mini` exact-model live 已用完整两轮 Planning Tool loop 通过；Anthropic exact-model live 与 OS Credential Vault 仍为 `LIVE-PENDING`。DeepSeek Chat 只走 canonical Transcript fallback。整个 M3-A 仍需 CM-4、Grant/Budget 后才完成；运行产品不要求 Music Provider。
+CM-2 Planning slice 完成边界：OpenAI Responses 的完整 reasoning/function item 与 Anthropic Messages 的 signed thinking/tool-use block 由 Adapter 捕获并原样回传；XChaCha20-Poly1305 Vault 位于 Project 外，使用独立本地密钥，绑定 run/provider/model/protocol/thinking/capability/mapping/tool catalog，支持 7 天 TTL、启动和每小时 janitor、错配/损坏删除与终态 purge。composition root 拒绝工程内或经符号链接落入工程的 Vault/key 路径。契约测试证明 sentinel 不进入 Project SQLite、Context Event、backup 或 Debug；purge 失败不会提交成功 Plan。OpenAI `gpt-5-mini` exact-model live 已用完整两轮 Planning Tool loop 通过；Anthropic exact-model live 与 OS Credential Vault 仍为 `LIVE-PENDING`。DeepSeek Chat 只走 canonical Transcript fallback。CM-4 machine slice 已完成，整个 M3-A 仍需 Grant/Budget 后才完成；运行产品不要求 Music Provider。
 
-CM-3 planning slice 完成边界：`prepare_turn` 由完整 Transcript 派生 current surface，先 spill 大 Tool Result，再按压力或显式 Provider overflow 触发 automatic compaction。cut 必须位于完整 Turn 边界、推进连续前缀、不拆 Tool pair、保留新输入与最近两轮；host-owned structured summary 记录 objective、Creator decisions、constraints、completed work 和 artifact execution references。只有 surface 实际缩短且回到 `Normal` 才把 Creator 新输入、Checkpoint、Manifest 和 spill 同事务发布。故障注入覆盖失败零落盘、相同 source facts 的稳定 checkpoint hash、重启恢复、完整 Transcript 不变、一次 overflow 恢复和第二次 overflow 停止。Planning 固定使用 16,384-token host safety ceiling，不把它表述为模型窗口；Provider-specific tokenizer、真实 overflow live 和超长 single-turn 自动处理仍待资格验证，但不阻塞进入 CM-4。
+CM-3 planning slice 完成边界：`prepare_turn` 由完整 Transcript 派生 current surface，先 spill 大 Tool Result，再按压力或显式 Provider overflow 触发 automatic compaction。cut 必须位于完整 Turn 边界、推进连续前缀、不拆 Tool pair、保留新输入与最近两轮；host-owned structured summary 记录 objective、Creator decisions、constraints、completed work 和 artifact execution references。只有 surface 实际缩短且回到 `Normal` 才把 Creator 新输入、Checkpoint、Manifest 和 spill 同事务发布。故障注入覆盖失败零落盘、相同 source facts 的稳定 checkpoint hash、重启恢复、完整 Transcript 不变、一次 overflow 恢复和第二次 overflow 停止。Planning 固定使用 16,384-token host safety ceiling，不把它表述为模型窗口；Provider-specific tokenizer、真实 overflow live 和超长 single-turn 自动处理仍待资格验证，但不阻塞已经完成的 CM-4 machine slice。
 
-CM-4 下一切片（必做）：
+CM-4 Planning machine slice 完成边界：
 
-- [ ] 定义 `ContextRetrievalQuery/Hit/Selection` 与稳定 source item id、source type、Project revision、content hash、reason、token cost；
-- [ ] 在 SQLite Transcript 上实现可重建的 Run 内结构化过滤和 FTS5/BM25 projection，不引入跨项目向量记忆；
-- [ ] `prepare_turn` 对 summary/recent tail/retrieval 去重，并把注入条目与选择原因写入 `ContextManifest`；
-- [ ] retrieved Tool content/Creator text 保持 untrusted，不能覆盖 system/policy/Project facts；
-- [ ] 建立冻结 long-run corpus：至少 100 inference steps、10 次 compaction、3 次进程重启和一次跨日恢复；
-- [ ] 测量旧约束、Creator 决定、artifact 与未解决事项的召回率，以及 compaction/retrieval 后工具正确率；向量检索只在 BM25 不达冻结门槛时评估。
+- [x] 定义 `ContextRetrievalQuery/Hit/Selection` 与稳定 source item id、source type、Project revision、content hash、reason、token cost；
+- [x] 在 SQLite Transcript 上实现可重建的 Run 内 exact 与 FTS5/BM25 projection，不引入跨项目向量记忆；
+- [x] `prepare_turn` 对 summary/current raw tail/retrieval 去重，并把注入条目、query fingerprint、选择原因与 token cost 写入 `ContextManifest`；
+- [x] retrieved Tool content/Creator text 在 OpenAI Chat/Responses/Anthropic wire 上保持 untrusted user context，不能覆盖 system/policy/Project facts；
+- [x] 冻结 machine corpus 完成 100 inference steps、10 次 compaction、3 次进程重启和一次模拟跨日恢复；
+- [x] machine recall 覆盖旧约束、Creator 决定、artifact 与未解决 Tool Result，删除 projection 后重开可得到相同 exact hit；当前无需向量检索；
+- [ ] 真实 Music Project/Semantic Tool 落地后，冻结并测量 compaction/retrieval 后约束保持率与工具正确率；该项不由 Planning machine corpus 冒充。
+
+CM-4 之后的下一 Harness 切片是 Approval Grant / Run Budget：先冻结影响范围与 ceiling 的领域合同，再让通用 ToolExecution 同时通过授权、预算和单 Tool 资源限制。
 
 OpenAI live evidence（2026-08-26）：低成本 live gate 位于 `scripts/test-openai-continuity-live.sh`，固定使用 `gpt-5-mini` 和 Low Thinking。前两次请求分别揭示 Tool name 不可移植和 `response.failed` 丢失 Provider detail，修复后 Core 会强制 model-visible Tool name 为 `^[a-zA-Z0-9_-]{1,64}$`，并安全保留 Provider error code/message。完成 organization verification 后的最终实测 PASS：`gpt-5-mini` 在 17.30 秒内完成 2 个真实 Turn，使用 777 input tokens 和 385 output tokens；第二 Turn 收到 Continuity reference，终态 Planning commit 前 Vault payload 已 purge。这证明 OpenAI Responses CM-2 Continuity Planning 纵切，不代表 Anthropic、长 Run、compaction 或通用 Tool Runtime 已通过。
 
@@ -324,8 +327,8 @@ Q0 中的 `InstrumentAssignment` resolver 是实验编译器资产，只验证 p
 ### Gate B：LLM Agent Harness
 
 - `PASS（contract）`：LLM Connection、Model/Thinking、typed Planning；
-- `PARTIAL（CM-3 planning slice PASS）`：Inference Transcript、Context Manifest、canonical request、SSE assembler、固定 Planning 多轮 Tool loop、重启恢复、CM-2 Continuity，以及 CM-3 automatic safe-cut/summary/effectiveness/crash/spill/单次 overflow recovery 已实现；CM-4 长期 Run、Approval Grant、Run Budget 与通用 ToolExecution 未实现；
-- 通过条件：continuity/Transcript 分离，Grant/预算范围生效，重启/compaction/终态 purge 和 exact model live qualification 通过。
+- `PARTIAL（CM-0—CM-4 planning machine slices PASS）`：Inference Transcript、Context Manifest、canonical request、SSE assembler、固定 Planning 多轮 Tool loop、重启恢复、CM-2 Continuity、CM-3 automatic compaction/spill/overflow recovery，以及 CM-4 exact/FTS5-BM25 retrieval、Manifest Selection 与 100-step long-run corpus 已实现；Approval Grant、Run Budget、通用 ToolExecution 和真实音乐 Tool 的 long-run quality 尚未实现；
+- 通过条件：continuity/Transcript 分离，Grant/预算范围生效，重启/compaction/retrieval/终态 purge、真实音乐 Tool 正确率和 exact model live qualification 通过。
 
 ### Gate C：本地可编辑音乐
 

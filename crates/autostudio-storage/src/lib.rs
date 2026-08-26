@@ -11,7 +11,11 @@ use std::thread::{self, JoinHandle};
 
 use autostudio_core::agent::AgentRunId;
 use autostudio_core::context::{
-    ContextEvent, ContextEventEnvelope, ContextEventStore, ContextStoreError,
+    ContextEvent, ContextEventEnvelope, ContextEventStore, ContextStoreError, InferenceItemId,
+};
+use autostudio_core::context_retrieval::{
+    ContextRetrievalHit, ContextRetrievalQuery, ContextRetrievalSelection,
+    ContextRetrievalSourceType,
 };
 use autostudio_core::context_surface::ContextSpillBlob;
 use autostudio_core::project::{
@@ -22,7 +26,9 @@ use fs2::FileExt;
 use rusqlite::{Connection, ErrorCode, OptionalExtension, params};
 use uuid::Uuid;
 
-use crate::constants::ACTOR_QUEUE_CAPACITY;
+use crate::constants::{
+    ACTOR_QUEUE_CAPACITY, CONTEXT_RETRIEVAL_CANDIDATE_MULTIPLIER, CONTEXT_RETRIEVAL_STOP_WORDS,
+};
 pub use crate::error::{ProjectBackupError, ProjectPackageError};
 
 pub struct SqliteProjectStore {
@@ -352,6 +358,22 @@ impl ContextEventStore for SqliteProjectStore {
             .recv()
             .map_err(|_| context_actor_stopped())?
     }
+
+    fn retrieve_context(
+        &self,
+        query: &ContextRetrievalQuery,
+    ) -> Result<Option<ContextRetrievalSelection>, ContextStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.context_sender()?
+            .send(Command::RetrieveContext {
+                query: query.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| context_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| context_actor_stopped())?
+    }
 }
 
 impl Drop for SqliteProjectStore {
@@ -396,6 +418,10 @@ enum Command {
     ContextSpill {
         content_hash: String,
         response: SyncSender<Result<Option<ContextSpillBlob>, ContextStoreError>>,
+    },
+    RetrieveContext {
+        query: ContextRetrievalQuery,
+        response: SyncSender<Result<Option<ContextRetrievalSelection>, ContextStoreError>>,
     },
 }
 
@@ -451,6 +477,9 @@ fn run_actor(connection: &Connection, receiver: &Receiver<Command>) {
             } => {
                 let _ = response.send(select_context_spill(connection, &content_hash));
             }
+            Command::RetrieveContext { query, response } => {
+                let _ = response.send(retrieve_context(connection, &query));
+            }
         }
     }
 }
@@ -503,9 +532,31 @@ fn migrate(connection: &Connection) -> Result<(), ProjectPackageError> {
                  byte_count INTEGER NOT NULL CHECK (byte_count > 0),
                  content TEXT NOT NULL,
                  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+             );
+             CREATE TABLE IF NOT EXISTS inference_context_retrieval_turns (
+                 run_id TEXT NOT NULL,
+                 turn_id TEXT NOT NULL,
+                 project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
+                 PRIMARY KEY (run_id, turn_id)
+             );
+             CREATE VIRTUAL TABLE IF NOT EXISTS inference_context_retrieval USING fts5(
+                 item_id UNINDEXED,
+                 run_id UNINDEXED,
+                 turn_id UNINDEXED,
+                 sequence UNINDEXED,
+                 source_type UNINDEXED,
+                 created_at_unix_millis UNINDEXED,
+                 project_revision UNINDEXED,
+                 content_hash UNINDEXED,
+                 execution_id UNINDEXED,
+                 is_error UNINDEXED,
+                 content,
+                 tokenize = 'unicode61 remove_diacritics 2'
              );",
         )
-        .map_err(ProjectPackageError::Migrate)
+        .map_err(ProjectPackageError::Migrate)?;
+    rebuild_all_context_retrieval(connection)
+        .map_err(|error| ProjectPackageError::RebuildContextRetrieval(error.to_string()))
 }
 
 fn insert_project(connection: &Connection, project: &Project) -> Result<(), ProjectStoreError> {
@@ -719,6 +770,7 @@ fn append_context_events(
     insert_context_spills(&transaction, spills)?;
     let next_revision =
         append_context_events_in_transaction(&transaction, run_id, expected_revision, events)?;
+    update_context_retrieval_projection(&transaction, run_id, events)?;
     transaction
         .commit()
         .map_err(|error| context_unavailable(&error))?;
@@ -905,6 +957,421 @@ fn select_context_spill(
         ));
     }
     Ok(Some(spill))
+}
+
+fn rebuild_all_context_retrieval(connection: &Connection) -> Result<(), ContextStoreError> {
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| context_unavailable(&error))?;
+    transaction
+        .execute("DELETE FROM inference_context_retrieval", [])
+        .map_err(|error| context_unavailable(&error))?;
+    transaction
+        .execute("DELETE FROM inference_context_retrieval_turns", [])
+        .map_err(|error| context_unavailable(&error))?;
+    let stored = {
+        let mut statement = transaction
+            .prepare(
+                "SELECT run_id, event_json FROM inference_context_events
+                 ORDER BY run_id ASC, sequence ASC",
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|error| context_unavailable(&error))?;
+        let mut stored = Vec::new();
+        for row in rows {
+            stored.push(row.map_err(|error| context_unavailable(&error))?);
+        }
+        stored
+    };
+    let mut by_run = std::collections::BTreeMap::<String, Vec<ContextEvent>>::new();
+    for (run_id, event_json) in stored {
+        let event = serde_json::from_str::<ContextEvent>(&event_json)
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+        by_run.entry(run_id).or_default().push(event);
+    }
+    for (run_id, events) in by_run {
+        let run_id = AgentRunId::parse(&run_id)
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?;
+        update_context_retrieval_projection(&transaction, &run_id, &events)?;
+    }
+    transaction
+        .commit()
+        .map_err(|error| context_unavailable(&error))
+}
+
+fn update_context_retrieval_projection(
+    connection: &Connection,
+    run_id: &AgentRunId,
+    events: &[ContextEvent],
+) -> Result<(), ContextStoreError> {
+    let run_id_text = run_id.as_str();
+    for event in events {
+        let ContextEvent::ContextPrepared { manifest } = event else {
+            continue;
+        };
+        let revision = i64::try_from(manifest.project_revision()).map_err(|_| {
+            ContextStoreError::Unavailable("Project revision exceeds SQLite range".to_owned())
+        })?;
+        let turn_id = manifest.turn_id().as_str();
+        connection
+            .execute(
+                "INSERT INTO inference_context_retrieval_turns
+                 (run_id, turn_id, project_revision) VALUES (?1, ?2, ?3)
+                 ON CONFLICT(run_id, turn_id) DO NOTHING",
+                params![run_id_text, turn_id, revision],
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        let stored_revision = connection
+            .query_row(
+                "SELECT project_revision FROM inference_context_retrieval_turns
+                 WHERE run_id = ?1 AND turn_id = ?2",
+                params![run_id_text, turn_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        if stored_revision != revision {
+            return Err(ContextStoreError::Corrupt(
+                "one Inference Turn is bound to multiple Project revisions".to_owned(),
+            ));
+        }
+    }
+    for event in events {
+        let ContextEvent::InferenceItemAppended { item } = event else {
+            continue;
+        };
+        let Some(indexed) = indexed_context_item(item) else {
+            continue;
+        };
+        let turn_id = item.turn_id().as_str();
+        let project_revision = connection
+            .query_row(
+                "SELECT project_revision FROM inference_context_retrieval_turns
+                 WHERE run_id = ?1 AND turn_id = ?2",
+                params![run_id_text, turn_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|error| context_unavailable(&error))?
+            .ok_or_else(|| {
+                ContextStoreError::Corrupt(
+                    "retrievable Transcript item has no Project revision binding".to_owned(),
+                )
+            })?;
+        connection
+            .execute(
+                "INSERT INTO inference_context_retrieval
+                 (item_id, run_id, turn_id, sequence, source_type,
+                  created_at_unix_millis, project_revision, content_hash,
+                  execution_id, is_error, content)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    item.id().as_str(),
+                    run_id_text,
+                    turn_id,
+                    sqlite_u64(item.sequence(), "Inference Item sequence")?,
+                    indexed.source_type,
+                    sqlite_u64(item.created_at_unix_millis(), "Inference Item timestamp")?,
+                    project_revision,
+                    item.content_hash(),
+                    indexed.execution_id,
+                    i64::from(indexed.is_error),
+                    indexed.content,
+                ],
+            )
+            .map_err(|error| context_unavailable(&error))?;
+    }
+    Ok(())
+}
+
+struct IndexedContextItem<'a> {
+    source_type: &'static str,
+    content: String,
+    execution_id: Option<&'a str>,
+    is_error: bool,
+}
+
+fn indexed_context_item(
+    item: &autostudio_core::context::InferenceItem,
+) -> Option<IndexedContextItem<'_>> {
+    use autostudio_core::context::{InferenceItemDraft, VisibleMessageRole};
+
+    match item.payload() {
+        InferenceItemDraft::VisibleMessage { role, content } => Some(IndexedContextItem {
+            source_type: match role {
+                VisibleMessageRole::User => "creator_message",
+                VisibleMessageRole::Assistant => "assistant_message",
+            },
+            content: content.clone(),
+            execution_id: None,
+            is_error: false,
+        }),
+        InferenceItemDraft::ToolRequest {
+            name,
+            arguments_json,
+            ..
+        } => Some(IndexedContextItem {
+            source_type: "tool_request",
+            content: format!("tool request {name} {arguments_json}"),
+            execution_id: None,
+            is_error: false,
+        }),
+        InferenceItemDraft::ToolResult {
+            name,
+            content,
+            execution_id,
+            is_error,
+            ..
+        } => Some(IndexedContextItem {
+            source_type: "tool_result",
+            content: format!(
+                "tool result {name} execution:{} status:{} {content}",
+                execution_id.as_deref().unwrap_or("none"),
+                if *is_error { "error" } else { "ok" }
+            ),
+            execution_id: execution_id.as_deref(),
+            is_error: *is_error,
+        }),
+        InferenceItemDraft::Usage { .. } | InferenceItemDraft::Finish { .. } => None,
+    }
+}
+
+fn retrieve_context(
+    connection: &Connection,
+    query: &ContextRetrievalQuery,
+) -> Result<Option<ContextRetrievalSelection>, ContextStoreError> {
+    let excluded = query
+        .excluded_item_ids()
+        .iter()
+        .map(InferenceItemId::as_str)
+        .collect::<std::collections::HashSet<_>>();
+    let source_types = query
+        .source_types()
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    let mut seen = std::collections::HashSet::new();
+    let mut candidates = Vec::new();
+    for item_id in query.exact_item_ids() {
+        if let Some(row) = select_retrieval_row_by_item(connection, query.run_id(), item_id)? {
+            seen.insert(item_id.as_str());
+            candidates.push(row);
+        }
+    }
+    if let Some(search_text) = query.search_text()
+        && let Some(match_query) = context_fts_query(search_text)
+    {
+        let candidate_limit = query
+            .max_hits()
+            .checked_mul(CONTEXT_RETRIEVAL_CANDIDATE_MULTIPLIER)
+            .ok_or_else(|| {
+                ContextStoreError::Unavailable("retrieval candidate limit overflowed".to_owned())
+            })?;
+        let mut statement = connection
+            .prepare(
+                "SELECT item_id, source_type, created_at_unix_millis, project_revision,
+                        content_hash, execution_id, is_error, content,
+                        bm25(inference_context_retrieval), sequence
+                 FROM inference_context_retrieval
+                 WHERE inference_context_retrieval MATCH ?1 AND run_id = ?2
+                 ORDER BY bm25(inference_context_retrieval) ASC, sequence DESC, item_id ASC
+                 LIMIT ?3",
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        let rows = statement
+            .query_map(
+                params![
+                    match_query,
+                    query.run_id().as_str(),
+                    i64::from(candidate_limit)
+                ],
+                retrieval_row,
+            )
+            .map_err(|error| context_unavailable(&error))?;
+        for row in rows {
+            let row = row.map_err(|error| context_unavailable(&error))?;
+            if seen.insert(row.item_id.clone()) {
+                candidates.push(row);
+            }
+        }
+    }
+    let mut selected = Vec::new();
+    let mut tokens = 0_u64;
+    for candidate in candidates {
+        if excluded.contains(&candidate.item_id) {
+            continue;
+        }
+        let hit = candidate.into_hit()?;
+        if !source_types.is_empty() && !source_types.contains(&hit.source_type()) {
+            continue;
+        }
+        let next_tokens = tokens.checked_add(hit.estimated_tokens()).ok_or_else(|| {
+            ContextStoreError::Unavailable("retrieval token total overflowed".to_owned())
+        })?;
+        if next_tokens > query.max_tokens() {
+            continue;
+        }
+        tokens = next_tokens;
+        selected.push(hit);
+        if selected.len() == usize::from(query.max_hits()) {
+            break;
+        }
+    }
+    if selected.is_empty() {
+        Ok(None)
+    } else {
+        ContextRetrievalSelection::new(query, selected)
+            .map(Some)
+            .map_err(|error| ContextStoreError::Corrupt(error.to_string()))
+    }
+}
+
+fn select_retrieval_row_by_item(
+    connection: &Connection,
+    run_id: &AgentRunId,
+    item_id: &InferenceItemId,
+) -> Result<Option<RetrievalRow>, ContextStoreError> {
+    connection
+        .query_row(
+            "SELECT item_id, source_type, created_at_unix_millis, project_revision,
+                    content_hash, execution_id, is_error, content, 0.0, sequence
+             FROM inference_context_retrieval
+             WHERE run_id = ?1 AND item_id = ?2 LIMIT 1",
+            params![run_id.as_str(), item_id.as_str()],
+            retrieval_row,
+        )
+        .optional()
+        .map_err(|error| context_unavailable(&error))
+}
+
+struct RetrievalRow {
+    item_id: String,
+    source_type: String,
+    created_at_unix_millis: i64,
+    project_revision: i64,
+    content_hash: String,
+    execution_id: Option<String>,
+    is_error: i64,
+    content: String,
+    rank: f64,
+    sequence: i64,
+}
+
+impl RetrievalRow {
+    fn into_hit(self) -> Result<ContextRetrievalHit, ContextStoreError> {
+        let _sequence = context_sqlite_revision(self.sequence)?;
+        let source_type = match self.source_type.as_str() {
+            "creator_message" => ContextRetrievalSourceType::CreatorMessage,
+            "assistant_message" => ContextRetrievalSourceType::AssistantMessage,
+            "tool_request" => ContextRetrievalSourceType::ToolRequest,
+            "tool_result" => ContextRetrievalSourceType::ToolResult,
+            _ => {
+                return Err(ContextStoreError::Corrupt(
+                    "Context retrieval source type is invalid".to_owned(),
+                ));
+            }
+        };
+        let excerpt = bounded_context_excerpt(&self.content);
+        ContextRetrievalHit::new(
+            InferenceItemId::parse(&self.item_id)
+                .map_err(|error| ContextStoreError::Corrupt(error.to_string()))?,
+            source_type,
+            context_sqlite_revision(self.created_at_unix_millis)?,
+            context_sqlite_revision(self.project_revision)?,
+            self.content_hash,
+            excerpt,
+            self.execution_id,
+            self.is_error != 0,
+            rank_micros(self.rank),
+        )
+        .map_err(|error| ContextStoreError::Corrupt(error.to_string()))
+    }
+}
+
+fn retrieval_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RetrievalRow> {
+    Ok(RetrievalRow {
+        item_id: row.get(0)?,
+        source_type: row.get(1)?,
+        created_at_unix_millis: row.get(2)?,
+        project_revision: row.get(3)?,
+        content_hash: row.get(4)?,
+        execution_id: row.get(5)?,
+        is_error: row.get(6)?,
+        content: row.get(7)?,
+        rank: row.get(8)?,
+        sequence: row.get(9)?,
+    })
+}
+
+fn context_fts_query(search_text: &str) -> Option<String> {
+    let mut tokens = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut current = String::new();
+    let flush = |current: &mut String,
+                 tokens: &mut Vec<String>,
+                 seen: &mut std::collections::HashSet<String>| {
+        if current.is_empty() {
+            return;
+        }
+        let token = std::mem::take(current).to_lowercase();
+        let keep = !token.is_ascii()
+            || (token.chars().count() > 1
+                && !CONTEXT_RETRIEVAL_STOP_WORDS.contains(&token.as_str()));
+        if keep && seen.insert(token.clone()) {
+            tokens.push(token);
+        }
+    };
+    for character in search_text.chars() {
+        if character.is_alphanumeric() || character == '_' {
+            current.push(character);
+        } else {
+            flush(&mut current, &mut tokens, &mut seen);
+        }
+    }
+    flush(&mut current, &mut tokens, &mut seen);
+    (!tokens.is_empty()).then(|| {
+        tokens
+            .into_iter()
+            .map(|token| format!("\"{token}\""))
+            .collect::<Vec<_>>()
+            .join(" OR ")
+    })
+}
+
+fn bounded_context_excerpt(content: &str) -> String {
+    use autostudio_core::constants::CONTEXT_RETRIEVAL_MAX_EXCERPT_CHARS;
+
+    if content.chars().count() <= CONTEXT_RETRIEVAL_MAX_EXCERPT_CHARS {
+        return content.to_owned();
+    }
+    let mut bounded = content
+        .chars()
+        .take(CONTEXT_RETRIEVAL_MAX_EXCERPT_CHARS.saturating_sub(1))
+        .collect::<String>();
+    bounded.push('…');
+    bounded
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn rank_micros(rank: f64) -> i64 {
+    let scaled = rank * 1_000_000.0;
+    if scaled.is_nan() {
+        0
+    } else if scaled >= i64::MAX as f64 {
+        i64::MAX
+    } else if scaled <= i64::MIN as f64 {
+        i64::MIN
+    } else {
+        scaled.round() as i64
+    }
+}
+
+fn sqlite_u64(value: u64, label: &str) -> Result<i64, ContextStoreError> {
+    i64::try_from(value)
+        .map_err(|_| ContextStoreError::Unavailable(format!("{label} exceeds SQLite range")))
 }
 
 fn select_revision(connection: &Connection) -> Result<u64, ProjectStoreError> {

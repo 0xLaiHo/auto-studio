@@ -10,6 +10,7 @@ use autostudio_core::context::{
     ContextEventStore, ContextStoreError, InferenceFinishReason, InferenceItemDraft,
     InferenceTurnId, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
+use autostudio_core::context_retrieval::{ContextRetrievalQuery, ContextRetrievalSelection};
 use autostudio_core::context_surface::{
     ContextPreparationReason, ContextPressure, ContextSpillBlob, ContextSurfaceTransform,
 };
@@ -877,6 +878,13 @@ impl ContextEventStore for FailOnceContextStore {
         run_id: &AgentRunId,
     ) -> Result<Vec<ContextEventEnvelope>, ContextStoreError> {
         self.inner.context_events(run_id)
+    }
+
+    fn retrieve_context(
+        &self,
+        query: &ContextRetrievalQuery,
+    ) -> Result<Option<ContextRetrievalSelection>, ContextStoreError> {
+        self.inner.retrieve_context(query)
     }
 
     fn context_spill(
