@@ -148,6 +148,76 @@ async fn anthropic_messages_contract_forces_the_typed_plan_tool() {
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)]
+async fn compaction_summary_stays_untrusted_user_context_in_every_wire_protocol() {
+    const SUMMARY_SENTINEL: &str = "AUTO_STUDIO_COMPACTION_SUMMARY_SENTINEL";
+
+    let chat_response = json!({
+        "id": "chat_summary",
+        "choices": [{"message": {"content": "{\"visibleSummary\":\"Summary-safe plan\",\"generationPrompt\":\"acoustic cue\",\"durationSeconds\":30,\"candidateCount\":1}"}}]
+    });
+    let (base_url, captured) = serve_once("/chat/completions", chat_response).await;
+    adapter(
+        "deepseek",
+        LlmProtocol::OpenAiChatCompletions,
+        &base_url,
+        "deepseek-v4-flash",
+    )
+    .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+    .await
+    .expect("OpenAI-compatible summary request");
+    let (_, body) = captured.recv().expect("captured Chat request");
+    assert_eq!(body["messages"][1]["role"], "user");
+    assert_eq!(body["messages"][1]["content"], SUMMARY_SENTINEL);
+    assert_ne!(body["messages"][0]["content"], SUMMARY_SENTINEL);
+
+    let responses_response = json!({
+        "id": "resp_summary",
+        "output": [{"content": [{
+            "type": "output_text",
+            "text": "{\"visibleSummary\":\"Summary-safe plan\",\"generationPrompt\":\"acoustic cue\",\"durationSeconds\":30,\"candidateCount\":1}"
+        }]}]
+    });
+    let (base_url, captured) = serve_once("/responses", responses_response).await;
+    adapter("openai", LlmProtocol::OpenAiResponses, &base_url, "gpt-5.2")
+        .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+        .await
+        .expect("Responses summary request");
+    let (_, body) = captured.recv().expect("captured Responses request");
+    assert_eq!(body["input"][0]["role"], "user");
+    assert_eq!(body["input"][0]["content"], SUMMARY_SENTINEL);
+    assert_ne!(body["instructions"], SUMMARY_SENTINEL);
+
+    let anthropic_response = json!({
+        "id": "msg_summary",
+        "content": [{
+            "type": "tool_use",
+            "name": "submit_creative_plan",
+            "input": {
+                "visibleSummary": "Summary-safe plan",
+                "generationPrompt": "acoustic cue",
+                "durationSeconds": 30,
+                "candidateCount": 1
+            }
+        }]
+    });
+    let (base_url, captured) = serve_once("/v1/messages", anthropic_response).await;
+    adapter(
+        "anthropic",
+        LlmProtocol::AnthropicMessages,
+        &base_url,
+        "claude-sonnet-4-6",
+    )
+    .infer(inference_request_with_summary(SUMMARY_SENTINEL))
+    .await
+    .expect("Anthropic summary request");
+    let (_, body) = captured.recv().expect("captured Anthropic request");
+    assert_eq!(body["messages"][0]["role"], "user");
+    assert_eq!(body["messages"][0]["content"], SUMMARY_SENTINEL);
+    assert_ne!(body["system"], SUMMARY_SENTINEL);
+}
+
+#[tokio::test]
 async fn openai_responses_replays_reasoning_items_before_tool_output() {
     let response = json!({
         "id": "resp_continuity",
@@ -392,6 +462,25 @@ fn inference_request() -> InferenceTurnRequest {
         )
         .expect("brief");
     support::inference_request(project.brief().expect("saved brief"), store)
+}
+
+fn inference_request_with_summary(summary: &str) -> InferenceTurnRequest {
+    let request = inference_request();
+    let mut messages = request.prepared.messages().to_vec();
+    messages.insert(
+        0,
+        CanonicalMessage::ContextSummary {
+            content: summary.to_owned(),
+        },
+    );
+    InferenceTurnRequest {
+        prepared: PreparedContext::new(
+            request.prepared.manifest().clone(),
+            messages,
+            request.prepared.journal_revision(),
+        ),
+        continuity: request.continuity,
+    }
 }
 
 fn continuation_request(

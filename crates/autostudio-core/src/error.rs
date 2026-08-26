@@ -37,6 +37,30 @@ pub enum ContextError {
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum CompactionError {
+    #[error("Compaction identity is invalid")]
+    InvalidId,
+    #[error("Compaction source journal revision must be greater than zero")]
+    InvalidSourceRevision,
+    #[error("Compaction must replace at least one transcript item")]
+    EmptyReplacementSet,
+    #[error("Compaction replacement items must be unique and exclude the first kept item")]
+    InvalidReplacementSet,
+    #[error("Compaction summary field '{0}' must not be empty")]
+    EmptySummaryField(&'static str),
+    #[error("Compaction summary field '{0}' exceeds the bounded size")]
+    SummaryFieldTooLong(&'static str),
+    #[error("Compaction summary contains too many list items")]
+    TooManySummaryItems,
+    #[error("Compaction format revision is unsupported")]
+    UnsupportedFormat,
+    #[error("Compaction content hash does not match its source facts")]
+    ContentHashMismatch,
+    #[error("Compaction serialization failed: {0}")]
+    Serialization(String),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum ContinuityError {
     #[error("Provider Continuity identity is invalid")]
     InvalidId,

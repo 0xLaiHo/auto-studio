@@ -513,7 +513,9 @@ impl InferenceAdapter for DeterministicInferenceAdapter {
                     CanonicalMessage::User { content } => {
                         serde_json::from_str::<CreativeBrief>(content).ok()
                     }
-                    CanonicalMessage::Assistant { .. } | CanonicalMessage::Tool { .. } => None,
+                    CanonicalMessage::ContextSummary { .. }
+                    | CanonicalMessage::Assistant { .. }
+                    | CanonicalMessage::Tool { .. } => None,
                 })
                 .ok_or_else(|| {
                     AdapterError::InvalidResponse(

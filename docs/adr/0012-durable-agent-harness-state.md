@@ -5,7 +5,7 @@ date: 2026-08-24
 
 # 分离推理记录、Provider 连续性状态、授权凭据与运行预算
 
-> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Approval Grant、Run Budget、compaction/长期 Run 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
+> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 checkpoint foundation 已把结构化摘要边界作为 append-only Context Event 原子持久化，保留完整 Transcript，并从最新 checkpoint 派生可恢复的 summary + recent tail；重复 checkpoint 必须推进且不能拆分 Tool pair。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Approval Grant、Run Budget、自动 compaction 策略、长期 Run 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
 
 ## 背景
 

@@ -180,6 +180,12 @@ _Avoid_: Prompt String、Entire Project
 **Context Manifest（上下文清单）**：某个 Inference Turn 在调用 Provider 前持久化的不可变审计记录，绑定 exact instructions、included Inference Item、Tool/输出合同、Provider/Model/Protocol/Thinking、token budget、Project revision 与内容 hash；它描述“模型实际被允许看到什么”，但不是 Project 事实。
 _Avoid_: Prompt Cache、Project Snapshot、Provider Continuity State
 
+**Context Surface（上下文表面）**：Context Manager 从完整 Inference Transcript、最新 Compaction Checkpoint、当前 Project facts 与本轮输入派生出的有界模型视图。它可以由结构化摘要和最近原文 tail 组成，可在重启后重建，但不是 Project 或 Transcript 的第二份事实源。
+_Avoid_: Chat History、Project Facts、Mutable Prompt Buffer
+
+**Compaction Checkpoint（压缩检查点）**：Run 内不可变的 Context Event，记录由结构化摘要替代的连续 Transcript 前缀、首个保留条目、源 journal revision 与内容 hash。它只改变后续 Context Surface，不删除或改写完整 Inference Transcript，也不包含 Provider private reasoning。
+_Avoid_: Transcript Rewrite、Project Snapshot、Provider Continuity State
+
 **Agent Decision（代理决策）**：Agent Step 输出的结构化可见内容或下一步 Tool 意图；不包含模型的私有推理过程。  
 _Avoid_: Chain of Thought
 

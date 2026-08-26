@@ -12,10 +12,11 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS`：`autostudio` Ratatui 入口、`/connect`、模型目录、`/model`、Thinking Level、`/exit`；
 - `PASS（contract + DeepSeek/OpenAI live）`：OpenAI Chat、OpenAI Responses、Anthropic Messages（含 DeepSeek/Kimi 兼容端点）统一使用 SSE streaming，partial text/tool JSON 只在内存组装，完整 Turn 才可落盘；2026-08-25 `deepseek-v4-flash` 真实 Tool Call smoke 通过，2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live 通过；
 - `PASS（M3-A CM-0/CM-1/CM-2 planning slice）`：Run/Turn/Item identity、durable Inference Transcript、Context Manifest、canonical Provider request、完整 ToolRequest/ToolResult、SQLite CAS 与重启 replay 已进入 production Planning 路径；固定的 `project_describe → submit_creative_plan` 多轮链路会让每一步从 Project/Transcript 重新派生，并可通过 Core API、TUI 与 Desktop 恢复；OpenAI Responses reasoning item 与 Anthropic signed thinking block 只进入 Project 外的加密 Continuity Vault，按精确 Provider binding 复用并在 Run 终态清理；
+- `IN PROGRESS（M3-A CM-3 checkpoint foundation）`：结构化 Compaction Checkpoint 已作为 append-only Context Event 原子落盘；完整 Transcript 不被改写，重启后从最新 checkpoint 的摘要与保留 tail 重建 Context Surface，Manifest 绑定 checkpoint，重复压缩必须推进边界且不能拆开 Tool Request/Result；自动压力判断、spill/prune、摘要生成和 overflow recovery 尚未完成；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
 - `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
-- `NOT IMPLEMENTED（production）`：compaction/长期 Run 检索、Approval Grant/Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
+- `NOT IMPLEMENTED（production）`：自动 compaction 策略与长期 Run 检索、Approval Grant/Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
 

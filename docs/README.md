@@ -1,8 +1,8 @@
 # Auto Studio 文档导航
 
 > 基线日期：2026-08-26
-> 当前阶段：Q0 真人内容 Gate；M3-A CM-2 Continuity Planning slice 已完成，下一切片为 CM-3 compaction
-> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。真人内容 Gate、compaction/长期 Run/Grant/Budget、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
+> 当前阶段：Q0 真人内容 Gate；M3-A CM-3 Compaction 正在实施
+> 发布状态：Core、Project、TUI 和真实 LLM Planning 已实现；durable Transcript、Context Manifest、三种 Provider 协议的 SSE assembler、完整 ToolRequest/ToolResult、固定 `project_describe → submit_creative_plan` 多轮链路、Planning 恢复及 Project 外加密 Continuity Vault 达到 `PASS（contract + OpenAI live）`。CM-3 checkpoint foundation 已能原子保存结构化摘要边界、保留完整 Transcript，并在重启后重建 summary + recent tail；自动压力判断、spill/prune、摘要生成、overflow recovery 与 CM-4 长 Run 检索仍未完成。Q0 v2 机器 Gate 已达到 11/12，v3 L4 重基线达到 6/6，Portable Handoff v1 已能生成带 Bank/Program 的 Type-1 MIDI 与乐器分配清单；跨 DAW 资格验证器已实现，但 Cubase、Studio One Pro、FL Studio 当前均为 `not_run`。真人内容 Gate、Grant/Budget、通用 Tool Runtime、Music Project、Sampler、Audio Engine、Factory Pack、VST3 与分发 Gate 尚未通过。
 
 ## 权威顺序
 

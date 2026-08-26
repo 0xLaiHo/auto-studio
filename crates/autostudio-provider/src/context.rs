@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use autostudio_core::agent::AgentRunId;
+use autostudio_core::compaction::{CompactionCheckpoint, StructuredRunSummary};
 use autostudio_core::context::{
     CanonicalMessage, CanonicalToolCall, CanonicalToolDefinition, ContextError, ContextEvent,
     ContextEventStore, ContextId, ContextManifest, InferenceItem, InferenceItemDraft,
@@ -56,6 +57,7 @@ pub struct ContextProjection {
     journal_revision: u64,
     items: Vec<InferenceItem>,
     manifests: Vec<ContextManifest>,
+    checkpoints: Vec<CompactionCheckpoint>,
     pending_tools: Vec<PendingToolRequest>,
     prepared_turn_without_output: Option<InferenceTurnId>,
 }
@@ -74,6 +76,11 @@ impl ContextProjection {
     #[must_use]
     pub fn manifests(&self) -> &[ContextManifest] {
         &self.manifests
+    }
+
+    #[must_use]
+    pub fn checkpoints(&self) -> &[CompactionCheckpoint] {
+        &self.checkpoints
     }
 
     #[must_use]
@@ -99,6 +106,21 @@ pub struct CompletedToolResult {
     pub content: String,
     pub is_error: bool,
     pub execution_id: Option<String>,
+}
+
+/// Complete input for atomically publishing one compaction checkpoint.
+pub struct CommitCompaction {
+    pub run_id: AgentRunId,
+    pub expected_journal_revision: u64,
+    pub replaces_item_ids: Vec<autostudio_core::context::InferenceItemId>,
+    pub first_kept_item_id: autostudio_core::context::InferenceItemId,
+    pub summary: StructuredRunSummary,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecordedCompaction {
+    pub journal_revision: u64,
+    pub checkpoint: CompactionCheckpoint,
 }
 
 /// Deep module that owns transcript replay, ordering, hashing, and manifests.
@@ -160,8 +182,10 @@ impl ContextManager {
 
         let mut all_items = state.items;
         all_items.extend(items.iter().cloned());
-        let messages = project_messages(&all_items);
-        let included_item_ids = all_items.iter().map(|item| item.id().clone()).collect();
+        let checkpoint = state.checkpoints.last();
+        let surface_items = current_surface_items(&all_items, checkpoint)?;
+        let messages = project_messages(surface_items, checkpoint)?;
+        let included_item_ids = surface_items.iter().map(|item| item.id().clone()).collect();
         let transcript_revision = state
             .journal_revision
             .checked_add(u64::try_from(items.len()).map_err(|_| ContextError::SequenceExhausted)?)
@@ -173,6 +197,7 @@ impl ContextManager {
             messages: &messages,
             tools: &request.tools,
             provider_binding: &request.provider_binding,
+            compaction_checkpoint_hash: checkpoint.map(CompactionCheckpoint::content_hash),
             continuity_reference: request.continuity_reference.as_ref(),
             token_budget: &request.token_budget,
         })?;
@@ -187,6 +212,7 @@ impl ContextManager {
             request.instructions.clone(),
             request.tools.clone(),
             request.provider_binding,
+            checkpoint.map(|checkpoint| checkpoint.id().clone()),
             request.continuity_reference,
             request.token_budget,
             content_hash,
@@ -276,6 +302,56 @@ impl ContextManager {
     pub fn inspect_run(&self, run_id: &AgentRunId) -> Result<ContextProjection, ContextError> {
         let state = replay(self.store.context_events(run_id)?, run_id)?;
         Ok(project_state(state))
+    }
+
+    /// Validates and atomically appends a host-owned compaction checkpoint.
+    /// The complete transcript remains untouched; only later model surfaces use
+    /// the checkpoint summary plus the kept tail.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ContextError`] for stale revisions, non-prefix replacement,
+    /// Tool pair splits, non-advancing checkpoints, or unavailable storage.
+    pub fn commit_compaction(
+        &self,
+        request: CommitCompaction,
+    ) -> Result<RecordedCompaction, ContextError> {
+        let state = replay(self.store.context_events(&request.run_id)?, &request.run_id)?;
+        if state.journal_revision != request.expected_journal_revision {
+            return Err(
+                autostudio_core::context::ContextStoreError::RevisionConflict {
+                    expected: request.expected_journal_revision,
+                    actual: state.journal_revision,
+                }
+                .into(),
+            );
+        }
+        validate_compaction_cut(
+            &state.items,
+            state.checkpoints.last(),
+            &request.replaces_item_ids,
+            &request.first_kept_item_id,
+        )?;
+        let checkpoint = CompactionCheckpoint::new(
+            request.run_id.clone(),
+            state.journal_revision,
+            request.replaces_item_ids,
+            request.first_kept_item_id,
+            request.summary,
+            now_unix_millis()?,
+        )
+        .map_err(|error| ContextError::InconsistentJournal(error.to_string()))?;
+        let journal_revision = self.store.append_context_events(
+            &request.run_id,
+            state.journal_revision,
+            &[ContextEvent::CompactionCommitted {
+                checkpoint: Box::new(checkpoint.clone()),
+            }],
+        )?;
+        Ok(RecordedCompaction {
+            journal_revision,
+            checkpoint,
+        })
     }
 
     /// Records complete local Tool Results only after matching every result to
@@ -388,6 +464,7 @@ struct ReplayState {
     next_item_sequence: u64,
     items: Vec<InferenceItem>,
     manifests: Vec<ContextManifest>,
+    checkpoints: Vec<CompactionCheckpoint>,
 }
 
 fn project_state(state: ReplayState) -> ContextProjection {
@@ -436,6 +513,7 @@ fn project_state(state: ReplayState) -> ContextProjection {
         journal_revision: state.journal_revision,
         items: state.items,
         manifests: state.manifests,
+        checkpoints: state.checkpoints,
         pending_tools,
         prepared_turn_without_output,
     }
@@ -447,6 +525,7 @@ fn replay(
 ) -> Result<ReplayState, ContextError> {
     let mut items = Vec::new();
     let mut manifests = Vec::new();
+    let mut checkpoints = Vec::new();
     let mut expected_event_sequence = 1_u64;
     let mut expected_item_sequence = 1_u64;
     let mut tool_requests = std::collections::HashMap::new();
@@ -460,61 +539,37 @@ fn replay(
         }
         match envelope.event() {
             ContextEvent::InferenceItemAppended { item } => {
-                if item.run_id() != run_id || item.sequence() != expected_item_sequence {
-                    return Err(ContextError::InconsistentJournal(
-                        "Inference Item Run or sequence does not match its journal".to_owned(),
-                    ));
-                }
-                item.payload().validate()?;
-                if item.content_hash() != digest_json(item.payload())? {
-                    return Err(ContextError::InconsistentJournal(
-                        "Inference Item content hash does not match its payload".to_owned(),
-                    ));
-                }
-                match item.payload() {
-                    InferenceItemDraft::ToolRequest { call_id, name, .. } => {
-                        if tool_requests
-                            .insert(call_id.clone(), name.clone())
-                            .is_some()
-                        {
-                            return Err(ContextError::InconsistentJournal(
-                                "duplicate Tool Request call id".to_owned(),
-                            ));
-                        }
-                    }
-                    InferenceItemDraft::ToolResult { call_id, name, .. } => {
-                        let Some(request_name) = tool_requests.get(call_id) else {
-                            return Err(ContextError::InconsistentJournal(
-                                "orphan Tool Result".to_owned(),
-                            ));
-                        };
-                        if request_name != name || !tool_results.insert(call_id.clone()) {
-                            return Err(ContextError::InconsistentJournal(
-                                "mismatched or duplicate Tool Result".to_owned(),
-                            ));
-                        }
-                    }
-                    _ => {}
-                }
+                validate_replayed_item(
+                    item,
+                    run_id,
+                    expected_item_sequence,
+                    &mut tool_requests,
+                    &mut tool_results,
+                )?;
                 items.push(item.clone());
                 expected_item_sequence = expected_item_sequence
                     .checked_add(1)
                     .ok_or(ContextError::SequenceExhausted)?;
             }
             ContextEvent::ContextPrepared { manifest } => {
-                if manifest.run_id() != run_id
-                    || manifest.transcript_revision() != envelope.sequence() - 1
-                    || manifest
-                        .included_item_ids()
-                        .iter()
-                        .any(|id| !items.iter().any(|item| item.id() == id))
-                {
-                    return Err(ContextError::InconsistentJournal(
-                        "Context Manifest does not match its durable transcript".to_owned(),
-                    ));
-                }
-                manifest.validate()?;
+                validate_replayed_manifest(
+                    manifest,
+                    run_id,
+                    envelope.sequence(),
+                    &items,
+                    checkpoints.last(),
+                )?;
                 manifests.push(manifest.as_ref().clone());
+            }
+            ContextEvent::CompactionCommitted { checkpoint } => {
+                validate_replayed_checkpoint(
+                    checkpoint,
+                    run_id,
+                    envelope.sequence(),
+                    &items,
+                    checkpoints.last(),
+                )?;
+                checkpoints.push(checkpoint.as_ref().clone());
             }
         }
         expected_event_sequence = expected_event_sequence
@@ -526,11 +581,208 @@ fn replay(
         next_item_sequence: expected_item_sequence,
         items,
         manifests,
+        checkpoints,
     })
 }
 
-fn project_messages(items: &[InferenceItem]) -> Vec<CanonicalMessage> {
+fn validate_replayed_item(
+    item: &InferenceItem,
+    run_id: &AgentRunId,
+    expected_item_sequence: u64,
+    tool_requests: &mut std::collections::HashMap<String, String>,
+    tool_results: &mut std::collections::HashSet<String>,
+) -> Result<(), ContextError> {
+    if item.run_id() != run_id || item.sequence() != expected_item_sequence {
+        return Err(ContextError::InconsistentJournal(
+            "Inference Item Run or sequence does not match its journal".to_owned(),
+        ));
+    }
+    item.payload().validate()?;
+    if item.content_hash() != digest_json(item.payload())? {
+        return Err(ContextError::InconsistentJournal(
+            "Inference Item content hash does not match its payload".to_owned(),
+        ));
+    }
+    match item.payload() {
+        InferenceItemDraft::ToolRequest { call_id, name, .. } => {
+            if tool_requests
+                .insert(call_id.clone(), name.clone())
+                .is_some()
+            {
+                return Err(ContextError::InconsistentJournal(
+                    "duplicate Tool Request call id".to_owned(),
+                ));
+            }
+        }
+        InferenceItemDraft::ToolResult { call_id, name, .. } => {
+            let Some(request_name) = tool_requests.get(call_id) else {
+                return Err(ContextError::InconsistentJournal(
+                    "orphan Tool Result".to_owned(),
+                ));
+            };
+            if request_name != name || !tool_results.insert(call_id.clone()) {
+                return Err(ContextError::InconsistentJournal(
+                    "mismatched or duplicate Tool Result".to_owned(),
+                ));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn validate_replayed_manifest(
+    manifest: &ContextManifest,
+    run_id: &AgentRunId,
+    event_sequence: u64,
+    items: &[InferenceItem],
+    checkpoint: Option<&CompactionCheckpoint>,
+) -> Result<(), ContextError> {
+    let surface_item_ids = current_surface_items(items, checkpoint)?
+        .iter()
+        .map(InferenceItem::id)
+        .collect::<Vec<_>>();
+    if manifest.run_id() != run_id
+        || manifest.transcript_revision() != event_sequence - 1
+        || manifest.included_item_ids().iter().ne(surface_item_ids)
+    {
+        return Err(ContextError::InconsistentJournal(
+            "Context Manifest does not match its durable transcript".to_owned(),
+        ));
+    }
+    if manifest.compaction_checkpoint() != checkpoint.map(CompactionCheckpoint::id) {
+        return Err(ContextError::InconsistentJournal(
+            "Context Manifest does not bind the latest compaction checkpoint".to_owned(),
+        ));
+    }
+    manifest.validate()
+}
+
+fn validate_replayed_checkpoint(
+    checkpoint: &CompactionCheckpoint,
+    run_id: &AgentRunId,
+    event_sequence: u64,
+    items: &[InferenceItem],
+    previous: Option<&CompactionCheckpoint>,
+) -> Result<(), ContextError> {
+    if checkpoint.run_id() != run_id || checkpoint.source_journal_revision() != event_sequence - 1 {
+        return Err(ContextError::InconsistentJournal(
+            "Compaction checkpoint does not match its Run and journal revision".to_owned(),
+        ));
+    }
+    checkpoint
+        .validate()
+        .map_err(|error| ContextError::InconsistentJournal(error.to_string()))?;
+    validate_compaction_cut(
+        items,
+        previous,
+        checkpoint.replaces_item_ids(),
+        checkpoint.first_kept_item_id(),
+    )
+}
+
+fn current_surface_items<'a>(
+    items: &'a [InferenceItem],
+    checkpoint: Option<&CompactionCheckpoint>,
+) -> Result<&'a [InferenceItem], ContextError> {
+    let Some(checkpoint) = checkpoint else {
+        return Ok(items);
+    };
+    let first_kept = items
+        .iter()
+        .position(|item| item.id() == checkpoint.first_kept_item_id())
+        .ok_or_else(|| {
+            ContextError::InconsistentJournal(
+                "Compaction first kept item is missing from the Transcript".to_owned(),
+            )
+        })?;
+    Ok(&items[first_kept..])
+}
+
+fn validate_compaction_cut(
+    items: &[InferenceItem],
+    previous: Option<&CompactionCheckpoint>,
+    replaces_item_ids: &[autostudio_core::context::InferenceItemId],
+    first_kept_item_id: &autostudio_core::context::InferenceItemId,
+) -> Result<(), ContextError> {
+    let first_kept = items
+        .iter()
+        .position(|item| item.id() == first_kept_item_id)
+        .ok_or_else(|| {
+            ContextError::InconsistentJournal(
+                "Compaction first kept item is missing from the Transcript".to_owned(),
+            )
+        })?;
+    if first_kept == 0
+        || items[..first_kept]
+            .iter()
+            .map(InferenceItem::id)
+            .ne(replaces_item_ids.iter())
+    {
+        return Err(ContextError::InconsistentJournal(
+            "Compaction must replace one exact contiguous Transcript prefix".to_owned(),
+        ));
+    }
+    if let Some(previous) = previous {
+        let previous_first_kept = items
+            .iter()
+            .position(|item| item.id() == previous.first_kept_item_id())
+            .ok_or_else(|| {
+                ContextError::InconsistentJournal(
+                    "Previous compaction cut point is missing from the Transcript".to_owned(),
+                )
+            })?;
+        if first_kept <= previous_first_kept {
+            return Err(ContextError::InconsistentJournal(
+                "A repeated compaction must advance the kept Transcript tail".to_owned(),
+            ));
+        }
+    }
+
+    let mut request_positions = std::collections::HashMap::new();
+    let mut result_positions = std::collections::HashMap::new();
+    for (position, item) in items.iter().enumerate() {
+        match item.payload() {
+            InferenceItemDraft::ToolRequest { call_id, .. } => {
+                request_positions.insert(call_id, position);
+            }
+            InferenceItemDraft::ToolResult { call_id, .. } => {
+                result_positions.insert(call_id, position);
+            }
+            _ => {}
+        }
+    }
+    for (call_id, request_position) in request_positions {
+        if request_position < first_kept
+            && result_positions
+                .get(call_id)
+                .is_none_or(|result_position| *result_position >= first_kept)
+        {
+            return Err(ContextError::InconsistentJournal(
+                "Compaction cannot split or hide a pending Tool Request/Result pair".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn project_messages(
+    items: &[InferenceItem],
+    checkpoint: Option<&CompactionCheckpoint>,
+) -> Result<Vec<CanonicalMessage>, ContextError> {
     let mut messages = Vec::new();
+    if let Some(checkpoint) = checkpoint {
+        let content = serde_json::to_string(&serde_json::json!({
+            "type": "auto_studio_context_summary",
+            "source": {
+                "sourceJournalRevision": checkpoint.source_journal_revision(),
+                "contentHash": checkpoint.content_hash(),
+            },
+            "summary": checkpoint.summary(),
+        }))
+        .map_err(|error| ContextError::Serialization(error.to_string()))?;
+        messages.push(CanonicalMessage::ContextSummary { content });
+    }
     let mut assistant_turn: Option<InferenceTurnId> = None;
     for item in items {
         match item.payload() {
@@ -599,7 +851,7 @@ fn project_messages(items: &[InferenceItem]) -> Vec<CanonicalMessage> {
             InferenceItemDraft::Usage { .. } | InferenceItemDraft::Finish { .. } => {}
         }
     }
-    messages
+    Ok(messages)
 }
 
 fn validate_record_binding<'a>(
@@ -776,6 +1028,7 @@ struct ContextHashInput<'a> {
     messages: &'a [CanonicalMessage],
     tools: &'a [CanonicalToolDefinition],
     provider_binding: &'a ProviderBinding,
+    compaction_checkpoint_hash: Option<&'a str>,
     continuity_reference: Option<&'a ContinuityReference>,
     token_budget: &'a TokenBudgetPlan,
 }

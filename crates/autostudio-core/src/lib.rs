@@ -1,6 +1,7 @@
 //! Domain and application interface for Auto Studio.
 
 pub mod agent;
+pub mod compaction;
 pub mod constants;
 pub mod context;
 pub mod continuity;

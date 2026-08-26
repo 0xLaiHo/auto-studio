@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::agent::{AgentRunId, InferenceUsage};
+use crate::compaction::{CompactionCheckpoint, CompactionId};
 use crate::constants::MAX_PROVIDER_TOOL_NAME_CHARS;
 use crate::continuity::ContinuityReference;
 pub use crate::error::{ContextError, ContextStoreError};
@@ -68,6 +69,9 @@ pub struct CanonicalToolCall {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "role", rename_all = "snake_case")]
 pub enum CanonicalMessage {
+    ContextSummary {
+        content: String,
+    },
     User {
         content: String,
     },
@@ -414,6 +418,8 @@ pub struct ContextManifest {
     tools: Vec<CanonicalToolDefinition>,
     provider_binding: ProviderBinding,
     #[serde(default)]
+    compaction_checkpoint: Option<CompactionId>,
+    #[serde(default)]
     continuity_reference: Option<ContinuityReference>,
     token_budget: TokenBudgetPlan,
     content_hash: String,
@@ -437,6 +443,7 @@ impl ContextManifest {
         instructions: String,
         tools: Vec<CanonicalToolDefinition>,
         provider_binding: ProviderBinding,
+        compaction_checkpoint: Option<CompactionId>,
         continuity_reference: Option<ContinuityReference>,
         token_budget: TokenBudgetPlan,
         content_hash: String,
@@ -453,6 +460,7 @@ impl ContextManifest {
             instructions,
             tools,
             provider_binding,
+            compaction_checkpoint,
             continuity_reference,
             token_budget,
             content_hash,
@@ -484,6 +492,11 @@ impl ContextManifest {
     #[must_use]
     pub const fn provider_binding(&self) -> &ProviderBinding {
         &self.provider_binding
+    }
+
+    #[must_use]
+    pub const fn compaction_checkpoint(&self) -> Option<&CompactionId> {
+        self.compaction_checkpoint.as_ref()
     }
 
     #[must_use]
@@ -562,8 +575,15 @@ impl ContextManifest {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContextEvent {
-    InferenceItemAppended { item: InferenceItem },
-    ContextPrepared { manifest: Box<ContextManifest> },
+    InferenceItemAppended {
+        item: InferenceItem,
+    },
+    CompactionCommitted {
+        checkpoint: Box<CompactionCheckpoint>,
+    },
+    ContextPrepared {
+        manifest: Box<ContextManifest>,
+    },
 }
 
 impl ContextEvent {
@@ -571,6 +591,7 @@ impl ContextEvent {
     pub const fn kind_name(&self) -> &'static str {
         match self {
             Self::InferenceItemAppended { .. } => "inference_item.appended",
+            Self::CompactionCommitted { .. } => "context.compaction_committed",
             Self::ContextPrepared { .. } => "context.prepared",
         }
     }

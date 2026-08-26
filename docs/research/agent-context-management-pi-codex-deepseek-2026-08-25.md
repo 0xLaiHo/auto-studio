@@ -3,7 +3,7 @@
 > 类型：Research，不定义发布资格
 > 日期：2026-08-25
 > 源码快照：Pi `c5ad7c1`、OpenAI Codex `d52478c`、DeepSeek Harness `b150a55`
-> 结论状态：研究基线；截至 2026-08-26，CM-0/CM-1/CM-2 Planning slice 已实现，CM-3/CM-4 仍未实现
+> 结论状态：研究基线；截至 2026-08-26，CM-0/CM-1/CM-2 Planning slice 已实现，CM-3 checkpoint foundation 正在实施，CM-4 仍未实现
 
 ## 1. 结论
 
@@ -317,6 +317,10 @@ Provider private reasoning、signed block、response id 和 opaque compaction it
 - checkpoint transaction、有效缩短验证和一次 overflow recovery；
 - 多次 compaction、crash、超长单 turn 和 orphan tool pair 测试。
 
+实施状态（2026-08-26）：checkpoint foundation 已实现，但完整 CM-3 尚未完成。`CompactionCheckpoint` 使用固定结构摘要，绑定 Run、source journal revision、被替代的连续 item 前缀、首个保留 item 与稳定 content hash；随机 identity 和创建时间不影响相同事实的 hash。checkpoint 通过现有 append-only Context Event journal 单事件 CAS 原子提交，不建立第二份事实表。replay 校验 checkpoint 的 run/revision/hash/cut，保留完整 Transcript，并让下一轮 `ContextManifest` 绑定最新 checkpoint，以 untrusted summary + kept raw tail 形成 current surface。测试覆盖进程重启、两次推进 compaction、非推进拒绝、Tool Request/Result 不可拆分，以及 OpenAI Chat/Responses/Anthropic Messages 都不把 summary 提升为 system/policy。
+
+仍缺：deterministic spill/prune、真实 token pressure、bounded summary 生成策略、压缩前后有效缩短证明、未闭合 compaction attempt 的 crash 语义、超长单 turn，以及只有 surface generation 实际推进时才允许的一次 overflow recovery。因此当前状态是 `IN PROGRESS`，不能标记 CM-3 PASS。
+
 ### CM-4：Long-Run Context Retrieval（必做）
 
 长 Run 是 Auto Studio 的基本产品能力，不是观察到问题后才补的优化。Creator 必须能够在同一个 Agent Run 中持续完成多轮创作、试听、修改、比较与回退；Run 需要跨多次 compaction、进程重启和间隔恢复后继续工作。
@@ -360,6 +364,6 @@ CM-4 至少实现：
 
 ## 12. 结论性建议
 
-CM-0、CM-1 与 CM-2 的 Planning slice 已完成。下一步是 **CM-3 Compaction**，随后立即实现必做的 **CM-4 Long-Run Retrieval**；二者必须基于现有 durable Transcript、ContextManifest 和 Continuity binding，不能把摘要或索引升级成第二份工程事实。
+CM-0、CM-1 与 CM-2 的 Planning slice 已完成；CM-3 checkpoint foundation 已落地。下一步是在同一 Context Module 内完成 **CM-3 的自动 pressure、spill/prune、summary、有效缩短与单次 overflow recovery**，随后立即实现必做的 **CM-4 Long-Run Retrieval**；二者必须基于现有 durable Transcript、ContextManifest 和 Continuity binding，不能把摘要或索引升级成第二份工程事实。
 
 CM-4 不能从产品范围删除，也不能等上线后才决定是否需要。第一版以可重建的本地全文/结构化检索为主，不把“长 Run 必须可持续”误解成“必须立即建设跨项目向量记忆平台”。
