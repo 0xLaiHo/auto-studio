@@ -8,6 +8,7 @@ pub mod context_retrieval;
 pub mod context_surface;
 pub mod continuity;
 mod error;
+pub mod execution_control;
 pub mod production;
 pub mod project;
 pub mod provider;

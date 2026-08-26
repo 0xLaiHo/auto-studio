@@ -1,8 +1,8 @@
 # Auto Studio 技术设计文档
 
-> 基线日期：2026-08-26
+> 基线日期：2026-08-27
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 Run/Turn/Item identity、durable Inference Transcript、Context Manifest、三种协议 SSE assembler、完整 ToolRequest/ToolResult、每步 replay、Planning resume、Project 外加密 Continuity Vault、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production 路径。每个 Retrieval Hit 带 source provenance，实际 Selection 与 token cost 进入 Manifest；SQLite 检索 projection 可从完整 Transcript 重建。冻结合同已通过 100 inference steps、10 次 compaction、3 次重启和一次模拟跨日恢复；完整 Transcript、Project facts 与 Tool Result 不改写，摘要和检索内容都按 untrusted user context 发送。固定链路先执行真实只读 `project_describe`，再接受 `submit_creative_plan`；仅有 `ContextPrepared` 而无 Provider 输出的中断不会自动重提。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live，包括跨 Turn replay 与终态 Vault purge。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。Approval Grant、Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 durable Transcript/Manifest、Provider Continuity、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production Planning 路径。2026-08-27 Approval Grant / Run Budget machine slice 又实现了精确且不可变的授权 binding、host-owned system ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、稳定的 Grant/Budget/Tool Resource 三类拒绝，以及独立 SQLite CAS 持久化；故障零发布、stale revision、重启恢复、篡改失败关闭和跨日暂停不消耗 active wall-clock 均有契约测试。该模块尚未接入固定 Planning composition root，也没有 durable ToolExecution 或 Music Project 独立 revision，因此仍不能执行真实音乐写入。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
 
 ## 1. 决策摘要
 
@@ -132,7 +132,54 @@ flowchart LR
     class Adapter,Wire,Assembler,Query,Selection,Initial,SpillPolicy,Surface,Footprint,AutoCompact,Cut,Summary,Verify,Atomic,Prepared,Overflow,Purge,Stop,FixedTools,Describe,Submit pending;
 ```
 
-图中的 Vault 与 Project SQLite 是两个存储域：SQLite 保存可审计 Transcript、Manifest、不含 payload 的 `ContinuityReference`、只改变模型视图的 Compaction Checkpoint Event，以及可由 hash 校验的 Tool Result spill blob；Provider 私密 payload 只进入应用私有 Vault。FTS5/BM25 是第三种性质不同的本地 projection：它只索引同一 Run 的可见消息和完整 Tool Request/Result，删除后在 Project 打开时从 Transcript 重建，不拥有事实。Checkpoint 和 spill 都不删除 Transcript，也不修改 Project facts。Context Manager 在 hard/overflow 压力下自动选择完整 Turn 边界的安全 cut，至少保留新输入和最近两轮；已有 checkpoint 时，它还以本轮输入查询已退出 current surface 的历史，排除 raw tail 和摘要已显式引用的 source。实际命中以 `ContextRetrievalSelection` 进入 Manifest，并带 source item/type/time、Project revision、hash、Tool execution/error provenance、原因、rank 与 token cost。只有压缩后实际更短并回到 `Normal` 才把新输入、Checkpoint、Manifest 与 spill 同事务发布。明确的 Provider overflow 会先落盘 Finish 并清除旧 Continuity，只允许一次恢复。三种 Provider wire 都把摘要与 retrieved content 映射成 untrusted user context，不能提升成 system/policy。图中仍没有 Music Project、Audio Engine 或通用 Tool Runtime。`project_describe` 和 `submit_creative_plan` 是固定内部 Tool Module，不替代 M3-C 的版本化 Registry、Policy、Grant、Budget 与 durable ToolExecution。
+图中的 Vault 与 Project SQLite 是两个存储域：SQLite 保存可审计 Transcript、Manifest、不含 payload 的 `ContinuityReference`、只改变模型视图的 Compaction Checkpoint Event，以及可由 hash 校验的 Tool Result spill blob；Provider 私密 payload 只进入应用私有 Vault。FTS5/BM25 是第三种性质不同的本地 projection：它只索引同一 Run 的可见消息和完整 Tool Request/Result，删除后在 Project 打开时从 Transcript 重建，不拥有事实。Checkpoint 和 spill 都不删除 Transcript，也不修改 Project facts。Context Manager 在 hard/overflow 压力下自动选择完整 Turn 边界的安全 cut，至少保留新输入和最近两轮；已有 checkpoint 时，它还以本轮输入查询已退出 current surface 的历史，排除 raw tail 和摘要已显式引用的 source。实际命中以 `ContextRetrievalSelection` 进入 Manifest，并带 source item/type/time、Project revision、hash、Tool execution/error provenance、原因、rank 与 token cost。只有压缩后实际更短并回到 `Normal` 才把新输入、Checkpoint、Manifest 与 spill 同事务发布。明确的 Provider overflow 会先落盘 Finish 并清除旧 Continuity，只允许一次恢复。三种 Provider wire 都把摘要与 retrieved content 映射成 untrusted user context，不能提升成 system/policy。图中仍没有 Music Project、Audio Engine 或通用 Tool Runtime。`project_describe` 和 `submit_creative_plan` 是固定内部 Tool Module，尚未接入当前 Grant/Budget machine，也不替代 M3-C 的版本化 Registry、Policy 与 durable ToolExecution。
+
+### 2.4 当前 Approval Grant / Run Budget 机器合同架构图
+
+这张图画的是已经可运行、可持久化的执行前控制模块。非技术读法是：Creator 的同意、整次 Run 的安全上限、单个工具的资源上限是三把不同的锁；三把锁全部通过后只得到“预留”，不表示工具已经成功，也不表示工程已经改变。
+
+```mermaid
+flowchart LR
+    Host[Host Policy\nsystem ceiling] --> Configure[ExecutionControlManager.configure]
+    Config[Run configured budget] --> Configure
+    Configure --> Control[ExecutionControl\nRun-local aggregate]
+    Configure -->|revision 0| ControlDB[(SQLite\nagent_run_execution_control)]
+
+    Creator[Creator action] --> Grant[ApprovalGrant\nRun + Project revision + subject\nTool fingerprint + targets\neffect + cost + expiry]
+    Grant --> Apply[ExecutionControlManager.apply\nCAS expected revision]
+    Inference[Completed Inference Turn\ntokens + cost + active time] --> Apply
+    Claim[Future Tool claim\nstable reservation id\nupper-bound usage] --> Apply
+
+    Apply --> GrantCheck{Grant binding\nand cumulative scope}
+    GrantCheck -->|PASS| BudgetCheck{Run Budget\nand system ceiling}
+    GrantCheck -.->|reject| GrantError[Grant error\nzero revision change]
+    BudgetCheck -->|PASS| ResourceCheck{Tool Resource Limit}
+    BudgetCheck -.->|reject| BudgetError[Budget dimension error\nzero revision change]
+    ResourceCheck -->|PASS| Reservation[Execution Reservation\nreserved]
+    ResourceCheck -.->|reject| ResourceError[Resource dimension error\nzero revision change]
+
+    Reservation --> Settle[settle actual <= reserved]
+    Reservation --> Cancel[cancel only after\nconfirmed zero effect]
+    Reservation -.->|Unknown Outcome: keep reserved| Reconcile[Future reconciliation]
+    Settle --> Apply
+    Cancel --> Apply
+    Apply -->|atomic replacement\nrevision + 1| ControlDB
+    ControlDB -->|restart + validate| Apply
+    ControlDB -.->|tampered/corrupt| Closed[fail closed]
+
+    Reservation -.->|M3-C 尚未接入| Runtime[Durable ToolExecution\nMusic Project transaction]
+
+    classDef durable fill:#102b38,stroke:#39ffdf,color:#ffffff;
+    classDef pending fill:#2b2238,stroke:#ff4fd8,color:#ffffff;
+    classDef rejected fill:#351822,stroke:#ff5d73,color:#ffffff;
+    class ControlDB,Control,Grant,Reservation durable;
+    class Runtime,Reconcile pending;
+    class GrantError,BudgetError,ResourceError,Closed rejected;
+```
+
+`ExecutionControl` 是深 Module：调用者只提交 typed command，不负责计算累计消耗、Grant 剩余额度、并发峰值或幂等重放。`ApprovalGrant` 是不可变凭据；`RunBudget` 同时保存 configured limit 与 host-owned system ceiling，前者永远不能提高后者；`ToolResourceLimit` 只约束单次工具。active wall-clock 是完成推理和工具工作的累计活跃时间，不是 Run 从创建到现在的日历年龄，所以退出应用、等待 Creator 和跨日恢复不会自动耗尽预算。SQLite 表与 Transcript、Project Snapshot 分开使用 CAS revision；拒绝和 commit 故障都不发布部分状态，备份 SQLite 时自然随工程包复制。
+
+当前虚线连接很重要：`ExecutionReservation` 尚未与 durable `ToolExecution`、Policy、Tool Descriptor 或 Music Project transaction 绑定。因此这张图证明控制合同和持久化，不证明 LLM 已能修改音乐工程。M3-B 必须先给 Music Project 独立、可比较的 revision；M3-C 再把 reservation identity、ToolExecution receipt 与工程提交原子关联。
 
 ## 3. 当前实例化架构与目标架构
 
@@ -149,12 +196,13 @@ flowchart LR
 | LLM Planning | `PASS（CM-1 contract）` | SSE canonical Turn；`project_describe → submit_creative_plan` 两轮链路；typed Plan 与 Approval 已接 production composition root |
 | Q0 实验 Harness | `PASS（v2/v3/portable machine）` / `LIVE-PENDING（human）` | 真实 DeepSeek V4 Pro、Mode A/B/C、逐轮落盘/任意已落盘 B 回合恢复、strict spec、SMF compiler；v3 protocol binding、受限资源修订与 formal verifier 通过；Portable v1 增加 InstrumentAssignment、CC0/CC32/Program Change 和 assignment manifest |
 | Inference Transcript/Context Manifest | `PASS（CM-0—CM-4 planning machine slices）` | Run/Turn/Item、完整 Visible/Tool/Usage/Finish、SQLite append/CAS、精确 Manifest、三协议 stream assembler、完整 pair 校验与重启 replay；automatic compaction/spill/overflow recovery；Run 内 exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、projection rebuild 与 100-step long-run corpus | 真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification 未通过 |
+| Approval Grant / Run Budget | `PASS（machine contract）` / `NOT WIRED（Tool Runtime）` | 不可变 Grant binding；configured/system ceiling 分离；Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger；Execution Reservation/settlement/cancel；SQLite CAS、故障零发布、重启/篡改合同 | 尚未接固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision |
 | Agent Run lifecycle | `PASS（CM-1/CM-2 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；终态前清理 continuity |
 | Provider Continuity Vault | `PASS（CM-2 contract + OpenAI live）` / `LIVE-PENDING（Anthropic / OS Vault）` | OpenAI Responses reasoning/function item、Anthropic signed thinking/tool-use block；XChaCha20-Poly1305、独立密钥、精确 binding、TTL、启动/周期 janitor、错配/损坏清理、终态 purge 与 sentinel 隔离测试；`gpt-5-mini` 实测完成 2 Turn、777 input/385 output tokens 和终态 purge |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |
 | 固定 Planning Tool loop | `PASS（CM-1 contract）` | 内部 `project_describe` 与 `submit_creative_plan`，有真实本地只读执行、完整 Request/Result 与有界循环 |
-| 通用 Tool Registry/ToolExecution | `NOT IMPLEMENTED` | 尚无版本化 catalog、Policy/Grant/Budget、通用执行状态机或 Music Project Tool |
+| 通用 Tool Registry/ToolExecution | `NOT IMPLEMENTED` | Grant/Budget 执行前机器合同已存在；尚无版本化 catalog、Policy、durable ToolExecution、receipt 或 Music Project Tool |
 | MIDI | `PASS（Q0 experiment）` / `NOT IMPLEMENTED（production）` | Q0 可确定输出 Type-1 SMF 与可审计乐器意图；production Music Project/Tool/Export 尚不存在 |
 | Sampler/Factory Pack | `NOT IMPLEMENTED` | production workspace 未引入对应运行模块；GeneralUser GS 仅获批本地 Q0 评价，不可视为 Factory Pack |
 | Rust Audio Engine | `NOT IMPLEMENTED` | 当前仅使用 `hound` 做 WAV 合同，没有 graph/render engine |
@@ -400,7 +448,9 @@ pub trait ToolRuntime {
 
 `ExecutionBinding` 绑定：`run_id`、`step_id`、`turn_id`、`execution_id`、`project_id`、`expected_revision`、Tool Descriptor fingerprint、`ApprovalGrantId`、Run Budget ledger、Tool Resource Limit 和 cancellation token。
 
-实现内部完成 schema、版本、capability、Policy、Approval Grant scope、Run Budget、Tool Resource Limit、幂等、事务、超时、结果清洗和 Event。三类检查必须分别返回稳定错误，不能用一个 money-only `CostApproval` 代替。Agent 不需要了解这些实现细节。
+已经实例化的 `ExecutionControlManager` 是该目标 Module 的执行前深 seam：`configure` 固定 Run configured budget 与 host-owned ceiling，`apply` 接受 `IssueGrant / RecordInference / AuthorizeTool / SettleTool / CancelTool` typed command，并以 SQLite CAS 发布。`authorize_tool` 固定按 Grant binding、Run Budget、Tool Resource Limit 三类独立错误检查；相同 reservation identity 与 claim fingerprint 重放不会重复占用，CAS 结果丢失后以旧 revision 重放同一 identity 也会识别已提交状态。实际结算不得高于预留；只有 ToolExecution 证明没有启动或没有产生影响时才可取消并返还 effects/cost/assets/render/concurrency，Unknown Outcome 保留预留并先对账，Tool execution count 始终保守计入。
+
+尚未实例化的是 Tool Runtime 的后半段：schema/version/capability/Policy、Descriptor 解析、durable ToolExecution 状态机、Music Project transaction、receipt、超时/取消执行器和结果清洗。`ExecutionReservationId` 只是执行前预算身份，不得冒充 `ToolExecutionId` 或成功 receipt；M3-C 必须把两者原子关联。旧 `CostApproval` 继续只服务 legacy Generation 状态机，不能转换或提升为 `ApprovalGrant`。
 
 ### 4.5 Music Project Module
 
@@ -503,13 +553,13 @@ Prepared/AwaitingApproval/Running
 
 - 最大 Inference Turn；
 - 最大 ToolExecution；
-- 最大 wall-clock 时间；
+- 最大累计 active wall-clock 时间；
 - 最大 token/cost；
 - 最大 Preview render 次数；
 - 最大新增轨道/音符/插件实例；
 - 单个 Tool 的 CPU、内存、输出大小和 deadline。
 
-最后一项来自 Tool Descriptor 的 `ToolResourceLimit`，其余属于 Run Budget。Creator 的 Approval Grant 只表示同意范围，不能提高两者；达到上限时进入 `NeedsAttention`，不能由 LLM 自行提高预算。
+最后一项来自 Tool Descriptor 的 `ToolResourceLimit`，其余属于 Run Budget。active wall-clock 只累计已记录的 Inference 与 Tool 工作时间；等待 Creator、进程退出或跨日暂停不计费。Creator 的 Approval Grant 只表示同意范围，不能提高 Run Budget 或 Tool Resource Limit；configured budget 也不能提高 host-owned system ceiling。当前 Core 已拒绝超限并保持 ledger revision 不变；等 ToolExecution 状态机落地后，超限投影为 `NeedsAttention`，不能由 LLM 自行提高预算。
 
 ### 5.4 Context 与 compaction
 
@@ -517,7 +567,7 @@ Context Snapshot 只包含完成当前决策所需的：Brief、选中 Project f
 
 Compaction 只能压缩可重建的对话语义，不能改变 Project Revision、完整 Tool Request/Result、ToolExecution、Approval Grant、budget ledger、Candidate 或 Selection。Provider continuity 不参与 compaction，由 Vault 独立保存和清理。
 
-CM-3/CM-4 已完成“完整 log + 派生 surface + source-linked retrieval”的 Planning machine 纵切：SQLite Context journal 是唯一语义事实源；checkpoint 只遮蔽旧 surface 前缀，spill 只把大 Tool Result 替换为可追溯的有界视图，FTS5/BM25 只索引可从 Transcript 重建的 Run-local 内容。`ContextManifest` 记录模型实际看到的 checkpoint、保留 item ids、preparation reason、surface transform、spill references、retrieval query fingerprint/selection/token cost 与 initial/prepared footprint。automatic policy、安全 cut、有界摘要、有效缩短、原子 crash/retry、单次 overflow recovery、检索去重和 untrusted 注入都封装在 `prepare_turn` 内，调用者不管理微策略。下一 Harness 切片是 Approval Grant / Run Budget；真实 Music Project Tool 落地后还必须补长 Run 约束保持率与工具正确率 Gate。
+CM-3/CM-4 已完成“完整 log + 派生 surface + source-linked retrieval”的 Planning machine 纵切：SQLite Context journal 是唯一语义事实源；checkpoint 只遮蔽旧 surface 前缀，spill 只把大 Tool Result 替换为可追溯的有界视图，FTS5/BM25 只索引可从 Transcript 重建的 Run-local 内容。`ContextManifest` 记录模型实际看到的 checkpoint、保留 item ids、preparation reason、surface transform、spill references、retrieval query fingerprint/selection/token cost 与 initial/prepared footprint。automatic policy、安全 cut、有界摘要、有效缩短、原子 crash/retry、单次 overflow recovery、检索去重和 untrusted 注入都封装在 `prepare_turn` 内，调用者不管理微策略。Approval Grant / Run Budget 的独立 durable machine slice 也已完成；下一依赖是 M3-B Music Project 独立 revision，然后在 M3-C 将 Execution Reservation 与 ToolExecution/Music Project transaction 原子关联。真实 Music Project Tool 落地后仍必须补长 Run 约束保持率与工具正确率 Gate。
 
 ### 5.5 中断、恢复与终态清理
 
@@ -870,7 +920,7 @@ Client 先获取 Snapshot，再从 `asOfSequence` 连接 SSE。断线后重新�
 |---|---|
 | `autostudio-core` | Music Project domain、Agent Run、Inference item、Tool descriptor/request/result、Grant/Budget、Policy、application Interface |
 | `autostudio-provider` | LLM Connection、Catalog、Thinking、stream assembly、continuity-aware 协议 Adapter 与 Project 外 `FileContinuityVault`；后续删除 production music generation 职责 |
-| `autostudio-storage` | 已实现 Project SQLite、Event/outbox 与 Run-scoped Transcript/Manifest；后续增加 Grant/Budget、ToolExecution、Music Snapshot；不保存 Continuity payload |
+| `autostudio-storage` | 已实现 Project SQLite、Event/outbox、Run-scoped Transcript/Manifest 与独立 Grant/Budget CAS snapshot；后续增加 ToolExecution、Music Snapshot；不保存 Continuity payload |
 | `autostudio-media` | staged asset、WAV、离线 render/analysis 的初始实现 |
 | `autostudio-api` | Core HTTP/SSE、session/discovery 与 DTO |
 
@@ -997,9 +1047,9 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 6. `PASS（CM-2 planning slice）`：OpenAI Responses/Anthropic Messages continuity capture/replay、Project 外加密 Vault、binding、TTL、janitor、错配/损坏处理、终态 purge 与 secret-sentinel 隔离合同已实现；
 7. `PASS（CM-3 planning slice）`：checkpoint/replay、完整 Transcript、automatic safe-cut、bounded summary、effectiveness Gate、deterministic footprint/pressure、大 Tool Result spill、原子 crash/retry、backup 恢复和单次 overflow recovery 已实现；
 8. `PASS（CM-4 planning machine slice）`：Run-local exact/FTS5-BM25 retrieval、source provenance、Manifest Selection、projection rebuild、untrusted wire mapping 与 100-step long-run corpus 已实现；
-9. 实现 Approval Grant 与 Run Budget 领域合同和 ledger/enforcement；
-10. 在 `autostudio-core` 建立 Music Project commands、Tool Descriptor/Request/Result 与 RunProjection；
-11. 在 storage 增加 Music Project/Grant/Budget/ToolExecution/Snapshot migration 与 non-terminal query；
+9. `PASS（Grant/Budget machine slice）`：Approval Grant、Run Budget、Tool Resource Limit、Execution Reservation/settlement/cancel、稳定拒绝、SQLite CAS、故障零发布、重启/篡改恢复合同已实现；
+10. 在 `autostudio-core` 建立具有独立 revision 的 Music Project commands 与 ProjectChangeSet；
+11. 在 storage 增加 Music Project Snapshot/Event migration；Grant/Budget 表已实现，ToolExecution/non-terminal query 留在 M3-C；
 12. 实现固定本地 Tool Registry 与两种真实 Tool Adapter：Project/MIDI 与 Render/Analysis；
 13. `PASS（固定 Planning slice）`：LLM Planning 已扩展为 `project_describe → submit_creative_plan` 有界 Tool loop；Music Project 阶段再迁移到通用 Tool Runtime；
 14. 以最小内置音源完成离线 render，再接 Factory Pack/Sampler；

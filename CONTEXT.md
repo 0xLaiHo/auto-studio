@@ -231,11 +231,14 @@ _Avoid_: Raw stdout、Media Bytes、Absolute Path
 **Approval（授权）**：Creator 对某组工具影响、内容安装、插件使用、权利敏感或导出动作给予的明确许可。  
 _Avoid_: Selection、Generic Confirmation
 
-**Approval Grant（授权凭据）**：Approval 的不可变执行凭据，绑定精确 Project Revision、Plan、Tool Descriptor fingerprint、目标范围、允许的副作用数量与费用上限；请求超出任一绑定条件时失效。  
+**Approval Grant（授权凭据）**：Approval 的不可变执行凭据，绑定 Creator action、Agent Run、精确 Project Revision、Plan 或 Agent Step、Tool Descriptor fingerprint、目标范围、副作用类别与累计数量/费用上限；凭据未生效、已过期或请求超出任一绑定条件时失效。
 _Avoid_: Session-wide Permission、Run Budget、Checkbox
 
-**Run Budget（运行预算）**：Core 为一个 Agent Run 强制执行的 turns、tools、tokens、cost、wall-clock、render 和资源总上限。它独立于 Approval Grant，Creator 和 LLM 都不能把它提高到系统上限之外。  
+**Run Budget（运行预算）**：Core 为一个 Agent Run 强制执行的 turns、tools、tokens、cost、累计活跃执行时间、render、side effect、asset 和并发总上限；等待 Creator、程序退出和跨日暂停不消耗活跃执行时间。它独立于 Approval Grant，Creator 和 LLM 都不能把它提高到系统上限之外。
 _Avoid_: Approval、Provider Quota、Tool Resource Limit
+
+**Execution Reservation（执行预留）**：Tool 执行前用稳定 identity 对 Approval Grant、Run Budget 和 Tool Resource Limit 做出的保守上限占用；相同请求可幂等重放，完成后按不超过预留的实际使用量结算，取消时只保留 ToolExecution 次数。
+_Avoid_: Tool Result、Approval Grant、Success Receipt
 
 **Tool Resource Limit（工具资源限制）**：Tool Descriptor 对单次 ToolExecution 声明的输入规模、目标数量、CPU、内存、时长、输出和并发上限。  
 _Avoid_: Run Budget、Approval Grant、Best-effort Hint

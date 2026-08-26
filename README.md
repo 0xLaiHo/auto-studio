@@ -6,7 +6,7 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 
 ## 当前状态
 
-截至 2026-08-26：
+截至 2026-08-27：
 
 - `PASS`：独立 Rust Core、本机认证 API、SQLite Project/revision/event/outbox/backup；
 - `PASS`：`autostudio` Ratatui 入口、`/connect`、模型目录、`/model`、Thinking Level、`/exit`；
@@ -14,14 +14,15 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS（M3-A CM-0/CM-1/CM-2 planning slice）`：Run/Turn/Item identity、durable Inference Transcript、Context Manifest、canonical Provider request、完整 ToolRequest/ToolResult、SQLite CAS 与重启 replay 已进入 production Planning 路径；固定的 `project_describe → submit_creative_plan` 多轮链路会让每一步从 Project/Transcript 重新派生，并可通过 Core API、TUI 与 Desktop 恢复；OpenAI Responses reasoning item 与 Anthropic signed thinking block 只进入 Project 外的加密 Continuity Vault，按精确 Provider binding 复用并在 Run 终态清理；
 - `PASS（M3-A CM-3 planning slice）`：`prepare_turn` 会测量 canonical request footprint；达到 hard/overflow 时自动选择不拆 Turn/Tool pair 的连续前缀，保留新输入和最近两轮，用有界结构化摘要建立 Checkpoint，并且只有压缩后实际变短且回到 Normal 才允许调用 Provider。Creator 新输入、Checkpoint、Manifest 与 spill 在同一 SQLite transaction 提交；失败后零落盘，重试得到相同 checkpoint 内容 hash。Provider 明确报告 context overflow 时清除旧 Continuity 并只恢复一次，第二次停止；完整 Transcript、Project facts 与 Tool Result 始终保留；
 - `PASS（M3-A CM-4 planning slice / machine contract）`：同一 Run 的完整 Transcript 现在具有精确 item 查询和 SQLite FTS5/BM25 检索；命中带 source item/type/time/Project revision/hash/Tool execution/error provenance，并以有界 untrusted user context 注入。每次选择及 token 成本写入 `ContextManifest`，current tail 与摘要已引用来源会去重；索引可删除并在 Project 重开时从 Transcript 重建。冻结合同通过 100 inference steps、10 次 compaction、3 次重启和模拟跨日恢复；真实音乐 Tool 的约束保持/正确率仍等待后续纵切；
+- `PASS（M3-A Grant/Budget machine contract）/ NOT WIRED（Tool Runtime）`：`ExecutionControlManager` 已实现不可变 Approval Grant、configured/system Run Budget ceiling、独立 Tool Resource Limit、Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger，以及幂等 Execution Reservation/settlement/cancel；SQLite CAS、stale revision、故障零发布、重启恢复、篡改失败关闭和跨日暂停合同通过。它尚未接入固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision；
 - `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
 - `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
 - `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
-- `NOT IMPLEMENTED（production）`：Approval Grant/Run Budget、通用 Tool Registry/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。CM-4 的机器合同已完成，但真实音乐 Tool 的长 Run 质量 Gate 尚待对应纵切；超长 single-turn 在没有安全 cut 时会明确失败，Provider-specific 精确 tokenizer 和真实 overflow live qualification 仍待完成。
+- `NOT IMPLEMENTED（production execution）`：通用 Tool Registry/Policy/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。Grant/Budget 机器合同已完成但尚未驱动真实工具；真实音乐 Tool 的长 Run 质量 Gate、超长 single-turn、Provider-specific 精确 tokenizer 和真实 overflow live qualification 仍待完成。
 
 因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
 
-当前并行推进 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人 Gate 与不依赖内容结论的 M3-A Harness Foundation。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 已为全部 6 个 L4 建立可比较的合法 B 基线。真人反馈、盲听与继续编辑完成前仍不形成内容质量 `GO`，也不启动 Music Project/Audio Engine 纵切。M3 的目标是：
+当前并行推进 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人 Gate 与不依赖内容结论的 Harness Foundation。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 已为全部 6 个 L4 建立可比较的合法 B 基线。Grant/Budget 机器合同已完成；真人反馈、盲听与继续编辑完成前仍不形成内容质量 `GO`。下一代码依赖是具有独立 revision 的 Music Project Domain，完成后才能把 Execution Reservation 接到 ToolExecution。M3 的目标是：
 
 ```text
 Brief

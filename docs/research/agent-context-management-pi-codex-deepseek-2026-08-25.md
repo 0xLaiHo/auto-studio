@@ -26,7 +26,7 @@ Auto Studio 不应完整复制其中任一实现，最合适的是一套分层�
 - 没有 durable `Turn`、`Message`、`ToolCall`、`ToolResult`、`ContextSnapshot`、`CompactionCheckpoint` 或 `ProviderContinuity` 实现；
 - 因此当前不是“上下文策略需要优化”，而是 agent tool loop 的上下文地基尚未实现。
 
-截至 2026-08-26，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。CM-3 planning slice 已进一步实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash/retry、大 Tool Result spill 与单次 overflow recovery。CM-4 planning slice 现已实现 Run 内 exact/FTS5-BM25 retrieval、source-linked hit、Manifest Selection、summary/current-tail 去重与可重建 SQLite projection；冻结合同完成 100 steps、10 compactions、3 restarts 与模拟 cross-day recovery，并覆盖旧约束、Creator decision、artifact 与 unresolved Tool Result 召回。真实音乐 Tool 正确率、Approval Grant、Run Budget 与通用 ToolExecution 仍只是后续规格，不能报告为已交付能力。
+截至 2026-08-27，前述前三项已由 CM-0/CM-1 改写：代码已有 durable Inference Transcript、完整 Tool Request/Result、Context Manifest、三协议 SSE assembler、固定多轮 Planning Tool loop 与恢复。CM-2 又实现了 OpenAI Responses/Anthropic Messages continuity capture/replay 和 Project 外加密 Vault。CM-3 planning slice 已进一步实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、同事务 crash/retry、大 Tool Result spill 与单次 overflow recovery。CM-4 planning slice 现已实现 Run 内 exact/FTS5-BM25 retrieval、source-linked hit、Manifest Selection、summary/current-tail 去重与可重建 SQLite projection；冻结合同完成 100 steps、10 compactions、3 restarts 与模拟 cross-day recovery，并覆盖旧约束、Creator decision、artifact 与 unresolved Tool Result 召回。随后完成的 Grant/Budget machine slice 已实现不可变 Approval Grant、host-owned Run Budget ceiling、独立累计 ledger、Execution Reservation/settlement/cancel 与 SQLite CAS 恢复，但尚未接 composition root、Policy、durable ToolExecution 或 Music Project revision。真实音乐 Tool 正确率与通用 ToolExecution 仍只是后续规格，不能报告为已交付能力。
 
 ## 3. 三者对比
 
@@ -366,4 +366,4 @@ CM-4 至少实现：
 
 CM-0—CM-4 的 Planning machine slice 已完成。CM-4 以现有 durable Transcript、ContextManifest、CompactionCheckpoint 和 Continuity binding 为基础，加入 source-linked、可重建、可审计的本地检索，没有把摘要或索引升级成第二份工程事实，也没有引入跨项目向量记忆平台。
 
-下一步应实现 Approval Grant / Run Budget，再进入通用 ToolExecution；真实音乐 Tool 落地后，必须继续执行本报告 Gate 10 的 compaction/retrieval 约束保持率和工具正确率盲测。CM-4 的 machine PASS 不能替代该真人内容资格。
+Approval Grant / Run Budget 的独立 machine slice 已实现。下一代码依赖应是具备独立 revision 的 Music Project Domain，再把 Execution Reservation 与 durable ToolExecution/Music Project transaction 原子关联；真实音乐 Tool 落地后，必须继续执行本报告 Gate 10 的 compaction/retrieval 约束保持率和工具正确率盲测。CM-4 与 Grant/Budget 的 machine PASS 都不能替代该真人内容资格。

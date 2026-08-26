@@ -145,6 +145,101 @@ pub enum AgentRunError {
     ActiveRunExists,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RunBudgetDimension {
+    InferenceTurns,
+    ToolExecutions,
+    Tokens,
+    Cost,
+    WallClock,
+    PreviewRenders,
+    SideEffects,
+    AssetBytes,
+    ConcurrentTools,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ToolResourceDimension {
+    InputBytes,
+    TargetCount,
+    CpuMillis,
+    MemoryBytes,
+    OutputBytes,
+    DeadlineMillis,
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ExecutionControlError {
+    #[error("Execution Control identity is invalid")]
+    InvalidId,
+    #[error("Execution Control field '{0}' must not be empty or unbounded")]
+    InvalidField(&'static str),
+    #[error("Execution Control digest is invalid")]
+    InvalidDigest,
+    #[error("money amount or currency is invalid")]
+    InvalidMoney,
+    #[error("Approval Grant is invalid")]
+    InvalidGrant,
+    #[error("Run Budget is invalid")]
+    InvalidBudget,
+    #[error("configured Run Budget exceeds the system ceiling for {dimension:?}")]
+    ConfiguredBudgetExceedsSystemCeiling { dimension: RunBudgetDimension },
+    #[error("Approval Grant was not found")]
+    GrantNotFound,
+    #[error("Approval Grant has expired")]
+    GrantExpired,
+    #[error("Approval Grant is not valid before its issue time")]
+    GrantNotYetValid,
+    #[error(
+        "Approval Grant does not match the Run, Project revision, subject, Tool, or side effect"
+    )]
+    GrantBindingMismatch,
+    #[error("Approval Grant does not cover every requested target")]
+    GrantTargetExceeded,
+    #[error("Approval Grant side-effect allowance is exhausted")]
+    GrantEffectExceeded,
+    #[error("Approval Grant cost allowance is exhausted")]
+    GrantCostExceeded,
+    #[error("Run Budget exceeded for {dimension:?}")]
+    RunBudgetExceeded { dimension: RunBudgetDimension },
+    #[error("Tool Resource Limit exceeded for {dimension:?}")]
+    ToolResourceExceeded { dimension: ToolResourceDimension },
+    #[error("a durable ledger identity was reused with different content")]
+    IdentityConflict,
+    #[error("Tool budget reservation was not found")]
+    ReservationNotFound,
+    #[error("Tool budget reservation does not allow this transition")]
+    InvalidReservationTransition,
+    #[error("Tool settlement exceeds its pre-execution reservation")]
+    SettlementExceedsReservation,
+    #[error("Execution Control numeric range is exhausted")]
+    NumericOverflow,
+    #[error("restored Execution Control state is corrupt")]
+    CorruptRestoredState,
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ExecutionControlStoreError {
+    #[error("Execution Control already exists for this Run")]
+    AlreadyExists,
+    #[error("Execution Control was not found")]
+    NotFound,
+    #[error("Execution Control revision conflict: expected {expected}, actual {actual}")]
+    RevisionConflict { expected: u64, actual: u64 },
+    #[error("Execution Control storage is unavailable: {0}")]
+    Unavailable(String),
+    #[error("Execution Control storage is corrupt: {0}")]
+    Corrupt(String),
+}
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ExecutionControlManagerError {
+    #[error(transparent)]
+    Control(#[from] ExecutionControlError),
+    #[error(transparent)]
+    Store(#[from] ExecutionControlStoreError),
+}
+
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum ProductionError {
     #[error("production identity is invalid")]

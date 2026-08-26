@@ -5,7 +5,7 @@ date: 2026-08-24
 
 # 分离推理记录、Provider 连续性状态、授权凭据与运行预算
 
-> 实施状态（2026-08-26）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3 planning slice 已实现 automatic safe-cut、bounded structured summary、有效缩短 Gate、大 Tool Result spill、同事务 crash/retry 与最多一次 Provider overflow recovery；CM-4 planning slice 已实现 Run 内精确/FTS5-BM25 检索、source-linked provenance、Manifest 选择审计、可重建 projection 与 100-step/10-compaction/3-restart/cross-day machine corpus；完整 Transcript 不改写。当前 Planning slice 在 purge 失败时以 `failed/HarnessUnavailable` 阻止 Plan 提交；面向所有 Run 终态的统一 `Needs Attention` 投影仍待通用 AgentStep/ToolExecution 落地。Anthropic exact-model live、OS Credential Vault、Provider-specific tokenizer/overflow live、真实音乐 Tool 长 Run 质量、Approval Grant、Run Budget 与通用 AgentStep/ToolExecution 仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
+> 实施状态（2026-08-27）：规范化 Transcript、完整 Tool pair、SSE partial-call assembler、固定 Planning 多轮链路、crash-safe resume 与 CM-2 Continuity Planning slice 已实现。当前 Vault 使用 Project 外的 XChaCha20-Poly1305 密文、独立本地密钥、精确 binding、TTL、启动/周期清理；OpenAI Responses 与 Anthropic Messages contract fixture 已证明捕获和原样回传，`gpt-5-mini` 也已通过两轮真实 Continuity Planning 测试。CM-3/CM-4 已实现 automatic compaction/spill/overflow recovery 与 Run 内 source-linked retrieval。Approval Grant / Run Budget machine slice 现已实现不可变精确 binding、独立 system ceiling、累计 ledger、Execution Reservation/settlement/cancel、稳定三类拒绝、SQLite CAS、故障零发布、重启恢复和损坏失败关闭；等待 Creator、程序退出和跨日暂停不计入 active wall-clock。当前 Planning composition root 尚未签发 Grant，通用 AgentStep/ToolExecution、Music Project 独立 revision、统一 `Needs Attention` 投影、Anthropic exact-model live、OS Credential Vault、Provider-specific tokenizer/overflow live 与真实音乐 Tool 长 Run 质量仍未完成。本 ADR 的“背景”保留决策发生时的历史上下文。
 
 ## 背景
 
@@ -24,8 +24,8 @@ Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 
 5. Continuity State 只在 active Run 内保留。Provider、model、protocol、tool schema fingerprint 或安全策略不兼容时必须失效；`Awaiting Selection`、`Cancelled`、`Failed` 等终态完成最终语义提交后立即 purge。不能 purge 或密文损坏时 Run 进入可见 `Needs Attention`，不得伪装为已安全清理。
 6. 只有精确兼容的 Continuity State 才能继续未完成的推理链。缺失或失效时可以从已提交 Transcript 开始一个新的 Inference Turn，但不得把它称为“恢复原 tool-use chain”，也不得重放未完成 Tool Request。
 7. `ApprovalGrant` 取代 money-only 授权表达。它绑定 Creator、Project/Revision、Plan 或 Agent Step、Tool Descriptor fingerprint、目标实体/区域、允许的 side-effect class、数量上限、费用上限和失效条件。
-8. `RunBudget` 是独立的系统 ceiling，至少限制 turns、tool executions、tokens、cost、wall-clock、render count、asset bytes 与并发；Creator 的 Grant 不能提高它。
-9. `ToolResourceLimit` 仍属于单个 Tool Descriptor。执行前必须同时满足 Approval Grant、Run Budget 和 Tool Resource Limit，执行后以原子语义提交扣减预算并写入 `ToolExecution`/receipt。
+8. `RunBudget` 是独立的系统 ceiling，至少限制 turns、tool executions、tokens、cost、累计 active wall-clock、render count、side effects、asset bytes 与并发；Creator 的 Grant 或客户端配置不能提高 host-owned ceiling。等待 Creator、进程退出和跨日暂停不消耗 active wall-clock。
+9. `ToolResourceLimit` 仍属于单个 Tool Descriptor。执行前必须按 Approval Grant、Run Budget、Tool Resource Limit 三类独立错误依次检查，并用稳定 identity 创建保守 `ExecutionReservation`；相同绑定重放不重复扣减，CAS 结果丢失后用旧 revision 重放同一 identity 也必须返回已提交状态。完成时只能用不高于预留的实际量结算；仅在 durable ToolExecution 证明从未启动或没有产生影响时才能取消并释放 effects/cost/assets/render/concurrency，ToolExecution 次数仍保持消耗。Unknown Outcome 必须保留预留并先对账。未来 Tool Runtime 必须把 reservation 与 durable `ToolExecution`/receipt 原子关联。
 10. `AgentStep`、`InferenceTurn` 与 `ToolExecution` 是不同身份：一个 Step 可以包含一个或多个 Turn；一个 Turn 可以产生零个或多个完整 Tool Request；每个 Tool Request 绑定独立 ToolExecution。它们不能复用 ID 或用聊天顺序推断执行完成。
 11. Context compaction 只压缩可重建的对话语义，不改变 Project facts、Transcript 中完整 Tool Request/Result、Approval Grant、budget ledger、ToolExecution receipt 或 Continuity binding。
 12. Context Manager 在每次 Provider 调用前，从 canonical instructions/messages/Tool schema 加上 Adapter 提供的 opaque continuity allowance 生成 `RequestFootprint`。在没有精确 tokenizer 的通用边界使用保守且版本化的估算；已知输入预算按 `75% soft / 90% hard / 超预算 overflow` 分级，hard/overflow 不得调用 Provider。
@@ -70,13 +70,14 @@ Auto Studio 已交付 LLM Connection、Model Catalog、Thinking Level 与一次 
 2. Continuity payload 的已知 sentinel 不出现在 Project SQLite、Event、Transcript、日志、backup、Export、SSE 或 TUI snapshot 中。
 3. partial tool call、损坏密文和缺失 continuity 不产生 Project mutation，也不盲目重试。
 4. 一个完整 Tool Request/Result 在重启和 compaction 后仍能从 Transcript 重建上下文，identity 与顺序保持不变。
-5. revision、tool fingerprint、target、effect count 或 cost 任一超出 Approval Grant 时执行被拒绝；扩大 Grant 需要新的 Creator action。
-6. 即使 Grant 允许，Run Budget 或 Tool Resource Limit 超限仍停止执行并进入可见状态。
+5. `execution_control_contract` 证明 revision、subject、tool fingerprint、target、effect count、cost、issue/expiry 任一超出 Approval Grant 时请求被拒绝；扩大 Grant 需要新的 Creator action。
+6. 即使 Grant 允许，Run Budget 或 Tool Resource Limit 超限仍以不同稳定错误停止；系统 ceiling 不可由 configured budget 提高，相同 inference/reservation/settlement replay 不重复扣减；CAS 结果丢失后，以旧 revision 重放同一 identity 能恢复已提交 revision。
 7. Candidate/Cancelled/Failed 的最终语义提交与 continuity purge 具备故障注入测试，清理失败不会被误报为成功。
 8. 相同 canonical input 产生相同 footprint/pressure；超过阈值的 Tool Result 在模型视图中变短，但完整 Transcript 和 content-addressed blob 可恢复，篡改 hash 被拒绝。
 9. stale Context revision 不留下孤儿 spill；Project backup 恢复后，相同 hash 必须读出相同完整内容。
 10. 删除 FTS projection 后重新打开 Project，精确 source query 与内容 hash 必须从 Transcript 重建为相同结果；BM25 命中必须携带完整 provenance 并写入 Manifest。
 11. 冻结 machine corpus 必须完成至少 100 个 inference step、10 次 compaction、3 次重启和一次跨日恢复，并召回旧约束、Creator 决定、artifact 与未解决 Tool Result；真实音乐 Tool 正确率另由 Music Project 纵切验证。
+12. `execution_control_persistence` 必须证明 SQLite CAS、不同请求 stale revision 冲突、同一请求 ambiguous-commit 重放、拒绝零升版、重启恢复和篡改失败关闭；fault store 必须证明 commit 失败不会发布部分 Grant。该 machine Gate 不冒充尚未存在的 ToolExecution 或 Music Project 写入。
 
 ## 关联
 

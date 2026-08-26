@@ -18,6 +18,9 @@ use autostudio_core::context_retrieval::{
     ContextRetrievalSourceType,
 };
 use autostudio_core::context_surface::ContextSpillBlob;
+use autostudio_core::execution_control::{
+    ExecutionControl, ExecutionControlSnapshot, ExecutionControlStore, ExecutionControlStoreError,
+};
 use autostudio_core::project::{
     Project, ProjectBackupDraft, ProjectBackupSink, ProjectEvent, ProjectEventEnvelope,
     ProjectStore, ProjectStoreError,
@@ -95,6 +98,12 @@ impl SqliteProjectStore {
     fn context_sender(&self) -> Result<&SyncSender<Command>, ContextStoreError> {
         self.sender.as_ref().ok_or_else(|| {
             ContextStoreError::Unavailable("project DB actor has stopped".to_owned())
+        })
+    }
+
+    fn execution_control_sender(&self) -> Result<&SyncSender<Command>, ExecutionControlStoreError> {
+        self.sender.as_ref().ok_or_else(|| {
+            ExecutionControlStoreError::Unavailable("project DB actor has stopped".to_owned())
         })
     }
 }
@@ -376,6 +385,58 @@ impl ContextEventStore for SqliteProjectStore {
     }
 }
 
+impl ExecutionControlStore for SqliteProjectStore {
+    fn create_execution_control(
+        &self,
+        control: &ExecutionControl,
+    ) -> Result<ExecutionControlSnapshot, ExecutionControlStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.execution_control_sender()?
+            .send(Command::CreateExecutionControl {
+                control: control.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| execution_control_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| execution_control_actor_stopped())?
+    }
+
+    fn load_execution_control(
+        &self,
+        run_id: &AgentRunId,
+    ) -> Result<Option<ExecutionControlSnapshot>, ExecutionControlStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.execution_control_sender()?
+            .send(Command::LoadExecutionControl {
+                run_id: run_id.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| execution_control_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| execution_control_actor_stopped())?
+    }
+
+    fn commit_execution_control(
+        &self,
+        expected_revision: u64,
+        control: &ExecutionControl,
+    ) -> Result<ExecutionControlSnapshot, ExecutionControlStoreError> {
+        let (response_sender, response_receiver) = mpsc::sync_channel(1);
+        self.execution_control_sender()?
+            .send(Command::CommitExecutionControl {
+                expected_revision,
+                control: control.clone(),
+                response: response_sender,
+            })
+            .map_err(|_| execution_control_actor_stopped())?;
+        response_receiver
+            .recv()
+            .map_err(|_| execution_control_actor_stopped())?
+    }
+}
+
 impl Drop for SqliteProjectStore {
     fn drop(&mut self) {
         self.sender.take();
@@ -422,6 +483,19 @@ enum Command {
     RetrieveContext {
         query: ContextRetrievalQuery,
         response: SyncSender<Result<Option<ContextRetrievalSelection>, ContextStoreError>>,
+    },
+    CreateExecutionControl {
+        control: ExecutionControl,
+        response: SyncSender<Result<ExecutionControlSnapshot, ExecutionControlStoreError>>,
+    },
+    LoadExecutionControl {
+        run_id: AgentRunId,
+        response: SyncSender<Result<Option<ExecutionControlSnapshot>, ExecutionControlStoreError>>,
+    },
+    CommitExecutionControl {
+        expected_revision: u64,
+        control: ExecutionControl,
+        response: SyncSender<Result<ExecutionControlSnapshot, ExecutionControlStoreError>>,
     },
 }
 
@@ -479,6 +553,23 @@ fn run_actor(connection: &Connection, receiver: &Receiver<Command>) {
             }
             Command::RetrieveContext { query, response } => {
                 let _ = response.send(retrieve_context(connection, &query));
+            }
+            Command::CreateExecutionControl { control, response } => {
+                let _ = response.send(insert_execution_control(connection, &control));
+            }
+            Command::LoadExecutionControl { run_id, response } => {
+                let _ = response.send(select_execution_control(connection, &run_id));
+            }
+            Command::CommitExecutionControl {
+                expected_revision,
+                control,
+                response,
+            } => {
+                let _ = response.send(commit_execution_control(
+                    connection,
+                    expected_revision,
+                    &control,
+                ));
             }
         }
     }
@@ -538,6 +629,12 @@ fn migrate(connection: &Connection) -> Result<(), ProjectPackageError> {
                  turn_id TEXT NOT NULL,
                  project_revision INTEGER NOT NULL CHECK (project_revision >= 0),
                  PRIMARY KEY (run_id, turn_id)
+             );
+             CREATE TABLE IF NOT EXISTS agent_run_execution_control (
+                 run_id TEXT PRIMARY KEY,
+                 revision INTEGER NOT NULL CHECK (revision >= 0),
+                 control_json TEXT NOT NULL,
+                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
              );
              CREATE VIRTUAL TABLE IF NOT EXISTS inference_context_retrieval USING fts5(
                  item_id UNINDEXED,
@@ -1374,6 +1471,129 @@ fn sqlite_u64(value: u64, label: &str) -> Result<i64, ContextStoreError> {
         .map_err(|_| ContextStoreError::Unavailable(format!("{label} exceeds SQLite range")))
 }
 
+fn insert_execution_control(
+    connection: &Connection,
+    control: &ExecutionControl,
+) -> Result<ExecutionControlSnapshot, ExecutionControlStoreError> {
+    control
+        .validate_restored()
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))?;
+    let control_json = serde_json::to_string(control)
+        .map_err(|error| ExecutionControlStoreError::Unavailable(error.to_string()))?;
+    connection
+        .execute(
+            "INSERT INTO agent_run_execution_control (run_id, revision, control_json)
+             VALUES (?1, 0, ?2)",
+            params![control.run_id().as_str(), control_json],
+        )
+        .map_err(|error| match error.sqlite_error_code() {
+            Some(ErrorCode::ConstraintViolation) => ExecutionControlStoreError::AlreadyExists,
+            _ => execution_control_unavailable(&error),
+        })?;
+    ExecutionControlSnapshot::new(0, control.clone())
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))
+}
+
+fn select_execution_control(
+    connection: &Connection,
+    run_id: &AgentRunId,
+) -> Result<Option<ExecutionControlSnapshot>, ExecutionControlStoreError> {
+    let stored = connection
+        .query_row(
+            "SELECT revision, control_json FROM agent_run_execution_control WHERE run_id = ?1",
+            [run_id.as_str()],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| execution_control_unavailable(&error))?;
+    let Some((revision, control_json)) = stored else {
+        return Ok(None);
+    };
+    let revision = execution_control_sqlite_revision(revision)?;
+    let control: ExecutionControl = serde_json::from_str(&control_json)
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))?;
+    if control.run_id() != run_id {
+        return Err(ExecutionControlStoreError::Corrupt(
+            "stored Run identity does not match its execution-control key".to_owned(),
+        ));
+    }
+    ExecutionControlSnapshot::new(revision, control)
+        .map(Some)
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))
+}
+
+fn commit_execution_control(
+    connection: &Connection,
+    expected_revision: u64,
+    control: &ExecutionControl,
+) -> Result<ExecutionControlSnapshot, ExecutionControlStoreError> {
+    control
+        .validate_restored()
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))?;
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| execution_control_unavailable(&error))?;
+    let actual_revision = transaction
+        .query_row(
+            "SELECT revision FROM agent_run_execution_control WHERE run_id = ?1",
+            [control.run_id().as_str()],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(|error| execution_control_unavailable(&error))?
+        .ok_or(ExecutionControlStoreError::NotFound)
+        .and_then(execution_control_sqlite_revision)?;
+    if actual_revision != expected_revision {
+        return Err(ExecutionControlStoreError::RevisionConflict {
+            expected: expected_revision,
+            actual: actual_revision,
+        });
+    }
+    let next_revision = expected_revision
+        .checked_add(1)
+        .ok_or_else(|| ExecutionControlStoreError::Unavailable("revision exhausted".to_owned()))?;
+    let expected_sql = i64::try_from(expected_revision).map_err(|_| {
+        ExecutionControlStoreError::Unavailable("expected revision exceeds SQLite range".to_owned())
+    })?;
+    let next_sql = i64::try_from(next_revision).map_err(|_| {
+        ExecutionControlStoreError::Unavailable("next revision exceeds SQLite range".to_owned())
+    })?;
+    let control_json = serde_json::to_string(control)
+        .map_err(|error| ExecutionControlStoreError::Unavailable(error.to_string()))?;
+    let changed = transaction
+        .execute(
+            "UPDATE agent_run_execution_control
+             SET revision = ?1, control_json = ?2, updated_at = CURRENT_TIMESTAMP
+             WHERE run_id = ?3 AND revision = ?4",
+            params![
+                next_sql,
+                control_json,
+                control.run_id().as_str(),
+                expected_sql
+            ],
+        )
+        .map_err(|error| execution_control_unavailable(&error))?;
+    if changed != 1 {
+        let actual = transaction
+            .query_row(
+                "SELECT revision FROM agent_run_execution_control WHERE run_id = ?1",
+                [control.run_id().as_str()],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|error| execution_control_unavailable(&error))
+            .and_then(execution_control_sqlite_revision)?;
+        return Err(ExecutionControlStoreError::RevisionConflict {
+            expected: expected_revision,
+            actual,
+        });
+    }
+    transaction
+        .commit()
+        .map_err(|error| execution_control_unavailable(&error))?;
+    ExecutionControlSnapshot::new(next_revision, control.clone())
+        .map_err(|error| ExecutionControlStoreError::Corrupt(error.to_string()))
+}
+
 fn select_revision(connection: &Connection) -> Result<u64, ProjectStoreError> {
     connection
         .query_row(
@@ -1396,6 +1616,22 @@ fn actor_stopped() -> ProjectStoreError {
 
 fn context_actor_stopped() -> ContextStoreError {
     ContextStoreError::Unavailable("project DB actor stopped unexpectedly".to_owned())
+}
+
+fn execution_control_actor_stopped() -> ExecutionControlStoreError {
+    ExecutionControlStoreError::Unavailable("project DB actor stopped unexpectedly".to_owned())
+}
+
+fn execution_control_unavailable(error: &rusqlite::Error) -> ExecutionControlStoreError {
+    ExecutionControlStoreError::Unavailable(error.to_string())
+}
+
+fn execution_control_sqlite_revision(revision: i64) -> Result<u64, ExecutionControlStoreError> {
+    u64::try_from(revision).map_err(|_| {
+        ExecutionControlStoreError::Corrupt(
+            "stored Execution Control revision is negative".to_owned(),
+        )
+    })
 }
 
 fn context_unavailable(error: &rusqlite::Error) -> ContextStoreError {
