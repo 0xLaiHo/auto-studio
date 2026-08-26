@@ -20,7 +20,7 @@ Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Musi
 - `PASS（Q0 v2/v3 machine gate）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled，Bitwig MIDI 导入、盲听 Keep、Creator feedback、实际继续编辑与条件式第二模型复核仍未完成；
 - `NOT IMPLEMENTED（production execution）`：通用 Tool Registry/Policy/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。Grant/Budget 机器合同已完成但尚未驱动真实工具；真实音乐 Tool 的长 Run 质量 Gate、超长 single-turn、Provider-specific 精确 tokenizer 和真实 overflow live qualification 仍待完成。
 
-因此当前 production 仍是 `planning-only`，还不能真实生成音乐。仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，不是目标 runtime，也不能用于发布能力声明。
+因此当前 production 仍是 `planning-only`，还不能真实生成音乐。`autostudio-provider` 默认只编译 LLM Connection/Inference/Continuity/Planning 职责；仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，只能通过非默认 `legacy-generation` feature 做兼容回归，不是目标 runtime，也不能用于发布能力声明。Core/TUI/Desktop production source 由架构门禁禁止调用这条旧路径。
 
 当前并行推进 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人 Gate 与不依赖内容结论的 Harness Foundation。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，不加入 production workspace；v2 证明真实 LLM 可以输出严格结构化音乐并编译为 MIDI，v3 已为全部 6 个 L4 建立可比较的合法 B 基线。Grant/Budget 机器合同已完成；真人反馈、盲听与继续编辑完成前仍不形成内容质量 `GO`。下一代码依赖是具有独立 revision 的 Music Project Domain，完成后才能把 Execution Reservation 接到 ToolExecution。M3 的目标是：
 
@@ -34,7 +34,7 @@ Brief
   → Creator Selection
 ```
 
-详见 [Roadmap](docs/roadmap.md)、[ADR-0011](docs/adr/0011-llm-authored-local-music.md) 和 [ADR-0012](docs/adr/0012-durable-agent-harness-state.md)。
+详见 [Roadmap](docs/roadmap.md)、[Legacy Generation 迁移清单](docs/planning/legacy-generation-migration.md)、[ADR-0011](docs/adr/0011-llm-authored-local-music.md) 和 [ADR-0012](docs/adr/0012-durable-agent-harness-state.md)。
 
 ## 运行 TUI
 
@@ -107,7 +107,7 @@ pnpm install --frozen-lockfile
 pnpm tauri dev
 ```
 
-它不拥有 Project、Credential 或 Agent Runtime。界面中由 Fixture 出现的 Audio Candidate 只证明旧本地合同，不证明目标音乐闭环。
+它不拥有 Project、Credential 或 Agent Runtime，也不暴露旧 Generation 执行、刷新或对账入口。旧 Audio Candidate 只作为 Project/API 兼容数据读取，不证明目标音乐闭环。
 
 ## 单独运行 Core
 

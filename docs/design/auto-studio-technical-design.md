@@ -2,7 +2,7 @@
 
 > 基线日期：2026-08-27
 > 目标：由真实 LLM 驱动本地音乐工具，产生可编辑 Music Project 与本地渲染音频  
-> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 durable Transcript/Manifest、Provider Continuity、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production Planning 路径。2026-08-27 Approval Grant / Run Budget machine slice 又实现了精确且不可变的授权 binding、host-owned system ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、稳定的 Grant/Budget/Tool Resource 三类拒绝，以及独立 SQLite CAS 持久化；故障零发布、stale revision、重启恢复、篡改失败关闭和跨日暂停不消耗 active wall-clock 均有契约测试。该模块尚未接入固定 Planning composition root，也没有 durable ToolExecution 或 Music Project 独立 revision，因此仍不能执行真实音乐写入。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。现有 `GenerationAdapter` 与确定性 WAV Fixture 是旧方向的测试代码，不属于目标 production runtime。
+> 当前事实：Core/TUI/Project/SQLite/LLM Connection 与 Planning 已实现；M3-A CM-0—CM-4 planning machine slices 已把 durable Transcript/Manifest、Provider Continuity、automatic compaction/spill/overflow recovery 与 Run 内 exact/FTS5-BM25 retrieval 接入 production Planning 路径。Approval Grant / Run Budget machine slice 又实现了精确且不可变的授权 binding、host-owned system ceiling、独立累计 ledger、Execution Reservation/settlement/cancel、稳定的 Grant/Budget/Tool Resource 三类拒绝，以及独立 SQLite CAS 持久化；故障零发布、stale revision、重启恢复、篡改失败关闭和跨日暂停不消耗 active wall-clock 均有契约测试。Legacy Generation architecture boundary 也已落地：`autostudio-provider` 默认只包含 LLM 职责，旧 `GenerationAdapter` 与 WAV Fixture 只在非默认 `legacy-generation` feature 下编译，Core/TUI/Desktop production source 由自动门禁禁止注册或调用它。该控制模块尚未接入固定 Planning composition root，也没有 durable ToolExecution 或 Music Project 独立 revision，因此仍不能执行真实音乐写入。OpenAI Responses reasoning item 与 Anthropic signed thinking block 已通过捕获/回传 contract；2026-08-26 `gpt-5-mini` 已通过完整两轮 Continuity live。Q0 v2/v3 与 Portable Handoff 的机器证据保持有效，但真人内容/正式跨 DAW Gate 尚未完成。通用 Tool Registry/ToolExecution、Music Project Model、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未实现；超长 single-turn、Provider-specific tokenizer、真实 overflow live 与真实音乐 Tool 的 long-run 正确率仍待资格验证。
 
 ## 1. 决策摘要
 
@@ -199,6 +199,7 @@ flowchart LR
 | Approval Grant / Run Budget | `PASS（machine contract）` / `NOT WIRED（Tool Runtime）` | 不可变 Grant binding；configured/system ceiling 分离；Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger；Execution Reservation/settlement/cancel；SQLite CAS、故障零发布、重启/篡改合同 | 尚未接固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision |
 | Agent Run lifecycle | `PASS（CM-1/CM-2 contract）` | 首次 LLM 调用前 `agent_run.started`；每步 replay；pending Tool/complete Plan 恢复；ambiguous prepared Turn 安全失败；API/TUI/Desktop resume；终态前清理 continuity |
 | Provider Continuity Vault | `PASS（CM-2 contract + OpenAI live）` / `LIVE-PENDING（Anthropic / OS Vault）` | OpenAI Responses reasoning/function item、Anthropic signed thinking/tool-use block；XChaCha20-Poly1305、独立密钥、精确 binding、TTL、启动/周期 janitor、错配/损坏清理、终态 purge 与 sentinel 隔离测试；`gpt-5-mini` 实测完成 2 Turn、777 input/385 output tokens 和终态 purge |
+| Legacy Generation boundary | `PASS（architecture）` / `LEGACY（runtime）` | Provider default feature 为空；旧 runtime 只可显式启用；Core/TUI/Desktop source guard；旧 `/execute`、`/refresh`、`/reconcile` OpenAPI 标记 deprecated；兼容合同独立回归 |
 | Candidate/Selection/Handoff | `PASS（Fixture/已有 WAV）` | 只证明本地资产合同，不证明 LLM 已创作真实音乐 |
 | Music Project Model | `NOT IMPLEMENTED` | 当前 Project 只有 Audio Clip 路径，没有完整 symbolic music facts |
 | 固定 Planning Tool loop | `PASS（CM-1 contract）` | 内部 `project_describe` 与 `submit_creative_plan`，有真实本地只读执行、完整 Request/Result 与有界循环 |
@@ -209,7 +210,7 @@ flowchart LR
 | VST3 Host | `NOT IMPLEMENTED` | 没有扫描、隔离、IPC、Profile 或 corpus 证据 |
 | MCP Client | `NOT IMPLEMENTED` | 只有目标文档，没有注册/发现/调用代码 |
 
-结论：当前产品仍是 `planning-only`。旧 `GenerationAdapter` 的 Fixture 可以继续帮助迁移测试，但不得进入 release composition root，也不能被计为真实音乐能力。
+结论：当前产品仍是 `planning-only`。旧 `GenerationAdapter` 的 Fixture 可以继续帮助迁移测试，但默认构建不可见、production Client 无入口，也不能被计为真实音乐能力。完整冻结范围与删除条件见 [Legacy Generation 迁移清单](../planning/legacy-generation-migration.md)。
 
 ### 3.2 Q0 前置 Gate
 
@@ -409,7 +410,7 @@ Project Run 与 Transcript 使用同一个 `AgentRunId`。完整生命周期是�
 5. Provider 拒绝、不可用、无效响应、ambiguous interruption 或 Context/Harness 失败时，用单独事务附加结构化 failure 并转为 `failed`；
 6. `failed` 是终态，因此相同 Brief 可以开始一个新 Run；旧 Run 与 Transcript 保留审计关系，不复用失败尝试。
 
-恢复入口是 `POST /v1/agent-runs/{runId}/resume`，TUI `/recover` 与 Desktop 的“从工程记录恢复规划”调用同一 Core Interface。CM-2 之后，兼容的 OpenAI Responses/Anthropic Messages Turn 还能从 Vault 取回原链所需 opaque state；OpenAI-compatible Chat/DeepSeek 没有这个私密连续性合同，只能从 canonical Transcript 开始新 Turn。固定 Planning Tool Module 仍不是通用 Registry，本地执行也尚无独立 durable `AgentStepId/ToolExecution` 状态机，因此当前能力不能承担 Music Project 写入工具或长 Run。
+恢复入口是 `POST /v1/agent-runs/{runId}/resume`，TUI `/resume` 与 Desktop 的“从工程记录恢复规划”调用同一 Core Interface。CM-2 之后，兼容的 OpenAI Responses/Anthropic Messages Turn 还能从 Vault 取回原链所需 opaque state；OpenAI-compatible Chat/DeepSeek 没有这个私密连续性合同，只能从 canonical Transcript 开始新 Turn。固定 Planning Tool Module 仍不是通用 Registry，本地执行也尚无独立 durable `AgentStepId/ToolExecution` 状态机，因此当前能力不能承担 Music Project 写入工具或长 Run。
 
 #### 4.3.2 Provider Continuity State
 
@@ -919,7 +920,7 @@ Client 先获取 Snapshot，再从 `asOfSequence` 连接 SSE。断线后重新�
 | crate | M3 职责 |
 |---|---|
 | `autostudio-core` | Music Project domain、Agent Run、Inference item、Tool descriptor/request/result、Grant/Budget、Policy、application Interface |
-| `autostudio-provider` | LLM Connection、Catalog、Thinking、stream assembly、continuity-aware 协议 Adapter 与 Project 外 `FileContinuityVault`；后续删除 production music generation 职责 |
+| `autostudio-provider` | 默认构建只包含 LLM Connection、Catalog、Thinking、stream assembly、continuity-aware 协议 Adapter 与 Project 外 `FileContinuityVault`；旧 generation 只存在于非默认兼容 feature |
 | `autostudio-storage` | 已实现 Project SQLite、Event/outbox、Run-scoped Transcript/Manifest 与独立 Grant/Budget CAS snapshot；后续增加 ToolExecution、Music Snapshot；不保存 Continuity payload |
 | `autostudio-media` | staged asset、WAV、离线 render/analysis 的初始实现 |
 | `autostudio-api` | Core HTTP/SSE、session/discovery 与 DTO |
@@ -937,7 +938,7 @@ Client 先获取 Snapshot，再从 `asOfSequence` 连接 SSE。断线后重新�
 3. 至少两个真实 Adapter 证明稳定 seam；
 4. 许可或分发要求独立产物。
 
-旧 `GenerationCoordinator` 不应继续膨胀成 Tool Runtime。迁移完成后删除其 production seam；测试中需要的音频 Fixture 移到测试 support，不以“Provider”命名。
+旧 `GenerationCoordinator` 不应继续膨胀成 Tool Runtime。当前 feature/source guard 已关闭其 production seam；满足迁移清单的删除条件后彻底删除，仍需的音频 Fixture 移入 test support，不以“Provider”命名。
 
 ## 13. MCP 目标设计
 
@@ -1042,7 +1043,7 @@ Fixture、ignored live test、厂商宣传和“代码可编译”均不能替�
 1. `PASS`：已建立可回退 Git baseline `b9db99c`；继续禁止未审计的 destructive cleanup；
 2. `IN PROGRESS`：执行 Q0 内容可行性 Spike；Harness Foundation 可并行，只有 `GO` 才进入 production Music Project/Audio Engine 纵切；
 3. 冻结 ADR-0011、ADR-0012 与新领域词汇；
-4. 冻结旧 `GenerationAdapter/Coordinator`，停止扩展 submit/observe/reconcile，但暂不删除；
+4. `PASS（architecture boundary）`：旧 `GenerationAdapter/Coordinator` 已冻结在非默认 feature，TUI/Desktop 入口移除，v1 API 标记 deprecated，停止扩展 submit/observe/reconcile；删除条件见 [迁移清单](../planning/legacy-generation-migration.md)；
 5. `PASS（CM-1 planning slice）`：Inference Item/Transcript、Context Manifest、canonical request、SSE assembler、完整 Tool pair、每步 restart replay 与 Planning resume 已实现；
 6. `PASS（CM-2 planning slice）`：OpenAI Responses/Anthropic Messages continuity capture/replay、Project 外加密 Vault、binding、TTL、janitor、错配/损坏处理、终态 purge 与 secret-sentinel 隔离合同已实现；
 7. `PASS（CM-3 planning slice）`：checkpoint/replay、完整 Transcript、automatic safe-cut、bounded summary、effectiveness Gate、deterministic footprint/pressure、大 Tool Result spill、原子 crash/retry、backup 恢复和单次 overflow recovery 已实现；

@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+default = []
+legacy-generation = ["dep:hound"]
+
 [dependencies]
 autostudio-core = { path = "../autostudio-core" }
 chacha20poly1305.workspace = true
@@ -17,7 +21,7 @@ sha2.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 zeroize.workspace = true
-hound.workspace = true
+hound = { workspace = true, optional = true }
 reqwest.workspace = true
 
 [dev-dependencies]
@@ -27,6 +31,18 @@ axum.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
+
+[[test]]
+name = "fake_generation_contract"
+required-features = ["legacy-generation"]
+
+[[test]]
+name = "generation_failure_contract"
+required-features = ["legacy-generation"]
+
+[[test]]
+name = "unknown_outcome_reconciliation"
+required-features = ["legacy-generation"]
 
 [lints]
 workspace = true

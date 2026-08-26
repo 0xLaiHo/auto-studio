@@ -1,4 +1,7 @@
-//! Provider registry, inference, and media-generation adapters.
+//! LLM Provider registry, inference, continuity, and planning adapters.
+//!
+//! The superseded media-generation adapter is available only through the
+//! non-default `legacy-generation` feature for migration contract tests.
 
 pub mod connection;
 pub mod constants;
@@ -11,22 +14,26 @@ pub mod stream;
 pub mod thinking;
 
 use std::future::Future;
+#[cfg(feature = "legacy-generation")]
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 use std::collections::HashMap;
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 use std::fs;
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 use std::path::Path;
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 use std::sync::Mutex;
 
+#[cfg(feature = "legacy-generation")]
 use autostudio_core::agent::{
-    AgentDecision, AgentRunFailureDraft, AgentRunFailureKind, AgentRunId, AgentRunStatus,
-    GenerationAttemptDraft, GenerationIntent, GenerationJobDraft, InferenceUsage,
+    AgentDecision, GenerationAttemptDraft, GenerationIntent, GenerationJobDraft,
+};
+use autostudio_core::agent::{
+    AgentRunFailureDraft, AgentRunFailureKind, AgentRunId, AgentRunStatus, InferenceUsage,
 };
 #[cfg(any(test, debug_assertions))]
 use autostudio_core::context::CanonicalMessage;
@@ -35,6 +42,7 @@ use autostudio_core::context::{
     PreparedContext, ProviderBinding, TokenBudgetPlan, VisibleMessageRole,
 };
 use autostudio_core::continuity::ContinuityBinding;
+#[cfg(feature = "legacy-generation")]
 use autostudio_core::production::{
     CandidateDraft, GeneratedAssetSink, ProvenanceRecord, RightsDeclaration,
 };
@@ -42,11 +50,14 @@ use autostudio_core::project::{CreativeBrief, Project, ProjectService};
 use autostudio_core::provider::{ThinkingControl, ThinkingLevel};
 use autostudio_core::runtime::{CreativeRuntime, CreativeRuntimeError, CreativeRuntimeFuture};
 use serde::{Deserialize, Serialize};
+#[cfg(any(test, debug_assertions, feature = "legacy-generation"))]
 use uuid::Uuid;
 
+#[cfg(feature = "legacy-generation")]
+pub use error::GenerationCoordinatorError;
 pub use error::{
     AdapterError, AgentPlannerError, ConnectionStoreError, ContinuityVaultError,
-    GenerationCoordinatorError, ProviderConfigError,
+    ProviderConfigError,
 };
 
 pub type InferenceFuture<'a> =
@@ -618,9 +629,11 @@ fn planning_failure(error: &AgentPlannerError) -> AgentRunFailureDraft {
     }
 }
 
+#[cfg(feature = "legacy-generation")]
 pub type GenerationFuture<'a, T> =
     Pin<Box<dyn Future<Output = Result<T, AdapterError>> + Send + 'a>>;
 
+#[cfg(feature = "legacy-generation")]
 pub trait GenerationAdapter: Send + Sync {
     fn provider_kind(&self) -> &str;
     fn model(&self) -> &str;
@@ -630,6 +643,7 @@ pub trait GenerationAdapter: Send + Sync {
 }
 
 #[derive(Clone, Debug)]
+#[cfg(feature = "legacy-generation")]
 pub struct GenerationRequest {
     pub attempt_id: String,
     pub input_hash: String,
@@ -637,18 +651,21 @@ pub struct GenerationRequest {
 }
 
 #[derive(Clone, Debug)]
+#[cfg(feature = "legacy-generation")]
 pub struct GenerationSubmission {
     pub attempt_id: String,
     pub external_job_id: String,
 }
 
 #[derive(Clone, Debug)]
+#[cfg(feature = "legacy-generation")]
 pub enum GenerationObservation {
     Pending,
     Succeeded { artifacts: Vec<GeneratedArtifact> },
 }
 
 #[derive(Clone, Debug)]
+#[cfg(feature = "legacy-generation")]
 pub enum GenerationReconciliation {
     NotFound,
     Accepted {
@@ -661,18 +678,21 @@ pub enum GenerationReconciliation {
 }
 
 #[derive(Clone, Debug)]
+#[cfg(feature = "legacy-generation")]
 pub struct GeneratedArtifact {
     pub label: String,
     pub staging_path: PathBuf,
     pub credits: Vec<String>,
 }
 
+#[cfg(feature = "legacy-generation")]
 pub struct GenerationCoordinator {
     projects: Arc<ProjectService>,
     generation: Arc<dyn GenerationAdapter>,
     assets: Arc<dyn GeneratedAssetSink>,
 }
 
+#[cfg(feature = "legacy-generation")]
 impl GenerationCoordinator {
     #[must_use]
     pub fn new(
@@ -1014,7 +1034,7 @@ impl GenerationCoordinator {
 
 /// Deterministic media fixture. This item is excluded from release builds and
 /// must never be registered by a production composition root.
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 #[doc(hidden)]
 pub struct DeterministicGenerationAdapter {
     staging_root: PathBuf,
@@ -1024,7 +1044,7 @@ pub struct DeterministicGenerationAdapter {
     model: &'static str,
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 impl DeterministicGenerationAdapter {
     /// Creates the deterministic CI/development Music Provider.
     ///
@@ -1043,7 +1063,7 @@ impl DeterministicGenerationAdapter {
     }
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 impl GenerationAdapter for DeterministicGenerationAdapter {
     fn provider_kind(&self) -> &str {
         self.provider_kind
@@ -1136,7 +1156,7 @@ impl GenerationAdapter for DeterministicGenerationAdapter {
     }
 }
 
-#[cfg(any(test, debug_assertions))]
+#[cfg(all(feature = "legacy-generation", any(test, debug_assertions)))]
 fn write_deterministic_wav(
     path: &Path,
     duration_seconds: u32,
@@ -1165,10 +1185,13 @@ fn write_deterministic_wav(
 
 pub struct LocalCreativeRuntime {
     planner: AgentPlanner,
+    #[cfg(feature = "legacy-generation")]
     generation: Option<GenerationCoordinator>,
 }
 
 impl LocalCreativeRuntime {
+    /// Creates the superseded media-generation runtime for migration tests.
+    #[cfg(feature = "legacy-generation")]
     #[must_use]
     pub const fn new(planner: AgentPlanner, generation: GenerationCoordinator) -> Self {
         Self {
@@ -1177,12 +1200,13 @@ impl LocalCreativeRuntime {
         }
     }
 
-    /// Creates an Agent runtime with real LLM planning while generation remains
-    /// unavailable until a real Music Provider is configured.
+    /// Creates the production LLM planning runtime. Local Music Project Tools are
+    /// introduced through the future Tool Runtime, never a media Provider adapter.
     #[must_use]
     pub const fn planning_only(planner: AgentPlanner) -> Self {
         Self {
             planner,
+            #[cfg(feature = "legacy-generation")]
             generation: None,
         }
     }
@@ -1217,16 +1241,24 @@ impl CreativeRuntime for LocalCreativeRuntime {
         run_id: AgentRunId,
     ) -> CreativeRuntimeFuture<'_> {
         Box::pin(async move {
-            let generation = self.generation.as_ref().ok_or_else(|| {
-                CreativeRuntimeError::Unavailable(
-                    "no real Music Provider is configured; deterministic fixtures are test-only"
-                        .to_owned(),
-                )
-            })?;
-            generation
-                .execute_approved(expected_revision, &run_id)
-                .await
-                .map_err(runtime_generation_error)
+            #[cfg(feature = "legacy-generation")]
+            {
+                let generation = self.generation.as_ref().ok_or_else(|| {
+                    CreativeRuntimeError::Unavailable(
+                        "local Music Tool Runtime is not implemented".to_owned(),
+                    )
+                })?;
+                return generation
+                    .execute_approved(expected_revision, &run_id)
+                    .await
+                    .map_err(runtime_generation_error);
+            }
+            #[cfg(not(feature = "legacy-generation"))]
+            let _ = (expected_revision, run_id);
+            #[cfg(not(feature = "legacy-generation"))]
+            Err(CreativeRuntimeError::Unavailable(
+                "local Music Tool Runtime is not implemented".to_owned(),
+            ))
         })
     }
 
@@ -1236,15 +1268,24 @@ impl CreativeRuntime for LocalCreativeRuntime {
         run_id: AgentRunId,
     ) -> CreativeRuntimeFuture<'_> {
         Box::pin(async move {
-            let generation = self.generation.as_ref().ok_or_else(|| {
-                CreativeRuntimeError::Unavailable(
-                    "no real Music Provider is configured for reconciliation".to_owned(),
-                )
-            })?;
-            generation
-                .reconcile_unknown(expected_revision, &run_id)
-                .await
-                .map_err(runtime_generation_error)
+            #[cfg(feature = "legacy-generation")]
+            {
+                let generation = self.generation.as_ref().ok_or_else(|| {
+                    CreativeRuntimeError::Unavailable(
+                        "legacy Generation reconciliation is unavailable in production".to_owned(),
+                    )
+                })?;
+                return generation
+                    .reconcile_unknown(expected_revision, &run_id)
+                    .await
+                    .map_err(runtime_generation_error);
+            }
+            #[cfg(not(feature = "legacy-generation"))]
+            let _ = (expected_revision, run_id);
+            #[cfg(not(feature = "legacy-generation"))]
+            Err(CreativeRuntimeError::Unavailable(
+                "legacy Generation reconciliation is unavailable in production".to_owned(),
+            ))
         })
     }
 
@@ -1254,15 +1295,24 @@ impl CreativeRuntime for LocalCreativeRuntime {
         run_id: AgentRunId,
     ) -> CreativeRuntimeFuture<'_> {
         Box::pin(async move {
-            let generation = self.generation.as_ref().ok_or_else(|| {
-                CreativeRuntimeError::Unavailable(
-                    "no real Music Provider is configured for this submitted Job".to_owned(),
-                )
-            })?;
-            generation
-                .resume_submitted(expected_revision, &run_id)
-                .await
-                .map_err(runtime_generation_error)
+            #[cfg(feature = "legacy-generation")]
+            {
+                let generation = self.generation.as_ref().ok_or_else(|| {
+                    CreativeRuntimeError::Unavailable(
+                        "legacy Generation polling is unavailable in production".to_owned(),
+                    )
+                })?;
+                return generation
+                    .resume_submitted(expected_revision, &run_id)
+                    .await
+                    .map_err(runtime_generation_error);
+            }
+            #[cfg(not(feature = "legacy-generation"))]
+            let _ = (expected_revision, run_id);
+            #[cfg(not(feature = "legacy-generation"))]
+            Err(CreativeRuntimeError::Unavailable(
+                "legacy Generation polling is unavailable in production".to_owned(),
+            ))
         })
     }
 }
@@ -1289,6 +1339,7 @@ fn runtime_planner_error(error: AgentPlannerError) -> CreativeRuntimeError {
     }
 }
 
+#[cfg(feature = "legacy-generation")]
 fn runtime_generation_error(error: GenerationCoordinatorError) -> CreativeRuntimeError {
     match error {
         GenerationCoordinatorError::RunNotFound => {
@@ -1329,6 +1380,7 @@ fn runtime_generation_error(error: GenerationCoordinatorError) -> CreativeRuntim
     }
 }
 
+#[cfg(feature = "legacy-generation")]
 fn adapter_failure(error: &AdapterError) -> AgentRunFailureDraft {
     let kind = match error {
         AdapterError::Rejected(_) | AdapterError::ContextOverflow(_) => {

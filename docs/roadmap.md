@@ -1,8 +1,8 @@
 # Auto Studio Roadmap
 
 > 基线日期：2026-08-27
-> 当前执行 Gate：Q0 真人内容 Gate；下一 Harness 主线为 M3-A legacy boundary/architecture guard，M3-B 等待 Q0 `GO`
-> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0—CM-4 与 Grant/Budget machine slices 已落地 durable Planning/Continuity/Context Retrieval，以及不可变授权、host-owned ceiling、独立累计 ledger、Execution Reservation/settlement/cancel 和 SQLite CAS 恢复合同。Grant/Budget 尚未接入 composition root、Policy 或 durable ToolExecution；Music Project 也没有独立 revision，因此当前产品仍不能真实生成音乐。
+> 当前执行 Gate：Q0 真人内容 Gate；M3-A architecture/migration baseline 已完成，M3-B 等待 Q0 `GO`
+> 当前结论：M1/M2 已证明本地 Core、Project、TUI 和真实 LLM Planning；旧“真实 Music Provider”路线已取消。Q0 protocol v2 正式 A/B 的 Mode B 11/12、protocol v3 的 6/6 L4 重基线和 Portable Handoff v1 机器切片已通过；DAW qualification harness 已实现并将缺少的 Cubase、Studio One Pro、FL Studio 诚实记为 3 个 `not_run`。Creator 已完成一次 Bitwig 手动 Pilot，但真人内容 Gate 与三目标 DAW 实测仍为 `LIVE-PENDING`。M3-A CM-0—CM-4、Grant/Budget machine slices 与 legacy boundary 已落地：`autostudio-provider` 默认只编译 LLM 职责，旧 Generation runtime 仅能通过非默认 feature 回归，Core/TUI/Desktop production source 受架构门禁保护。Grant/Budget 尚未接入 composition root、Policy 或 durable ToolExecution；Music Project 也没有独立 revision，因此当前产品仍不能真实生成音乐。
 
 ## 1. 状态语言
 
@@ -26,8 +26,8 @@
 | TUI | `PASS` | `autostudio`、Composer、`/connect`、`/model`、Thinking、`/exit` | Project/Run/Candidate/Render 视图 |
 | LLM Provider | `PASS（contract + DeepSeek/OpenAI live）` | OpenAI/Anthropic/DeepSeek/Kimi 协议与目录；2026-08-25 `deepseek-v4-flash` 流式 Tool Call smoke；2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live | Anthropic/Kimi exact-model `LIVE-PENDING` |
 | LLM Planning | `PASS（CM-1 contract）` | typed Plan、Approval、真实 composition root、固定两轮本地 Tool 链路 | 接 Music Project Semantic Tool，而非扩大固定规划工具 |
-| Harness Foundation | `PARTIAL（CM-0—CM-4 + Grant/Budget machine slices PASS）` | Durable Context/Continuity/long-run retrieval；不可变 Grant、configured/system ceiling、独立 ledger、Execution Reservation、SQLite CAS、故障/重启/篡改合同 | composition root/Policy/durable ToolExecution；legacy guard；真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification |
-| 旧 GenerationAdapter | `LEGACY` | Fixture 状态机、WAV ingest、Candidate contract | 停止 production 扩展并迁移/删除 |
+| Harness Foundation | `PARTIAL（M3-A architecture baseline PASS）` | Durable Context/Continuity/long-run retrieval；不可变 Grant、configured/system ceiling、独立 ledger、Execution Reservation、SQLite CAS、故障/重启/篡改合同；legacy feature/production source guard | composition root/Policy/durable ToolExecution；真实音乐 Tool 长 Run 质量、exact tokenizer/live overflow qualification |
+| 旧 GenerationAdapter | `LEGACY / FROZEN` | 默认 feature 不编译；显式兼容 feature 保留 Fixture、旧 Project 与 Unknown Outcome contract | 新 ToolExecution/API/migration 完成后删除 |
 | Candidate/Selection | `PARTIAL` | Audio-only Fixture contract | Candidate Project Snapshot |
 | Music Project Model | `NOT IMPLEMENTED` | 目标设计已冻结 | domain、commands、projection、migration |
 | Tool Registry/Runtime | `NOT IMPLEMENTED` | ADR/架构图 | 固定 catalog、Policy、ToolExecution |
@@ -112,8 +112,8 @@ M3 不接入 Music Provider。完成定义是：
 
 - [x] ADR-0011、ADR-0012、产品、技术、Roadmap 与领域词汇成为唯一权威；
 - [x] production composition root 保持 planning-only，不注册 Music Provider/Fixture；
-- [ ] `autostudio-provider` 的目标职责改为 LLM-only；
-- [ ] 旧 Generation 状态、API 和测试建立迁移清单并冻结，标记 `LEGACY`，暂不删除；
+- [x] `autostudio-provider` 默认职责改为 LLM-only；旧路径只在非默认 `legacy-generation` feature 下编译；
+- [x] 旧 Generation 状态、API 和测试按 [迁移清单](planning/legacy-generation-migration.md) 冻结为 `LEGACY`，暂不删除；
 - [x] 定义 `AgentRunId`、`InferenceTurnId`、`InferenceItemId`、完整 Tool Request/Result 条目与单调顺序；`AgentStepId`/`ToolExecutionId` 留待 Tool Runtime；
 - [x] durable Inference Transcript：同一 Project SQLite actor 内按 Run append、CAS revision、重启 replay；
 - [x] `ContextManifest`：持久化精确 instruction、Tool catalog、included item、Provider binding、token budget 与内容 hash，并在 Provider 调用前落盘；
@@ -136,12 +136,12 @@ M3 不接入 Music Provider。完成定义是：
 - [x] Approval Grant 绑定 Creator action/run/revision/plan-or-step/tool fingerprint/target/side-effect/effect/cost/issue/expiry；
 - [x] Run Budget 与 Tool Resource Limit 独立 ledger/enforcement；configured budget 不能提高 system ceiling；active wall-clock 不含等待/跨日暂停；
 - [x] OpenAI/Anthropic continuity fixtures、mismatch/corruption/purge 与 secret-sentinel 测试；
-- [ ] 添加架构守护测试，禁止新的 production `GenerationAdapter` 注册；
-- [ ] 删除 TUI/Desktop 中“配置真实 Music Provider”“查询 Provider”“Unknown Outcome”产品文案。
+- [x] 添加架构守护 Gate，禁止 Core/TUI/Desktop production source 注册、调用或暴露旧 Generation runtime，并检查默认 feature；
+- [x] 删除 TUI/Desktop 中旧 `/generate`、`/recover`、Provider Job 查询和 Unknown Outcome 操作入口；历史状态只读。
 
 CM-1 完成边界：固定 Planning 纵切可持久化规范化 Transcript、执行真实本地只读 Tool、跨进程继续，并对结果不明的 Provider Turn 明确放弃而不重提。
 
-CM-2 Planning slice 完成边界：OpenAI Responses 的完整 reasoning/function item 与 Anthropic Messages 的 signed thinking/tool-use block 由 Adapter 捕获并原样回传；XChaCha20-Poly1305 Vault 位于 Project 外，使用独立本地密钥，绑定 run/provider/model/protocol/thinking/capability/mapping/tool catalog，支持 7 天 TTL、启动和每小时 janitor、错配/损坏删除与终态 purge。composition root 拒绝工程内或经符号链接落入工程的 Vault/key 路径。契约测试证明 sentinel 不进入 Project SQLite、Context Event、backup 或 Debug；purge 失败不会提交成功 Plan。OpenAI `gpt-5-mini` exact-model live 已用完整两轮 Planning Tool loop 通过；Anthropic exact-model live 与 OS Credential Vault 仍为 `LIVE-PENDING`。DeepSeek Chat 只走 canonical Transcript fallback。CM-4 与 Grant/Budget machine slices 已完成；M3-A 剩余的是 legacy Generation 边界与架构守护，运行产品不要求 Music Provider。
+CM-2 Planning slice 完成边界：OpenAI Responses 的完整 reasoning/function item 与 Anthropic Messages 的 signed thinking/tool-use block 由 Adapter 捕获并原样回传；XChaCha20-Poly1305 Vault 位于 Project 外，使用独立本地密钥，绑定 run/provider/model/protocol/thinking/capability/mapping/tool catalog，支持 7 天 TTL、启动和每小时 janitor、错配/损坏删除与终态 purge。composition root 拒绝工程内或经符号链接落入工程的 Vault/key 路径。契约测试证明 sentinel 不进入 Project SQLite、Context Event、backup 或 Debug；purge 失败不会提交成功 Plan。OpenAI `gpt-5-mini` exact-model live 已用完整两轮 Planning Tool loop 通过；Anthropic exact-model live 与 OS Credential Vault 仍为 `LIVE-PENDING`。DeepSeek Chat 只走 canonical Transcript fallback。CM-4、Grant/Budget machine slices 与 legacy Generation architecture boundary 均已完成；运行产品不要求 Music Provider。Provider-specific tokenizer、真实 overflow 与真实音乐 Tool 长 Run 正确率继续作为资格项，不把 M3-A 架构基线重新打开。
 
 CM-3 planning slice 完成边界：`prepare_turn` 由完整 Transcript 派生 current surface，先 spill 大 Tool Result，再按压力或显式 Provider overflow 触发 automatic compaction。cut 必须位于完整 Turn 边界、推进连续前缀、不拆 Tool pair、保留新输入与最近两轮；host-owned structured summary 记录 objective、Creator decisions、constraints、completed work 和 artifact execution references。只有 surface 实际缩短且回到 `Normal` 才把 Creator 新输入、Checkpoint、Manifest 和 spill 同事务发布。故障注入覆盖失败零落盘、相同 source facts 的稳定 checkpoint hash、重启恢复、完整 Transcript 不变、一次 overflow 恢复和第二次 overflow 停止。Planning 固定使用 16,384-token host safety ceiling，不把它表述为模型窗口；Provider-specific tokenizer、真实 overflow live 和超长 single-turn 自动处理仍待资格验证，但不阻塞已经完成的 CM-4 machine slice。
 

@@ -18,7 +18,7 @@ tokio.workspace = true
 
 [dev-dependencies]
 autostudio-media = { path = "../autostudio-media" }
-autostudio-provider = { path = "../autostudio-provider" }
+autostudio-provider = { path = "../autostudio-provider", features = ["legacy-generation"] }
 autostudio-storage = { path = "../autostudio-storage" }
 http-body-util.workspace = true
 tempfile.workspace = true

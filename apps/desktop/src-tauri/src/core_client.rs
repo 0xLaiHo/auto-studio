@@ -187,60 +187,6 @@ impl CoreClient {
         parse_project(response).await
     }
 
-    /// Executes one approved Agent Run through the configured Music Provider.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreClientError`] for an invalid transition, unknown Provider
-    /// outcome, media failure, stale revision, or unavailable Core.
-    pub async fn execute_agent_run(
-        &self,
-        run_id: &str,
-        expected_revision: u64,
-    ) -> Result<ProjectView, CoreClientError> {
-        self.post_revision(
-            &format!("/v1/agent-runs/{run_id}/execute"),
-            expected_revision,
-        )
-        .await
-    }
-
-    /// Reconciles an Unknown Outcome without issuing a second Provider submit.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreClientError`] when the Run is not unknown, Provider evidence
-    /// cannot be obtained, the revision is stale, or recovery persistence fails.
-    pub async fn reconcile_agent_run(
-        &self,
-        run_id: &str,
-        expected_revision: u64,
-    ) -> Result<ProjectView, CoreClientError> {
-        self.post_revision(
-            &format!("/v1/agent-runs/{run_id}/reconcile"),
-            expected_revision,
-        )
-        .await
-    }
-
-    /// Polls a submitted Provider Job and commits ready results.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CoreClientError`] when the Run is not submitted, Provider polling
-    /// fails, its adapter changed, or result persistence fails.
-    pub async fn refresh_agent_run(
-        &self,
-        run_id: &str,
-        expected_revision: u64,
-    ) -> Result<ProjectView, CoreClientError> {
-        self.post_revision(
-            &format!("/v1/agent-runs/{run_id}/refresh"),
-            expected_revision,
-        )
-        .await
-    }
-
     /// Applies an explicit Candidate Selection to the Audio Clip Timeline.
     ///
     /// # Errors

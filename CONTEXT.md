@@ -171,6 +171,9 @@ _Avoid_: Agent、Music Provider、Project
 **Agent Run（代理运行）**：Creative Agent 为一个创作目标执行的可暂停、可恢复、可审计活动。Run identity 与 `planning` phase 必须在首次 Provider 调用前成为耐久 Project 事实；恢复时每个 Agent Step 从 Project 与 Inference Transcript 重新派生。若只存在已准备的 Provider Turn 而没有耐久输出，Run 必须明确记录 `InferenceInterrupted`，不得把自动重提当作恢复。
 _Avoid_: Chat、Generation Job
 
+**Legacy Generation Runtime（旧生成运行时）**：已取消的 `GenerationAdapter → Provider Job → 下载 WAV` 兼容路径。它只允许读取旧 Project、回归旧状态与对账语义，不属于 production composition root、产品入口或能力声明；新增音乐能力必须进入 Semantic Tool、Music Project 与本地 Render 路径。
+_Avoid_: Music Tool Runtime、Production Music Generation、Current Provider Architecture
+
 **Agent Step（代理步骤）**：Agent Run 中的一次理解、计划、Tool 请求、结果观察、提议或等待。  
 _Avoid_: Token、Private Reasoning
 

@@ -191,21 +191,6 @@ impl TuiClient {
         .await
     }
 
-    pub async fn execute(&self, run_id: &str, revision: u64) -> Result<ProjectView, TuiError> {
-        self.post_revision(&format!("/v1/agent-runs/{run_id}/execute"), revision)
-            .await
-    }
-
-    pub async fn reconcile(&self, run_id: &str, revision: u64) -> Result<ProjectView, TuiError> {
-        self.post_revision(&format!("/v1/agent-runs/{run_id}/reconcile"), revision)
-            .await
-    }
-
-    pub async fn refresh_run(&self, run_id: &str, revision: u64) -> Result<ProjectView, TuiError> {
-        self.post_revision(&format!("/v1/agent-runs/{run_id}/refresh"), revision)
-            .await
-    }
-
     pub async fn select_candidate(
         &self,
         candidate_id: &str,

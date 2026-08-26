@@ -25,4 +25,25 @@ if [ "$member_count" -ne 8 ]; then
   exit 1
 fi
 
+cargo metadata --no-deps --format-version 1 | python -c '
+import json, sys
+metadata = json.load(sys.stdin)
+packages = {package["name"]: package for package in metadata["packages"]}
+provider = packages["autostudio-provider"]
+if provider["features"].get("default") != []:
+    raise SystemExit("autostudio-provider default features must remain LLM-only")
+core = packages["core-daemon"]
+dependency = next(item for item in core["dependencies"] if item["name"] == "autostudio-provider")
+if "legacy-generation" in dependency["features"]:
+    raise SystemExit("core-daemon must not enable autostudio-provider/legacy-generation")
+'
+
+if rg -n \
+  'GenerationAdapter|GenerationCoordinator|DeterministicGenerationAdapter|execute_agent_run|reconcile_agent_run|refresh_agent_run' \
+  apps/core-daemon/src apps/tui/src apps/desktop/src apps/desktop/src-tauri/src \
+  --glob '*.rs' --glob '*.ts' --glob '*.tsx'; then
+  printf 'production applications must not expose the legacy Generation runtime\n' >&2
+  exit 1
+fi
+
 printf 'Ship 0 crate boundaries verified\n'

@@ -97,6 +97,7 @@ pub enum ContinuityVaultError {
 }
 
 #[derive(Debug, Error)]
+#[cfg(feature = "legacy-generation")]
 pub enum GenerationCoordinatorError {
     #[error("Agent Run was not found")]
     RunNotFound,

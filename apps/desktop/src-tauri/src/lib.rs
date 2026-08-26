@@ -117,48 +117,6 @@ async fn approve_agent_run(
 }
 
 #[tauri::command]
-async fn execute_agent_run(
-    run_id: String,
-    expected_revision: u64,
-    state: State<'_, DesktopState>,
-) -> Result<ProjectView, CommandError> {
-    state
-        .core
-        .clone()
-        .execute_agent_run(&run_id, expected_revision)
-        .await
-        .map_err(Into::into)
-}
-
-#[tauri::command]
-async fn reconcile_agent_run(
-    run_id: String,
-    expected_revision: u64,
-    state: State<'_, DesktopState>,
-) -> Result<ProjectView, CommandError> {
-    state
-        .core
-        .clone()
-        .reconcile_agent_run(&run_id, expected_revision)
-        .await
-        .map_err(Into::into)
-}
-
-#[tauri::command]
-async fn refresh_agent_run(
-    run_id: String,
-    expected_revision: u64,
-    state: State<'_, DesktopState>,
-) -> Result<ProjectView, CommandError> {
-    state
-        .core
-        .clone()
-        .refresh_agent_run(&run_id, expected_revision)
-        .await
-        .map_err(Into::into)
-}
-
-#[tauri::command]
 async fn select_candidate(
     candidate_id: String,
     expected_revision: u64,
@@ -241,9 +199,6 @@ pub fn run() {
             plan_agent_run,
             resume_planning_run,
             approve_agent_run,
-            execute_agent_run,
-            reconcile_agent_run,
-            refresh_agent_run,
             select_candidate,
             export_handoff,
             preview_asset

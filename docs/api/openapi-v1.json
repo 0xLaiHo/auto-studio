@@ -256,6 +256,9 @@
     "/v1/agent-runs/{runId}/execute": {
       "post": {
         "operationId": "executeAgentRun",
+        "summary": "Legacy Generation execution compatibility endpoint",
+        "description": "Deprecated and frozen. Production clients do not call this endpoint; it remains only for legacy Project/API compatibility until the durable ToolExecution API replaces it.",
+        "deprecated": true,
         "parameters": [{ "$ref": "#/components/parameters/RunId" }],
         "security": [{ "coreSession": [] }],
         "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
@@ -270,6 +273,9 @@
     "/v1/agent-runs/{runId}/refresh": {
       "post": {
         "operationId": "refreshAgentRun",
+        "summary": "Legacy Generation status compatibility endpoint",
+        "description": "Deprecated and frozen. Production clients do not call this endpoint; it remains only for legacy Project/API compatibility.",
+        "deprecated": true,
         "parameters": [{ "$ref": "#/components/parameters/RunId" }],
         "security": [{ "coreSession": [] }],
         "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },
@@ -284,6 +290,9 @@
     "/v1/agent-runs/{runId}/reconcile": {
       "post": {
         "operationId": "reconcileAgentRun",
+        "summary": "Legacy Generation reconciliation compatibility endpoint",
+        "description": "Deprecated and frozen. Production clients do not call this endpoint; it remains only to preserve the old Unknown Outcome reconciliation contract.",
+        "deprecated": true,
         "parameters": [{ "$ref": "#/components/parameters/RunId" }],
         "security": [{ "coreSession": [] }],
         "requestBody": { "$ref": "#/components/requestBodies/ExpectedRevision" },

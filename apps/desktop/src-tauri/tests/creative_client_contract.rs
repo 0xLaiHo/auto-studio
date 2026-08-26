@@ -5,14 +5,10 @@ use autostudio_api::router_with_runtime_media_and_backup;
 use autostudio_core::project::ProjectService;
 use autostudio_desktop::core_client::{CoreClient, CreativeBriefInput};
 use autostudio_media::ProjectMedia;
-use autostudio_provider::{
-    AgentPlanner, DeterministicGenerationAdapter, DeterministicInferenceAdapter,
-    GenerationCoordinator, LocalCreativeRuntime,
-};
+use autostudio_provider::{AgentPlanner, DeterministicInferenceAdapter, LocalCreativeRuntime};
 
 #[tokio::test]
-#[allow(clippy::too_many_lines)]
-async fn desktop_client_completes_the_fake_creative_workflow_through_core_only() {
+async fn desktop_client_completes_the_planning_only_workflow_through_core() {
     let temp = tempfile::tempdir().expect("temporary directory");
     let package = temp.path().join("desktop-creative.autostudio");
     let staging = temp.path().join("staging");
@@ -21,18 +17,11 @@ async fn desktop_client_completes_the_fake_creative_workflow_through_core_only()
     let projects = Arc::new(ProjectService::new(store.clone()));
     let contexts = Arc::new(autostudio_provider::context::ContextManager::new(store));
     let media = Arc::new(ProjectMedia::new(&package, &staging).expect("media"));
-    let runtime = LocalCreativeRuntime::new(
-        AgentPlanner::new(
-            projects.clone(),
-            contexts,
-            Arc::new(DeterministicInferenceAdapter),
-        ),
-        GenerationCoordinator::new(
-            projects.clone(),
-            Arc::new(DeterministicGenerationAdapter::new(&staging).expect("fake provider")),
-            media.clone(),
-        ),
-    );
+    let runtime = LocalCreativeRuntime::planning_only(AgentPlanner::new(
+        projects.clone(),
+        contexts,
+        Arc::new(DeterministicInferenceAdapter),
+    ));
     let token = "desktop-creative-session-token-at-least-32-bytes";
     let backups = temp.path().join("backups");
     let backup = Arc::new(
@@ -93,38 +82,13 @@ async fn desktop_client_completes_the_fake_creative_workflow_through_core_only()
         )
         .await
         .expect("approval");
-    let generated = client
-        .execute_agent_run(&run.id, approved.revision)
-        .await
-        .expect("generation");
-    assert_eq!(generated.candidates.len(), 2);
-    let preview = client
-        .preview_asset(&generated.candidates[0].asset.id)
-        .await
-        .expect("Preview Playback");
-    assert_eq!(&preview[..4], b"RIFF");
-    let selected = client
-        .select_candidate(&generated.candidates[0].id, generated.revision, 0)
-        .await
-        .expect("Selection");
-    assert!(selected.selection.is_some());
-    assert_eq!(selected.timeline.clips.len(), 1);
-    let handed_off = client
-        .export_handoff(selected.revision)
-        .await
-        .expect("DAW Handoff");
-    assert_eq!(handed_off.exports.len(), 1);
-    assert!(
-        package
-            .join(&handed_off.exports[0].relative_path)
-            .join("manifest.json")
-            .is_file()
-    );
+    assert_eq!(approved.agent_runs[0].status, "ready_to_submit");
+    assert!(approved.candidates.is_empty());
     let backed_up = client
-        .backup_project(handed_off.revision)
+        .backup_project(approved.revision)
         .await
         .expect("Project backup");
-    assert_eq!(backed_up.source_project_revision, handed_off.revision);
+    assert_eq!(backed_up.source_project_revision, approved.revision);
     assert!(
         backups
             .join(backed_up.backup_name)

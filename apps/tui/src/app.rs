@@ -110,8 +110,7 @@ pub enum Effect {
     SaveBrief(String),
     Plan,
     Approve(u64),
-    Execute,
-    Recover,
+    ResumePlanning,
     SelectCandidate,
     ExportHandoff,
     ConfigureProvider(ConfigureLlmConnectionInput),
@@ -128,7 +127,7 @@ pub struct SlashCommand {
     pub description: &'static str,
 }
 
-pub const COMMANDS: [SlashCommand; 14] = [
+pub const COMMANDS: [SlashCommand; 13] = [
     SlashCommand {
         name: "/connect",
         description: "Connect an LLM provider",
@@ -154,12 +153,8 @@ pub const COMMANDS: [SlashCommand; 14] = [
         description: "Approve the current Plan",
     },
     SlashCommand {
-        name: "/generate",
-        description: "Start generation",
-    },
-    SlashCommand {
-        name: "/recover",
-        description: "Reconcile or refresh a Run",
+        name: "/resume",
+        description: "Resume interrupted planning",
     },
     SlashCommand {
         name: "/select",
@@ -454,8 +449,7 @@ impl App {
             }
             "/plan" => Effect::Plan,
             "/approve" => self.begin_approval(),
-            "/generate" => Effect::Execute,
-            "/recover" => Effect::Recover,
+            "/resume" => Effect::ResumePlanning,
             "/select" => Effect::SelectCandidate,
             "/export" => Effect::ExportHandoff,
             "/refresh" => Effect::Refresh,
@@ -698,8 +692,7 @@ impl App {
             }
             Effect::Plan => self.plan_run(client).await?,
             Effect::Approve(maximum) => self.approve(client, maximum).await?,
-            Effect::Execute => self.execute_run(client).await?,
-            Effect::Recover => self.recover_run(client).await?,
+            Effect::ResumePlanning => self.resume_planning_run(client).await?,
             Effect::SelectCandidate => {
                 let project = self.project.as_ref().ok_or(TuiError::ProjectRequired)?;
                 let candidate = project
@@ -814,26 +807,13 @@ impl App {
         }
     }
 
-    async fn execute_run(&mut self, client: &TuiClient) -> Result<ProjectView, TuiError> {
-        let (run_id, revision) = self.run_identity()?;
-        match client.execute(&run_id, revision).await {
-            Ok(project) => Ok(project),
-            Err(error) => {
-                self.reload_after_partial_failure(client).await;
-                Err(error)
-            }
-        }
-    }
-
-    async fn recover_run(&mut self, client: &TuiClient) -> Result<ProjectView, TuiError> {
+    async fn resume_planning_run(&mut self, client: &TuiClient) -> Result<ProjectView, TuiError> {
         let project = self.project.as_ref().ok_or(TuiError::ProjectRequired)?;
         let run = project.agent_runs.last().ok_or(TuiError::RunRequired)?;
-        let result = match run.status {
-            AgentRunStatusView::Planning => client.resume_planning(&run.id, project.revision).await,
-            AgentRunStatusView::UnknownOutcome => client.reconcile(&run.id, project.revision).await,
-            AgentRunStatusView::Submitted => client.refresh_run(&run.id, project.revision).await,
-            _ => return Err(TuiError::RunRequired),
-        };
+        if run.status != AgentRunStatusView::Planning {
+            return Err(TuiError::RunRequired);
+        }
+        let result = client.resume_planning(&run.id, project.revision).await;
         match result {
             Ok(project) => Ok(project),
             Err(error) => {
@@ -848,12 +828,6 @@ impl App {
             .as_ref()
             .map(|project| project.revision)
             .ok_or(TuiError::ProjectRequired)
-    }
-
-    fn run_identity(&self) -> Result<(String, u64), TuiError> {
-        let project = self.project.as_ref().ok_or(TuiError::ProjectRequired)?;
-        let run = project.agent_runs.last().ok_or(TuiError::RunRequired)?;
-        Ok((run.id.clone(), project.revision))
     }
 
     async fn reload_after_partial_failure(&mut self, client: &TuiClient) {
@@ -903,6 +877,18 @@ mod tests {
 
         assert_eq!(COMMANDS.last().expect("exit command").name, "/exit");
         assert_eq!(app.reduce(Action::Submit), Effect::Quit);
+    }
+
+    #[test]
+    fn command_interface_excludes_the_legacy_media_generation_runtime() {
+        let names = COMMANDS
+            .iter()
+            .map(|command| command.name)
+            .collect::<Vec<_>>();
+
+        assert!(names.contains(&"/resume"));
+        assert!(!names.contains(&"/generate"));
+        assert!(!names.contains(&"/recover"));
     }
 
     #[test]

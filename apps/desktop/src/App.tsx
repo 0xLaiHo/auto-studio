@@ -252,46 +252,10 @@ export default function App() {
     if (updated) setProject(updated);
   }
 
-  async function executeRun() {
-    if (!project || !activeRun) return;
-    const updated = await command("生成音乐", () =>
-      invoke<Project>("execute_agent_run", {
-        runId: activeRun.id,
-        expectedRevision: project.revision,
-      }),
-      true,
-    );
-    if (updated) setProject(updated);
-  }
-
   async function resumePlanningRun() {
     if (!project || !activeRun) return;
     const updated = await command("恢复规划", () =>
       invoke<Project>("resume_planning_run", {
-        runId: activeRun.id,
-        expectedRevision: project.revision,
-      }),
-      true,
-    );
-    if (updated) setProject(updated);
-  }
-
-  async function reconcileRun() {
-    if (!project || !activeRun) return;
-    const updated = await command("对账 Provider", () =>
-      invoke<Project>("reconcile_agent_run", {
-        runId: activeRun.id,
-        expectedRevision: project.revision,
-      }),
-      true,
-    );
-    if (updated) setProject(updated);
-  }
-
-  async function refreshRun() {
-    if (!project || !activeRun) return;
-    const updated = await command("刷新生成状态", () =>
-      invoke<Project>("refresh_agent_run", {
         runId: activeRun.id,
         expectedRevision: project.revision,
       }),
@@ -356,7 +320,7 @@ export default function App() {
       <section className="workspace" id="workspace">
         <div className="eyebrow">SHIP 0 · CREATIVE AGENT LOOP</div>
         <div className="development-banner" role="status">
-          真实 LLM 规划已启用 · 当前未配置真实 Music Provider，生成步骤会明确阻止且不会产出 Fake 音频
+          真实 LLM 规划与长 Run 控制合同已启用 · Music Project 与本地 Tool Runtime 正在建设
         </div>
         <h1>{project ? project.name : "从创作意图，进入可继续制作的工程。"}</h1>
         <p className="lead">
@@ -448,16 +412,13 @@ export default function App() {
                       <button className="secondary action" onClick={() => void resumePlanningRun()} disabled={busy !== null}>从工程记录恢复规划</button>
                     )}
                     {activeRun.status === "ready_to_submit" && (
-                      <button className="primary action" onClick={() => void executeRun()} disabled={busy !== null}>开始生成音乐</button>
+                      <p className="warning">计划已批准；本地 Music Project Tool Runtime 尚未接入，当前不会执行工程写入。</p>
                     )}
                     {activeRun.status === "submitted" && (
-                      <button className="primary action" onClick={() => void refreshRun()} disabled={busy !== null}>刷新 Provider 结果</button>
+                      <p className="warning">这是旧 Generation 流程留下的只读 Run 状态；Desktop 不再提供继续执行入口。</p>
                     )}
                     {activeRun.status === "unknown_outcome" && (
-                      <div>
-                        <p className="warning">结果未知：必须先对账，系统不会自动重提。</p>
-                        <button className="secondary action" onClick={() => void reconcileRun()} disabled={busy !== null}>查询 Provider 并恢复</button>
-                      </div>
+                      <p className="warning">这是旧 Generation 流程留下的只读 Run 状态；迁移工具落地前不会重提或继续执行。</p>
                     )}
                     {activeRun.status === "failed" && (
                       <p className="warning">
