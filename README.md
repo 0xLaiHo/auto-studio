@@ -1,45 +1,173 @@
 # Auto Studio
 
-Auto Studio 是一个由 LLM 驱动的本地专业音乐创作 Agent。目标体验是：Creator 与 LLM 对话，LLM 通过本地语义工具完成作曲、编曲、MIDI、配器和混音，Rust Audio Engine 把可编辑 Music Project 渲染为 WAV、stems 和 MIDI。
+> 和 LLM 一起创作音乐，并得到真正可继续制作的工程，而不是一段无法解释的生成音频。
 
-Auto Studio 不接入 Music Provider，也不依赖 Mureka、Lyria、Eleven Music 或 Stable Audio。唯一必需的外部 AI 连接是用户自备 Key 的 LLM Provider。
+Auto Studio 是一个本地优先的 AI 音乐创作工作站。创作者通过自然语言描述目标、提供反馈并选择方向；LLM 负责作曲、编曲、配器和混音决策，本地 Rust Core 负责验证并执行这些决定，最终形成可编辑、可追溯、可导出的 Music Project。
 
-## 当前状态
+Auto Studio 不接入外部 prompt-to-WAV Music Provider。唯一必需的外部 AI 连接是创作者自备 Key 的 LLM Provider；音乐工程、MIDI、音色、插件、渲染结果和版本历史保留在本机。
 
-截至 2026-08-27：
+## 项目功能
 
-- `PASS`：独立 Rust Core、本机认证 API、SQLite Project/revision/event/outbox/backup；
-- `PASS`：`autostudio` Ratatui 入口、`/connect`、模型目录、`/model`、Thinking Level、`/exit`；
-- `PASS（contract + DeepSeek/OpenAI live）`：OpenAI Chat、OpenAI Responses、Anthropic Messages（含 DeepSeek/Kimi 兼容端点）统一使用 SSE streaming，partial text/tool JSON 只在内存组装，完整 Turn 才可落盘；2026-08-25 `deepseek-v4-flash` 真实 Tool Call smoke 通过，2026-08-26 `gpt-5-mini` 两轮 Responses Continuity live 通过；
-- `PASS（M3-A CM-0/CM-1/CM-2 planning slice）`：Run/Turn/Item identity、durable Inference Transcript、Context Manifest、canonical Provider request、完整 ToolRequest/ToolResult、SQLite CAS 与重启 replay 已进入 production Planning 路径；固定的 `project_describe → submit_creative_plan` 多轮链路会让每一步从 Project/Transcript 重新派生，并可通过 Core API、TUI 与 Desktop 恢复；OpenAI Responses reasoning item 与 Anthropic signed thinking block 只进入 Project 外的加密 Continuity Vault，按精确 Provider binding 复用并在 Run 终态清理；
-- `PASS（M3-A CM-3 planning slice）`：`prepare_turn` 会测量 canonical request footprint；达到 hard/overflow 时自动选择不拆 Turn/Tool pair 的连续前缀，保留新输入和最近两轮，用有界结构化摘要建立 Checkpoint，并且只有压缩后实际变短且回到 Normal 才允许调用 Provider。Creator 新输入、Checkpoint、Manifest 与 spill 在同一 SQLite transaction 提交；失败后零落盘，重试得到相同 checkpoint 内容 hash。Provider 明确报告 context overflow 时清除旧 Continuity 并只恢复一次，第二次停止；完整 Transcript、Project facts 与 Tool Result 始终保留；
-- `PASS（M3-A CM-4 planning slice / machine contract）`：同一 Run 的完整 Transcript 现在具有精确 item 查询和 SQLite FTS5/BM25 检索；命中带 source item/type/time/Project revision/hash/Tool execution/error provenance，并以有界 untrusted user context 注入。每次选择及 token 成本写入 `ContextManifest`，current tail 与摘要已引用来源会去重；索引可删除并在 Project 重开时从 Transcript 重建。冻结合同通过 100 inference steps、10 次 compaction、3 次重启和模拟跨日恢复；真实音乐 Tool 的约束保持/正确率仍等待后续纵切；
-- `PASS（M3-A Grant/Budget machine contract）/ NOT WIRED（Tool Runtime）`：`ExecutionControlManager` 已实现不可变 Approval Grant、configured/system Run Budget ceiling、独立 Tool Resource Limit、Inference/Tool/active-time/cost/render/effect/asset/concurrency ledger，以及幂等 Execution Reservation/settlement/cancel；SQLite CAS、stale revision、故障零发布、重启恢复、篡改失败关闭和跨日暂停合同通过。它尚未接入固定 Planning composition root、Policy、durable ToolExecution 或 Music Project revision；
-- `PARTIAL`：Audio-only Candidate/Selection/Handoff 与 WAV 资产合同，只由 Fixture 或已有资产验证；
-- `PASS（Q0 实验装置）`：独立 Rust workspace、冻结的 12 Brief corpus、真实 DeepSeek V4 Pro A/B/C runner、严格 ExperimentalMusicSpec、Type-1 SMF MIDI compiler、逐轮恢复、artifact/hash 校验、匿名评审包，以及 v3 逐 Run 协议绑定/一次资源预算修订/严格验证；
-- `PASS（Q0-Content machine/review apparatus）/ LIVE-PENDING（human gate）`：v2 正式 A/B 已完成，Mode B 11/12 valid + compiled；v3 全量重跑 6 个 L4 并达到 6/6 valid + compiled；六样本本地评审包已生成并验证，Creator feedback、Mode C、盲听 Keep、实际继续编辑与条件式第二模型复核仍未完成；
-- `PASS（DAW qualification apparatus）/ DEFERRED（M5 human matrix）`：Portable Handoff 与证据 verifier 已实现；Cubase、Studio One Pro、FL Studio 当前保持 `0 pass / 3 not_run`。该矩阵影响专业交接声明，但不再阻塞 Q0-Content 对 M3-B 的投资判断；
-- `NOT IMPLEMENTED（production execution）`：通用 Tool Registry/Policy/ToolExecution、Music Project Model、MIDI Tool、Sampler、Factory Pack、Audio Engine、VST3 Host 与 MCP Client。Grant/Budget 机器合同已完成但尚未驱动真实工具；真实音乐 Tool 的长 Run 质量 Gate、超长 single-turn、Provider-specific 精确 tokenizer 和真实 overflow live qualification 仍待完成。
+### 对话式音乐创作
 
-因此当前 production 仍是 `planning-only`，还不能真实生成音乐。`autostudio-provider` 默认只编译 LLM Connection/Inference/Continuity/Planning 职责；仓库中的 `GenerationAdapter`、Provider Job 状态与确定性 WAV Fixture 属于旧方向的迁移代码，只能通过非默认 `legacy-generation` feature 做兼容回归，不是目标 runtime，也不能用于发布能力声明。Core/TUI/Desktop production source 由架构门禁禁止调用这条旧路径。
+创作者从一个想法或参考方向开始，Agent 将其整理为结构化 Creative Brief，并持续处理类似以下修改：
 
-当前只把 [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md) 的真人内容结论作为 M3-B 前置 Gate。实验代码位于 [`experiments/music-quality`](experiments/music-quality/README.md)，本地六样本评审包由 [`experiments/portable-handoff`](experiments/portable-handoff/README.md) 可复现生成；两者都不加入 production workspace。真人反馈、Mode C、盲听与继续编辑完成前仍不形成 `CONTENT-GO`。跨 DAW 真人矩阵后置到 M5，不影响是否开始 Music Project Domain，但在完成前不能宣称专业 DAW 交接通过。下一代码依赖是在 `CONTENT-GO` 后实现具有独立 revision 的 Music Project Domain，再把 Execution Reservation 接到 ToolExecution。M3 的目标是：
+- 调整段落、速度、拍号和调性；
+- 创作或重写和声、旋律、贝斯与鼓；
+- 改变指定区域的配器、演奏法和混音；
+- 保留未选区域，只迭代创作者指出的问题；
+- 在形成候选版本、需要授权或达到资源上限时停止。
 
-```text
-Brief
-  → 真实 LLM
-  → 本地 Semantic Tool
-  → 可编辑 Music Project
-  → 本地离线 Render / Analysis
-  → Candidate Project Snapshot
-  → Creator Selection
+### 可编辑 Music Project
+
+音乐事实不会只存在于聊天或生成音频中。目标 Music Project 统一保存：
+
+- Tempo Map、拍号与段落结构；
+- Track、MIDI Clip、note、CC、力度与 articulation；
+- 乐器分配、路由、Mix 与自动化；
+- Project Revision、Candidate、Selection 和依赖锁；
+- 素材、音色、插件、许可证和生成过程的 provenance。
+
+LLM 只能调用版本化 Semantic Tool，不能直接写 SQLite、文件、MIDI byte、音频 sample、Shell 或插件 ABI。
+
+### 本地发声与专业交接
+
+Rust Audio Engine 将 Music Project 编译为确定性的本地 Render Plan，并通过 Factory Pack、Sampler 以及受控 VST3 路径产生 Preview、WAV 和 stems。创作者可以比较 Candidate，选择正式工程方向，再导出：
+
+- stereo WAV 与 stems；
+- Type-1 MIDI、Tempo、拍号和 section markers；
+- 乐器、Content Pack 与插件依赖清单；
+- credits、license 与 provenance manifest；
+- 面向已验证 DAW 的导入说明和结构化交接产物。
+
+### 可恢复的 Agent Run
+
+Agent Run 使用规范化 Transcript、Context Manifest、Approval Grant 和 Run Budget。系统能够在长对话、上下文压缩、Provider 中断或 Core 重启后，从已提交事实继续运行，同时把可审计记录与 Provider 私有连续性状态分开保存。
+
+Approval 只授权一组受限操作；Selection 仍由创作者决定。允许 Agent 执行，不等于采用它的作品。
+
+## 当前能力边界
+
+当前仓库已经具备独立 Rust Core、loopback API、SQLite Project 持久化、TUI、LLM Connection/Model/Thinking 配置、真实 LLM 结构化 Planning，以及可恢复的 Transcript、Context、Provider Continuity、授权与预算基础设施。
+
+音乐执行闭环仍在建设中：production Music Project Model、通用 Tool Runtime、MIDI Semantic Tool、Sampler、Audio Engine、Factory Pack 和 VST3 Host 尚未完成。因此当前版本属于 **planning-only**，可以连接 LLM 并形成持久化创作计划，但还不能真实生成音乐。
+
+详细进度、证据和未完成 Gate 统一记录在 [Roadmap](docs/roadmap.md)，README 不维护逐项进度流水账。
+
+## 技术架构
+
+```mermaid
+flowchart TB
+    Creator[Creator]
+
+    subgraph LocalDevice[Local Device]
+        Client[TUI / Desktop / Future Clients]
+        Core[Loopback Core Interface]
+        Harness[Agent Harness]
+        Control[Approval Grant / Run Budget]
+        Runtime[Tool Runtime]
+        Project[Music Project Model]
+        Music[Arrangement / MIDI / Mix / Automation]
+        Instruments[Instrument Runtime / Factory Pack / VST3]
+        Engine[Rust Audio Engine / Render / Analysis]
+        Candidate[Candidate Snapshot]
+        Selection[Creator Selection]
+        Handoff[DAW Handoff]
+        Transcript[(Transcript / Context Manifest)]
+        Package[(Project Package<br/>SQLite / Assets / Events / Provenance)]
+        Vault[(Continuity Vault<br/>Encrypted / Project-external / Active-run only)]
+
+        Client --> Core --> Harness
+        Harness --> Control --> Runtime --> Project
+        Project --> Music --> Engine
+        Project --> Instruments --> Engine
+        Engine --> Candidate --> Selection --> Handoff
+
+        Harness --> Transcript --> Package
+        Project --> Package
+        Candidate --> Package
+        Harness -. Provider continuity .-> Vault
+    end
+
+    subgraph ExternalAI[External AI]
+        LLM[BYOK LLM Provider<br/>Inference and Tool Call only]
+    end
+
+    Creator --> Client
+    Harness <-->|Inference / Tool Call| LLM
 ```
 
-详见 [Roadmap](docs/roadmap.md)、[Legacy Generation 迁移清单](docs/planning/legacy-generation-migration.md)、[ADR-0011](docs/adr/0011-llm-authored-local-music.md) 和 [ADR-0012](docs/adr/0012-durable-agent-harness-state.md)。
+### 核心模块
 
-## 运行 TUI
+| 模块 | 职责 |
+|---|---|
+| Client Surface | TUI 是默认入口；Desktop 和未来客户端复用同一个 Core 契约，不拥有业务事实 |
+| Core Interface | 提供本机认证 API、版本协商、Project/Run 投影和事件流 |
+| Agent Harness | 管理 Turn、Tool Request/Result、上下文、恢复、授权和资源预算 |
+| LLM Inference | 适配 OpenAI、Anthropic、DeepSeek、Kimi 等协议，只负责推理与 Tool Call |
+| Tool Runtime | 校验 schema、Policy、Approval、Budget、Project Revision，并持久化 ToolExecution |
+| Music Project | 保存结构、轨道、MIDI、乐器、Mix、自动化、Candidate 和 Selection |
+| Instrument Runtime | 管理 Factory Pack、Sampler、Approved Plugin Profile 与插件隔离 |
+| Audio Engine | 编译 Render Plan，执行离线/实时 DSP、渲染和技术分析 |
+| Project Package | 保存 SQLite 事实源、不可变资产、备份、依赖和 provenance |
 
-开发机安装两个可执行文件：
+### Workspace 结构
+
+```text
+apps/
+  core-daemon/          独立本地 Core 进程
+  tui/                  默认 autostudio 客户端
+  desktop/              Tauri 开发客户端
+
+crates/
+  autostudio-core/      领域类型、状态与核心规则
+  autostudio-api/       Core HTTP/SSE 契约
+  autostudio-provider/  LLM Provider 与推理连续性
+  autostudio-storage/   SQLite、revision、事件与备份
+  autostudio-media/     媒体资产、探测与交付合同
+
+experiments/
+  music-quality/        内容质量与可编辑性实验
+  portable-handoff/     MIDI/DAW 交接实验
+```
+
+## 设计原则
+
+- **LLM 创作，Core 执行**：模型提出音乐决定，本地 Core 掌握权限、状态变更和渲染。
+- **工程事实优先于聊天**：只有通过验证并提交的 Project Change 才代表音乐已经改变。
+- **Local-first + BYOK**：工程与媒体留在本机，创作者管理自己的 LLM Credential。
+- **有界且可恢复**：所有 Agent Run、ToolExecution、授权和资源消耗都可审计、可停止、可恢复。
+- **内容质量优先**：先用固定语料、盲听、Candidate adoption 和 continued editing 证明价值，再扩展模型、工具和插件。
+- **Factory Path 独立可用**：没有第三方 VST3 时，内置内容与 Sampler 仍应完成基础创作闭环。
+- **专业交接不夸大**：Portable、Structured 和 Sound-identical Handoff 分级声明，只承诺经过验证的 DAW 与依赖组合。
+
+## 未来规划
+
+### 内容可行性验证
+
+先完成冻结音乐语料的真人反馈、盲评、Candidate Keep 和实际继续编辑，确认当前音乐方向值得进入 production 实现，并从失败分布中判断问题属于模型、Tool 粒度、音色还是交接流程。
+
+### 可编辑音乐基础
+
+建立 Music Project Domain、Durable ToolExecution 和固定 Semantic Tool Catalog，让真实 LLM 能创建和局部修改结构、轨道与 MIDI，并通过最小本地音源生成确定性 Preview。
+
+### Factory Quality 纵切
+
+完成可合法分发的 Factory Pack、Sampler、演奏语义、基础 Mix、自动化和技术分析；在没有第三方插件时，仍能生成达到冻结质量阈值的可编辑 Candidate。
+
+### Professional MVP Handoff
+
+在一个首发 OS 上实现隔离且受限的 VST3 Host，验证 state 恢复、freeze 和 crash containment；交付 WAV、stems、MIDI、Tempo/markers、依赖锁与 provenance，并在冻结版本的目标 DAW 中验证继续制作。
+
+### 发布资格
+
+冻结首发用户、OS、模型和 DAW 矩阵，完成 Credential Vault、安装与升级、签名、公证、SBOM、许可证、安全、性能、soak test 以及设计伙伴采用验证。
+
+依赖顺序、完成定义和 Release Gates 见 [Roadmap](docs/roadmap.md)。
+
+## 快速开始
+
+需要 Rust 1.96.1。安装 Core 与 TUI：
 
 ```bash
 cargo install --path apps/core-daemon --locked
@@ -47,81 +175,18 @@ cargo install --path apps/tui --locked
 autostudio
 ```
 
-TUI 会连接或启动独立 `core-daemon`。首次使用：
+首次进入后使用 `/connect` 配置 LLM Provider，再通过 `/model` 选择模型与 Thinking Level。普通文本会创建或打开 Project、保存 Creative Brief，并进入当前 Planning 流程。
 
-```text
-输入 /
-→ 选择 /connect
-→ 选择 LLM Provider
-→ 输入并保存 API Key
-→ 后台刷新模型目录
-→ 输入 /model
-→ ↑↓ 选择模型
-→ ←→ 选择该模型支持的 Thinking Level
-→ Enter 保存
-```
-
-普通文本会进入当前 Creative Agent 流程：没有 Project 时创建 `Untitled Project`，保存 Creative Brief，再调用真实 LLM 形成 typed Plan。由于本地 Music Tool 尚未实现，当前版本不会生成音频。
-
-Credential 不进入 Project Package、日志、Event、Export 或可读 API。当前开发构建使用 Project 外的私有配置文件并在 Unix 强制 `0600`；正式发布前必须迁移到目标 OS Credential Vault。
-
-不安装时可直接运行：
+不安装时可以直接运行：
 
 ```bash
 cargo build -p core-daemon
 cargo run -p autostudio-tui --bin autostudio
 ```
 
-常用开发覆盖：
+Desktop 是复用相同 Core Interface 的次要开发客户端，启动方式见 [Desktop README](apps/desktop/README.md)。
 
-- `AUTOSTUDIO_HOME`
-- `AUTOSTUDIO_PROJECT_PACKAGE`
-- `AUTOSTUDIO_DISCOVERY_FILE`
-- `AUTOSTUDIO_LLM_CONNECTION_FILE`
-- `AUTOSTUDIO_CONTINUITY_ROOT`
-- `AUTOSTUDIO_CONTINUITY_KEY_FILE`
-- `AUTOSTUDIO_CORE_BINARY`
-
-Continuity Vault 默认与 LLM Connection 位于同一应用私有根目录，但不在 Project Package 内；Core 会拒绝把 Vault 或 key 指向工程内部（包括经符号链接解析后落入工程的路径）。当前开发实现使用独立 `0600` 本地密钥和 XChaCha20-Poly1305；正式发布仍需迁移到目标 OS Credential Vault。
-
-## LLM Provider
-
-产品内 `/connect` 是默认配置方式。环境变量只在私有 Connection 文件不存在时作为开发回退：
-
-| Provider | Credential | Model | Base URL |
-|---|---|---|---|
-| DeepSeek | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL` | `DEEPSEEK_BASE_URL` |
-| OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` | `OPENAI_BASE_URL` |
-| Anthropic | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` | `ANTHROPIC_BASE_URL` |
-| Kimi Open | `MOONSHOT_API_KEY` | `MOONSHOT_MODEL` | `MOONSHOT_BASE_URL` |
-| Kimi Code | `KIMI_CODE_API_KEY` | `KIMI_CODE_MODEL` | `KIMI_CODE_BASE_URL` |
-
-Provider 只负责 LLM 推理，不生成音乐资产。
-
-## 运行 Desktop
-
-Desktop 是复用同一 Core Interface 的次要开发 Client：
-
-```bash
-cd apps/desktop
-pnpm install --frozen-lockfile
-pnpm tauri dev
-```
-
-它不拥有 Project、Credential 或 Agent Runtime，也不暴露旧 Generation 执行、刷新或对账入口。旧 Audio Candidate 只作为 Project/API 兼容数据读取，不证明目标音乐闭环。
-
-## 单独运行 Core
-
-```bash
-export AUTOSTUDIO_PROJECT_PACKAGE=/absolute/path/to/demo.autostudio
-export AUTOSTUDIO_DISCOVERY_FILE=/absolute/path/to/runtime/core.json
-export AUTOSTUDIO_BIND=127.0.0.1:0
-cargo run -p core-daemon
-```
-
-Core 将动态端口和 session token 写入私有 discovery record。受保护请求必须携带该 bearer token；WebView 不读取 token、Credential 或 Project 路径。
-
-## 验证
+## 开发验证
 
 ```bash
 cargo fmt --all --check
@@ -131,26 +196,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 cd apps/desktop && pnpm build
 ```
 
-DeepSeek 真实计费 smoke 只在显式提供 Key 时运行：
-
-```bash
-bash scripts/test-deepseek-live.sh
-```
-
-缺少 `DEEPSEEK_API_KEY` 时退出 `77` 并标记 `SKIP`，不算 PASS。
+真实 Provider 测试只在显式提供 Credential 时运行；缺少 Key 的 `SKIP` 不代表通过。
 
 ## 文档
 
 - [文档导航与权威顺序](docs/README.md)
 - [产品设计](docs/product/ai-creative-agent-product-design.md)
 - [技术设计](docs/design/auto-studio-technical-design.md)
-- [统一 Roadmap](docs/roadmap.md)
+- [Roadmap](docs/roadmap.md)
 - [共同语言](CONTEXT.md)
-- [ADR-0011](docs/adr/0011-llm-authored-local-music.md)
-- [ADR-0012](docs/adr/0012-durable-agent-harness-state.md)
-- [Q0 音乐内容可行性 Spike](docs/planning/2026-08-24-music-quality-spike-design.md)
-- [Q0 可运行实验](experiments/music-quality/README.md)
-- [Q0 结果报告](docs/research/music-quality-q0-results-2026-08-24.md)
-- [Agent Harness 架构图](docs/design/agent-harness-architecture.html)
-- [Agent Run 生命周期图](docs/design/agent-run-lifecycle.html)
-- [Tool Runtime 与 MCP 架构图](docs/design/tool-runtime-mcp-architecture.html)
+- [ADR-0011：由 LLM 通过本地工具创作可编辑音乐](docs/adr/0011-llm-authored-local-music.md)
+- [ADR-0012：推理记录、Provider 连续性、授权与预算](docs/adr/0012-durable-agent-harness-state.md)
